@@ -1,0 +1,38 @@
+# Unity
+unity/Assets/Assets.meta
+unity/Assets/AssetStoreTools*
+unity/Library/
+unity/Temp/
+unity/Obj/
+unity/Logs/
+unity/Build/
+unity/*.csproj
+unity/*.sln
+unity/*.user
+unity/*.pidb
+unity/*.unityproj
+unity/*.userprefs
+unity/*.opendb
+unity/*.VC.db
+unity/*.vs
+unity/*.vsconfig
+unity/ProjectSettings/ProjectVersion.txt
+unity/UserSettings/EditorUserSettings.asset
+unity/UserSettings/EditorUserSettings.asset.meta
+unity/UserSettings/Layouts/*
+unity/UserSettings/Search.index
+
+# Houdini (cache ve oturum dosyaları)
+houdini/__pycache__/
+houdini/*.hipautosave
+houdini/export/*.lock
+
+# Python
+python/__pycache__/
+python/*.pyc
+python/.env
+
+# Genel
+.DS_Store
+*.log
+.env
