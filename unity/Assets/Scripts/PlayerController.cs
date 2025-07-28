@@ -3,6 +3,9 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     public int playerX, playerY;
+    private float moveCooldown = 0.1f; // Time between moves in seconds
+    private float currentCooldown = 0f;
+    private Vector2 moveInput;
 
     void Start()
     {
@@ -30,10 +33,29 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.W)) TryMove(0, -1);
-        if (Input.GetKeyDown(KeyCode.S)) TryMove(0, 1);
-        if (Input.GetKeyDown(KeyCode.A)) TryMove(-1, 0);
-        if (Input.GetKeyDown(KeyCode.D)) TryMove(1, 0);
+        // Reset move input
+        moveInput = Vector2.zero;
+        
+        // Get input with key holding
+        if (Input.GetKey(KeyCode.W)) moveInput.y = -1;
+        if (Input.GetKey(KeyCode.S)) moveInput.y = 1;
+        if (Input.GetKey(KeyCode.A)) moveInput.x = -1;
+        if (Input.GetKey(KeyCode.D)) moveInput.x = 1;
+
+        // Normalize diagonal movement
+        if (moveInput.magnitude > 1)
+            moveInput.Normalize();
+
+        // Handle movement with cooldown
+        if (currentCooldown <= 0 && moveInput != Vector2.zero)
+        {
+            TryMove((int)moveInput.x, (int)moveInput.y);
+            currentCooldown = moveCooldown;
+        }
+        
+        // Update cooldown timer
+        if (currentCooldown > 0)
+            currentCooldown -= Time.deltaTime;
     }
 
     void TryMove(int dx, int dy)
@@ -69,4 +91,5 @@ public class PlayerController : MonoBehaviour
                 0);
         }
     }
+    
 }

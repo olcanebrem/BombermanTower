@@ -5,12 +5,12 @@ public class LevelLoader : MonoBehaviour
 {
     public static LevelLoader instance;
 
-    public float tileSize = 5f;
+    [SerializeField] public float tileSize = 30f;
     public Font asciiFont;
     public GameObject playerPrefab;
 
-    public int width = 20;
-    public int height = 10;
+    public int width = 10;
+    public int height = 30;
 
     public GameObject playerObject;
     public GameObject[,] tileObjects;
@@ -84,44 +84,62 @@ public class LevelLoader : MonoBehaviour
     }
 
     void CreateMapVisual()
+{
+    // Önce eski objeleri yok et
+    if (tileObjects != null)
     {
-        // Önce eski objeleri yok et
-        if (tileObjects != null)
-        {
-            for (int y = 0; y < tileObjects.GetLength(1); y++)
-                for (int x = 0; x < tileObjects.GetLength(0); x++)
-                    if (tileObjects[x, y] != null)
-                        Destroy(tileObjects[x, y]);
-        }
+        for (int y = 0; y < tileObjects.GetLength(1); y++)
+            for (int x = 0; x < tileObjects.GetLength(0); x++)
+                if (tileObjects[x, y] != null)
+                    Destroy(tileObjects[x, y]);
+    }
 
-        tileObjects = new GameObject[width, height];
+    tileObjects = new GameObject[width, height];
 
-        // Player varsa yok et
-        if (playerObject != null)
-        {
-            Destroy(playerObject);
-            playerObject = null;
-        }
+    // Player varsa yok et
+    if (playerObject != null)
+    {
+        Destroy(playerObject);
+        playerObject = null;
+    }
 
-        for (int y = 0; y < height; y++)
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
         {
-            for (int x = 0; x < width; x++)
+            char c = levelMap[x, y];
+            Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+            TileType type = TileSymbols.SymbolToType(c);
+
+            GameObject tileGO;
+
+            // Player mı?
+            if (type == TileType.PlayerSpawn)
             {
-                char c = levelMap[x, y];
-                Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+                playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
+                tileObjects[x, y] = playerObject;
+                continue; // Tile davranışı yok, sadece player
+            }
+            else
+            {
+                tileGO = CreateAsciiTile(c, pos);
+                tileObjects[x, y] = tileGO;
+            }
 
-                if (c == TileSymbols.TypeToSymbol(TileType.PlayerSpawn))
-                {
-                    playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
-                }
-                else
-                {
-                    GameObject tileGO = CreateAsciiTile(c, pos);
-                    tileObjects[x, y] = tileGO;
-                }
+            // Tile tipine göre davranış scripti ekle
+            switch (type)
+            {
+                case TileType.Gate: tileGO.AddComponent<GateTile>(); break;
+                case TileType.Bomb: tileGO.AddComponent<BombTile>(); break;
+                case TileType.Health: tileGO.AddComponent<HealthTile>(); break;
+                case TileType.Enemy: tileGO.AddComponent<EnemyTile>(); break;
+                case TileType.EnemyShooter: tileGO.AddComponent<EnemyShooterTile>(); break;
+                // Gerekirse diğerleri...
             }
         }
     }
+}
+
 
     GameObject CreateAsciiTile(char symbol, Vector3 position)
     {
@@ -137,7 +155,7 @@ public class LevelLoader : MonoBehaviour
 
         Text text = tileGO.AddComponent<Text>();
         text.text = symbol.ToString();
-        text.fontSize = 50;
+        text.fontSize = 30;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
         text.font = asciiFont;
