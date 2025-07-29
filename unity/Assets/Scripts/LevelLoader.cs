@@ -16,13 +16,7 @@ public class LevelLoader : MonoBehaviour
     public Font asciiFont;
     public GameObject playerPrefab;
     public GameObject bombPrefab;
-    public GameObject breakablePrefab;
-    public GameObject coinPrefab;
-    public GameObject enemyPrefab;
-    public GameObject enemyShooterPrefab;
-    public GameObject healthPrefab;
-    public GameObject gatePrefab;
-    public GameObject stairsPrefab;
+    
     public int width = 10;
     public int height = 30;
 

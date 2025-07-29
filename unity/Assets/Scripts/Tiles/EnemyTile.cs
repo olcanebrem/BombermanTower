@@ -1,30 +1,52 @@
 using UnityEngine;
+
 public class EnemyTile : TileBehavior
 {
-    public float moveInterval = 2f;
-    private float timer;
+    private int x, y;
 
-    void Update()
+    void Start()
     {
-        timer += Time.deltaTime;
-        if (timer >= moveInterval)
-        {
-            timer = 0;
-            MoveRandomly();
-        }
+        // Bu objenin bulunduğu tile'ı bul
+        Vector3 pos = transform.position;
+        x = Mathf.RoundToInt(pos.x / LevelLoader.instance.tileSize);
+        y = LevelLoader.instance.height - 1 - Mathf.RoundToInt(pos.y / LevelLoader.instance.tileSize);
+
+        TurnManager.OnTurnAdvanced += Act;
     }
 
-    void MoveRandomly()
-    {
-        // Basit bir random hareket (4 yön)
-        Vector2Int dir = Random.Range(0, 4) switch
-        {
-            0 => Vector2Int.up,
-            1 => Vector2Int.down,
-            2 => Vector2Int.left,
-            _ => Vector2Int.right
-        };
+    void OnDestroy() => TurnManager.OnTurnAdvanced -= Act;
 
-        // Move logic burada
+    void Act()
+    {
+        // %50 ihtimal idle kal, %50 ihtimal hareket et
+        if (Random.value < 0.5f) return;
+
+        int dx = Random.Range(-1, 2);
+        int dy = Random.Range(-1, 2);
+
+        int newX = x + dx;
+        int newY = y + dy;
+
+        if (!IsValidMove(newX, newY)) return;
+
+        // Harita güncelle
+        var map = LevelLoader.instance.levelMap;
+        map[x, y] = TileSymbols.TypeToSymbol(TileType.Empty);
+        map[newX, newY] = TileSymbols.TypeToSymbol(TileType.Enemy);
+
+        // Görsel taşı
+        transform.position = new Vector3(newX * LevelLoader.instance.tileSize, (LevelLoader.instance.height - newY - 1) * LevelLoader.instance.tileSize, 0);
+
+        // Pozisyon güncelle
+        x = newX;
+        y = newY;
+    }
+
+    bool IsValidMove(int nx, int ny)
+    {
+        if (nx < 0 || ny < 0 || nx >= LevelLoader.instance.width || ny >= LevelLoader.instance.height)
+            return false;
+        var c = LevelLoader.instance.levelMap[nx, ny];
+        return TileSymbols.SymbolToType(c) == TileType.Empty;
     }
 }
