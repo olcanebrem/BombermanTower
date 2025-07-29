@@ -455,7 +455,7 @@ MonoBehaviour:
   playerPrefab: {fileID: 9048555102869179715, guid: 8e6845d74f27c0a429f00664c0e89c70, type: 3}
   bombPrefab: {fileID: 9048555102869179715, guid: 1836c43e7c4f24c41802b2a5078017da, type: 3}
   projectilePrefab: {fileID: 9048555102869179715, guid: 05d6850a10409e04cb82f069f7d5e45b, type: 3}
-  width: 30
+  width: 20
   height: 40
   playerObject: {fileID: 0}
 --- !u!1 &1992962428
@@ -519,7 +519,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 500
+  orthographic size: 164.16
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
