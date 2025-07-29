@@ -27,12 +27,11 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         if (hasActedThisTurn) return;
-
-        if (Input.GetKeyDown(KeyCode.W)) { TryMove(0, -1); return; }
-        if (Input.GetKeyDown(KeyCode.S)) { TryMove(0, 1); return; }
-        if (Input.GetKeyDown(KeyCode.A)) { TryMove(-1, 0); return; }
-        if (Input.GetKeyDown(KeyCode.D)) { TryMove(1, 0); return; }
-        if (Input.GetKeyDown(KeyCode.Space)) { PlaceBomb(); return; }
+        if (Input.GetKey(KeyCode.W) && !hasActedThisTurn) { TryMove(0, -1); }
+        if (Input.GetKey(KeyCode.S) && !hasActedThisTurn) { TryMove(0, 1); }
+        if (Input.GetKey(KeyCode.A) && !hasActedThisTurn) { TryMove(-1, 0); }
+        if (Input.GetKey(KeyCode.D) && !hasActedThisTurn) { TryMove(1, 0); }
+        if (Input.GetKeyDown(KeyCode.Space) && !hasActedThisTurn) { PlaceBomb(); }
     }
 
     void FindPlayerPosition()

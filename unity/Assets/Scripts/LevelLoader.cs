@@ -154,7 +154,7 @@ public class LevelLoader : MonoBehaviour
 
         Text text = tileGO.AddComponent<Text>();
         text.text = symbol.ToString();
-        text.fontSize = 30;
+        text.fontSize = tileSize;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
         text.font = asciiFont;
