@@ -3,13 +3,36 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     public int playerX, playerY;
-    private float moveCooldown = 0.1f; // Time between moves in seconds
-    private float currentCooldown = 0f;
-    private Vector2 moveInput;
+    private bool hasActedThisTurn = false;
+    public int explosionRange = 2; // Patlama menzili, bombanın yayılma uzunluğu
+    public float stepDuration = 0.1f; // Playerın bir tile hareketi süresi, tur süresi olarak kullanılacak
 
     void Start()
     {
         FindPlayerPosition();
+        TurnManager.OnTurnAdvanced += ResetTurn;
+    }
+
+    void ResetTurn()
+    {
+        hasActedThisTurn = false;
+    }
+
+    void OnDestroy()
+    {
+        TurnManager.OnTurnAdvanced -= ResetTurn;
+    }
+
+
+    void Update()
+    {
+        if (hasActedThisTurn) return;
+
+        if (Input.GetKeyDown(KeyCode.W)) { TryMove(0, -1); return; }
+        if (Input.GetKeyDown(KeyCode.S)) { TryMove(0, 1); return; }
+        if (Input.GetKeyDown(KeyCode.A)) { TryMove(-1, 0); return; }
+        if (Input.GetKeyDown(KeyCode.D)) { TryMove(1, 0); return; }
+        if (Input.GetKeyDown(KeyCode.Space)) { PlaceBomb(); return; }
     }
 
     void FindPlayerPosition()
@@ -31,33 +54,6 @@ public class PlayerController : MonoBehaviour
         Debug.LogError("Player (P) not found on the map!");
     }
 
-    void Update()
-    {
-        // Reset move input
-        moveInput = Vector2.zero;
-        
-        // Get input with key holding
-        if (Input.GetKey(KeyCode.W)) moveInput.y = -1;
-        if (Input.GetKey(KeyCode.S)) moveInput.y = 1;
-        if (Input.GetKey(KeyCode.A)) moveInput.x = -1;
-        if (Input.GetKey(KeyCode.D)) moveInput.x = 1;
-
-        // Normalize diagonal movement
-        if (moveInput.magnitude > 1)
-            moveInput.Normalize();
-
-        // Handle movement with cooldown
-        if (currentCooldown <= 0 && moveInput != Vector2.zero)
-        {
-            TryMove((int)moveInput.x, (int)moveInput.y);
-            currentCooldown = moveCooldown;
-        }
-        
-        // Update cooldown timer
-        if (currentCooldown > 0)
-            currentCooldown -= Time.deltaTime;
-    }
-
     void TryMove(int dx, int dy)
     {
         int newX = playerX + dx;
@@ -69,20 +65,15 @@ public class PlayerController : MonoBehaviour
         char[,] map = LevelLoader.instance.levelMap;
         char targetChar = map[newX, newY];
 
-        // Engel olan karakterler
         if ("#B╔╗╚╝║═█▓☠".Contains(targetChar))
             return;
 
-        // Eski pozisyonu boşalt
         map[playerX, playerY] = TileSymbols.TypeToSymbol(TileType.Empty);
-
-        // Yeni pozisyona player koy
         map[newX, newY] = TileSymbols.TypeToSymbol(TileType.PlayerSpawn);
 
         playerX = newX;
         playerY = newY;
 
-        // Player GameObject pozisyonunu güncelle
         if (LevelLoader.instance.playerObject != null)
         {
             LevelLoader.instance.playerObject.transform.position = new Vector3(
@@ -90,6 +81,17 @@ public class PlayerController : MonoBehaviour
                 (LevelLoader.instance.height - newY - 1) * LevelLoader.instance.tileSize,
                 0);
         }
+
+        hasActedThisTurn = true;
     }
-    
+
+    void PlaceBomb()
+    {
+        char[,] map = LevelLoader.instance.levelMap;
+        if (map[playerX, playerY] == TileSymbols.TypeToSymbol(TileType.PlayerSpawn))
+        {
+            LevelLoader.instance.PlaceBombAt(playerX, playerY, explosionRange, stepDuration);
+        }
+        hasActedThisTurn = true;
+    }
 }

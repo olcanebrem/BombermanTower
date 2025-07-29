@@ -1,14 +1,28 @@
 using UnityEngine;
 using UnityEngine.UI;
-
+using System.Collections.Generic;
+[System.Serializable]
+public struct TilePrefabEntry
+{
+    public TileType type;
+    public GameObject prefab;
+}
 public class LevelLoader : MonoBehaviour
 {
     public static LevelLoader instance;
-
-    [SerializeField] public float tileSize = 30f;
+    public TilePrefabEntry[] tilePrefabs;
+    private Dictionary<TileType, GameObject> prefabMap;
+    public int tileSize = 30;
     public Font asciiFont;
     public GameObject playerPrefab;
-
+    public GameObject bombPrefab;
+    public GameObject breakablePrefab;
+    public GameObject coinPrefab;
+    public GameObject enemyPrefab;
+    public GameObject enemyShooterPrefab;
+    public GameObject healthPrefab;
+    public GameObject gatePrefab;
+    public GameObject stairsPrefab;
     public int width = 10;
     public int height = 30;
 
@@ -17,19 +31,25 @@ public class LevelLoader : MonoBehaviour
 
     public char[,] levelMap;
 
+    void Start()
+    {
+        GenerateRandomLevel();
+        CreateMapVisual();
+    }
     void Awake()
     {
+        prefabMap = new();
+        foreach (var entry in tilePrefabs)
+        {
+            if (!prefabMap.ContainsKey(entry.type))
+                prefabMap.Add(entry.type, entry.prefab);
+        }
         if (instance != null && instance != this)
             Destroy(gameObject);
         else
             instance = this;
     }
 
-    void Start()
-    {
-        GenerateRandomLevel();
-        CreateMapVisual();
-    }
 
     void GenerateRandomLevel()
     {
@@ -84,61 +104,40 @@ public class LevelLoader : MonoBehaviour
     }
 
     void CreateMapVisual()
-{
-    // Önce eski objeleri yok et
-    if (tileObjects != null)
     {
-        for (int y = 0; y < tileObjects.GetLength(1); y++)
-            for (int x = 0; x < tileObjects.GetLength(0); x++)
-                if (tileObjects[x, y] != null)
-                    Destroy(tileObjects[x, y]);
-    }
-
-    tileObjects = new GameObject[width, height];
-
-    // Player varsa yok et
-    if (playerObject != null)
-    {
-        Destroy(playerObject);
-        playerObject = null;
-    }
-
-    for (int y = 0; y < height; y++)
-    {
-        for (int x = 0; x < width; x++)
+        tileObjects = new GameObject[width, height];
+        for (int y = 0; y < height; y++)
         {
-            char c = levelMap[x, y];
-            Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
-            TileType type = TileSymbols.SymbolToType(c);
-
-            GameObject tileGO;
-
-            // Player mı?
-            if (type == TileType.PlayerSpawn)
+            for (int x = 0; x < width; x++)
             {
-                playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
-                tileObjects[x, y] = playerObject;
-                continue; // Tile davranışı yok, sadece player
-            }
-            else
-            {
-                tileGO = CreateAsciiTile(c, pos);
+                char c = levelMap[x, y];
+                Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+                TileType type = TileSymbols.SymbolToType(c);
+
+                GameObject tileGO = null;
+
+                if (type == TileType.PlayerSpawn)
+                {
+                    playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
+                    tileObjects[x, y] = playerObject;
+                    continue;
+                }
+
+                // Eğer type prefabMap’te varsa prefab’tan oluştur
+                if (prefabMap.TryGetValue(type, out var prefab))
+                {
+                    tileGO = Instantiate(prefab, pos, Quaternion.identity, transform);
+                }
+                else
+                {
+                    tileGO = CreateAsciiTile(c, pos); // Sadece Text içeren tile
+                }
+
                 tileObjects[x, y] = tileGO;
             }
-
-            // Tile tipine göre davranış scripti ekle
-            switch (type)
-            {
-                case TileType.Gate: tileGO.AddComponent<GateTile>(); break;
-                case TileType.Bomb: tileGO.AddComponent<BombTile>(); break;
-                case TileType.Health: tileGO.AddComponent<HealthTile>(); break;
-                case TileType.Enemy: tileGO.AddComponent<EnemyTile>(); break;
-                case TileType.EnemyShooter: tileGO.AddComponent<EnemyShooterTile>(); break;
-                // Gerekirse diğerleri...
-            }
         }
+
     }
-}
 
 
     GameObject CreateAsciiTile(char symbol, Vector3 position)
@@ -163,5 +162,16 @@ public class LevelLoader : MonoBehaviour
         text.verticalOverflow = VerticalWrapMode.Overflow;
 
         return tileGO;
+    }
+    public void PlaceBombAt(int x, int y, int range, float duration)
+    {
+        Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+        GameObject bombGO = Instantiate(bombPrefab, pos, Quaternion.identity, transform);
+        
+        BombTile bombTile = bombGO.GetComponent<BombTile>();
+        bombTile.Init(x, y, range, duration);
+        
+        levelMap[x, y] = TileSymbols.TypeToSymbol(TileType.Bomb);
+        tileObjects[x, y] = bombGO;
     }
 }
