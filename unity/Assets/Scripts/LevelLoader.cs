@@ -16,7 +16,8 @@ public class LevelLoader : MonoBehaviour
     public Font asciiFont;
     public GameObject playerPrefab;
     public GameObject bombPrefab;
-    
+    public GameObject projectilePrefab;
+
     public int width = 10;
     public int height = 30;
 
@@ -98,40 +99,51 @@ public class LevelLoader : MonoBehaviour
     }
 
     void CreateMapVisual()
+{
+    tileObjects = new GameObject[width, height];
+    for (int y = 0; y < height; y++)
     {
-        tileObjects = new GameObject[width, height];
-        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
         {
-            for (int x = 0; x < width; x++)
+            char c = levelMap[x, y];
+            Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+            TileType type = TileSymbols.SymbolToType(c);
+
+            GameObject tileGO = null;
+
+            if (type == TileType.PlayerSpawn)
             {
-                char c = levelMap[x, y];
-                Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
-                TileType type = TileSymbols.SymbolToType(c);
-
-                GameObject tileGO = null;
-
-                if (type == TileType.PlayerSpawn)
-                {
-                    playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
-                    tileObjects[x, y] = playerObject;
-                    continue;
-                }
-
-                // Eğer type prefabMap’te varsa prefab’tan oluştur
-                if (prefabMap.TryGetValue(type, out var prefab))
-                {
-                    tileGO = Instantiate(prefab, pos, Quaternion.identity, transform);
-                }
-                else
-                {
-                    tileGO = CreateAsciiTile(c, pos); // Sadece Text içeren tile
-                }
-
-                tileObjects[x, y] = tileGO;
+                playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
+                tileObjects[x, y] = playerObject;
+                continue;
             }
-        }
 
+            if (prefabMap.TryGetValue(type, out var prefab))
+            {
+                tileGO = Instantiate(prefab, pos, Quaternion.identity, transform);
+
+                // Instantiate'dan sonra Init varsa çağır
+                var enemyShooter = tileGO.GetComponent<EnemyShooterTile>();
+                if (enemyShooter != null)
+                {
+                    enemyShooter.Init(x, y);
+                    Debug.Log($"Enemy shooter at ({x},{y}) initialized.");
+                }
+
+               
+
+                // Gerekirse diğer tile scriptleri için de Init çağrısı ekle
+            }
+            else
+            {
+                tileGO = CreateAsciiTile(c, pos);
+            }
+
+            tileObjects[x, y] = tileGO;
+        }
     }
+}
+
 
 
     GameObject CreateAsciiTile(char symbol, Vector3 position)

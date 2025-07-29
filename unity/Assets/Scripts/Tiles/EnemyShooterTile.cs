@@ -1,48 +1,44 @@
 using UnityEngine;
 
-public class EnemyShooterTile : TileBehavior
+public class EnemyShooterTile : MonoBehaviour
 {
-    private int x, y;
+    public int x, y; // konum
+    private int turnCounter = 0;
+    private int turnsElapsed = 2;
+    void OnEnable() => TurnManager.OnTurnAdvanced += OnTurn;
+    void OnDisable() => TurnManager.OnTurnAdvanced -= OnTurn;
 
-    void Start()
+    public void Init(int x, int y)
     {
-        Vector3 pos = transform.position;
-        x = Mathf.RoundToInt(pos.x / LevelLoader.instance.tileSize);
-        y = LevelLoader.instance.height - 1 - Mathf.RoundToInt(pos.y / LevelLoader.instance.tileSize);
-
-        TurnManager.OnTurnAdvanced += Act;
+        this.x = x;
+        this.y = y;
     }
 
-    void OnDestroy() => TurnManager.OnTurnAdvanced -= Act;
-
-    void Act()
+    private void OnTurn()
     {
-        if (Random.value > 0.5f) return; // Rastgele ateş et
+        turnCounter++;
 
+        if (turnCounter >= turnsElapsed)
+        {
+            Debug.Log($"Enemy shooter at ({this.x},{this.y}) is ready to shoot!");
+            ShootRandomDirection();
+        }
+    }
+
+    void ShootRandomDirection()
+    {
+        // Rastgele yön seç
         Vector2Int[] directions = new Vector2Int[] {
-            Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
+            Vector2Int.up,
+            Vector2Int.down,
+            Vector2Int.left,
+            Vector2Int.right
         };
 
         Vector2Int dir = directions[Random.Range(0, directions.Length)];
-        ShootInDirection(dir);
-    }
 
-    void ShootInDirection(Vector2Int dir)
-    {
-        int maxRange = 5; // Mermi menzili
-        for (int i = 1; i <= maxRange; i++)
-        {
-            int nx = x + dir.x * i;
-            int ny = y + dir.y * i;
-
-            if (nx < 0 || ny < 0 || nx >= LevelLoader.instance.width || ny >= LevelLoader.instance.height)
-                break;
-
-            // Duvara veya başka bir engele çarparsa durur
-            char target = LevelLoader.instance.levelMap[nx, ny];
-            if ("#B║═".Contains(target)) break;
-
-            LevelLoader.instance.levelMap[nx, ny] = '*'; // Ateş karakteri
-        }
+        // Spawn projectile'u kendi (x,y) pozisyonundan oluştur
+        Projectile.Spawn(x, y, dir);
+        Debug.Log($"Enemy shooter at ({this.x},{this.y}) shoots in direction {dir}");
     }
 }

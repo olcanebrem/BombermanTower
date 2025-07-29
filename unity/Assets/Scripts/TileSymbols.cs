@@ -10,6 +10,7 @@ public enum TileType
     Enemy,
     EnemyShooter,
     Bomb,
+    Projectile,
     Health
 }
 
@@ -29,6 +30,7 @@ public static class TileSymbols
             case TileType.Enemy: return 'E';
             case TileType.EnemyShooter: return 'F';
             case TileType.Bomb: return 'X';
+            case TileType.Projectile: return '*';
             case TileType.Health: return 'H';
             default: return '?';
         }
@@ -48,6 +50,7 @@ public static class TileSymbols
             case 'E': return TileType.Enemy;
             case 'F': return TileType.EnemyShooter;
             case 'X': return TileType.Bomb;
+            case '*': return TileType.Projectile;
             case 'H': return TileType.Health;
             default: return TileType.Empty;
         }
