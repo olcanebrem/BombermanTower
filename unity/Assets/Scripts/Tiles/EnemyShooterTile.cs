@@ -4,7 +4,7 @@ public class EnemyShooterTile : MonoBehaviour
 {
     public int x, y; // konum
     private int turnCounter = 0;
-    private int turnsElapsed = 2;
+    private int turnsElapsed = 4;
     void OnEnable() => TurnManager.OnTurnAdvanced += OnTurn;
     void OnDisable() => TurnManager.OnTurnAdvanced -= OnTurn;
 
@@ -20,8 +20,8 @@ public class EnemyShooterTile : MonoBehaviour
 
         if (turnCounter >= turnsElapsed)
         {
-            Debug.Log($"Enemy shooter at ({this.x},{this.y}) is ready to shoot!");
             ShootRandomDirection();
+            turnCounter = 0;
         }
     }
 
@@ -39,6 +39,5 @@ public class EnemyShooterTile : MonoBehaviour
 
         // Spawn projectile'u kendi (x,y) pozisyonundan oluştur
         Projectile.Spawn(x, y, dir);
-        Debug.Log($"Enemy shooter at ({this.x},{this.y}) shoots in direction {dir}");
     }
 }
