@@ -1,24 +1,36 @@
 using UnityEngine;
 
-public class EnemyShooterTile : MonoBehaviour
+public class EnemyShooterTile : MonoBehaviour, IMovable, ITurnBased
 {
-    private int x, y;
     private int turnCounter = 0;
     private int turnsElapsed = 4;
-    void OnEnable() => TurnManager.OnTurnAdvanced += OnTurn;
-    void OnDisable() => TurnManager.OnTurnAdvanced -= OnTurn;
+    public TileType TileType => TileType.EnemyShooter;
+    void OnEnable()
+    {
+        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
+        TurnManager.OnTurnAdvanced += OnTurn;
+    }
+
+    void OnDisable()
+    {
+        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
+        TurnManager.OnTurnAdvanced -= OnTurn;
+    }
+    public bool HasActedThisTurn { get; set; }
+    public void ResetTurn() => HasActedThisTurn = false;
+
+    public int X { get; set; }
+    public int Y { get; set; }
 
     public void Init(int x, int y)
     {
-        this.x = x;
-        this.y = y;
+        this.X = x;
+        this.Y = y;
     }
 
     private void OnTurn()
     {
-        // Hareket et
-        TryMove();
-
+        if (HasActedThisTurn) return;
         // Ateş etme kontrolü
         turnCounter++;
 
@@ -26,46 +38,35 @@ public class EnemyShooterTile : MonoBehaviour
         {
             ShootRandomDirection();
             turnCounter = 0;
+            HasActedThisTurn = true; // Eylem yapıldı, tur bitti.
+        }
+        else // Ateş etmediyse, hareket etmeyi düşünebilir
+        {
+            // %50 ihtimalle hareket etmeye karar ver
+            if (Random.value > 0.5f)
+            {
+                int dx = Random.Range(-1, 2);
+                int dy = Random.Range(-1, 2);
+
+                // Hareketi denemek için merkezi MovementHelper'ı çağır.
+                // MovementHelper'ın kendisi tüm kontrolleri yapacak.
+                Vector2Int moveDirection = new Vector2Int(dx, dy);
+
+                bool didMove = MovementHelper.TryMove(this, moveDirection);
+
+                // Sadece GERÇEKTEN hareket ettiyse eylem yapmış sayılır.
+                if (didMove)
+                {
+                    HasActedThisTurn = true; // Eylem yapıldı, tur bitti.
+                }
+            }
         }
     }
-
-    void TryMove()
+    public void OnMoved(int newX, int newY)
     {
-        // %50 ihtimal hareket et, %50 ihtimal bekle
-        if (Random.value < 0.5f) return;
-
-        int dx = Random.Range(-1, 2);
-        int dy = Random.Range(-1, 2);
-
-        int newX = x + dx;
-        int newY = y + dy;
-
-        if (!IsValidMove(newX, newY)) return;
-
-        // Harita güncelle
-        var map = LevelLoader.instance.levelMap;
-        map[x, y] = TileSymbols.TypeToSymbol(TileType.Empty);
-        map[newX, newY] = TileSymbols.TypeToSymbol(TileType.EnemyShooter);
-
-        // Görsel taşı
-        transform.position = new Vector3(
-            newX * LevelLoader.instance.tileSize, 
-            (LevelLoader.instance.height - newY - 1) * LevelLoader.instance.tileSize, 
-            0);
-
-        // Pozisyon güncelle
-        x = newX;
-        y = newY;
+        X = newX;
+        Y = newY;
     }
-
-    bool IsValidMove(int nx, int ny)
-    {
-        if (nx < 0 || ny < 0 || nx >= LevelLoader.instance.width || ny >= LevelLoader.instance.height)
-            return false;
-        var c = LevelLoader.instance.levelMap[nx, ny];
-        return TileSymbols.SymbolToType(c) == TileType.Empty;
-    }
-
     void ShootRandomDirection()
     {
         // Rastgele yön seç
@@ -79,6 +80,6 @@ public class EnemyShooterTile : MonoBehaviour
         Vector2Int dir = directions[Random.Range(0, directions.Length)];
 
         // Spawn projectile'u kendi (x,y) pozisyonundan oluştur
-        Projectile.Spawn(x, y, dir);
+        Projectile.Spawn(X, Y, dir);
     }
 }

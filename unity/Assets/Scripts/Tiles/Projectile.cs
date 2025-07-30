@@ -1,11 +1,12 @@
 using UnityEngine;
 
-public class Projectile : MonoBehaviour, IMovable
+public class Projectile : MonoBehaviour, IMovable, ITurnBased
 {
     public int X { get; set; }
     public int Y { get; set; }
     public Vector2Int direction;
     public TileType TileType => TileType.Projectile;
+    public bool HasActedThisTurn { get; set; }
     public static Projectile Spawn(int x, int y, Vector2Int direction)
     {
         Vector3 pos = new Vector3(x * LevelLoader.instance.tileSize, 
@@ -26,11 +27,20 @@ public class Projectile : MonoBehaviour, IMovable
         return proj;
     }
 
-    void OnEnable() => TurnManager.OnTurnAdvanced += OnTurn;
-    void OnDisable() => TurnManager.OnTurnAdvanced -= OnTurn;
+    void OnEnable()
+    {
+        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
+        TurnManager.OnTurnAdvanced += OnTurn;
+    }
 
+    void OnDisable()
+    {
+        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
+        TurnManager.OnTurnAdvanced -= OnTurn;
+    }
     void OnTurn()
     {
+        if (HasActedThisTurn) return;
         Move();
     }
     void Move()
@@ -71,4 +81,5 @@ public class Projectile : MonoBehaviour, IMovable
         X = newX;
         Y = newY;
     }
+    public void ResetTurn() => HasActedThisTurn = false;
 }

@@ -1,22 +1,44 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-public class BombTile : MonoBehaviour
+public class BombTile : MonoBehaviour, ITurnBased
 {
     public int x, y;
     public int explosionRange;
     public float turnDuration;
-    Text text;
-    void Start()
-    {
-        gameObject.GetComponent<Text>().fontSize = LevelLoader.instance.tileSize;
-        gameObject.name = "Bomb";
-    }
     private bool exploded = false;
     private int turnsElapsed = 0;
+    public bool HasActedThisTurn { get; set; }
+    public void ResetTurn() { HasActedThisTurn = false; }
 
-    void OnEnable() => TurnManager.OnTurnAdvanced += Act;
-    void OnDisable() => TurnManager.OnTurnAdvanced -= Act;
+    Text text;
+
+    void Start()
+    {
+        gameObject.name = "Bomb";
+        text = GetComponent<Text>();
+    }
+    void OnEnable()
+    {
+        // Önce kendini listeye kaydet
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Register(this);
+        }
+        // Sonra event'e abone ol
+        TurnManager.OnTurnAdvanced += OnTurn;
+    }
+
+    void OnDisable()
+    {
+        // Önce kaydını sil
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
+        // Sonra abonelikten çık
+        TurnManager.OnTurnAdvanced -= OnTurn;
+    }
 
     public void Init(int x, int y, int range, float turnDuration)
     {
@@ -25,13 +47,14 @@ public class BombTile : MonoBehaviour
         this.explosionRange = range;
         this.turnDuration = turnDuration;
     }
-    
-    void Act()
+
+    void OnTurn()
     {
-        if (exploded) return;
+        if (HasActedThisTurn || exploded) return;
 
         turnsElapsed++;
-
+        // UI'daki metni güncelle
+        text.text = (3 - turnsElapsed).ToString();
         if (turnsElapsed >= 3) // 3 tur sonra patlasın
         {
             Explode();
