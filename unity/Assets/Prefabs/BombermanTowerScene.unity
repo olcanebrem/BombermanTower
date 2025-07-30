@@ -456,7 +456,7 @@ MonoBehaviour:
   bombPrefab: {fileID: 9048555102869179715, guid: 1836c43e7c4f24c41802b2a5078017da, type: 3}
   projectilePrefab: {fileID: 9048555102869179715, guid: 05d6850a10409e04cb82f069f7d5e45b, type: 3}
   width: 20
-  height: 40
+  height: 20
   playerObject: {fileID: 0}
 --- !u!1 &1992962428
 GameObject:

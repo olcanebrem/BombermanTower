@@ -1,52 +1,39 @@
 using UnityEngine;
-
-public class EnemyTile : TileBehavior
+public class EnemyTile : TileBehavior, IMovable
 {
-    private int x, y;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public TileType TileType => TileType.Enemy;
+    
+    void OnEnable() => TurnManager.OnTurnAdvanced += Act;
+    void OnDisable() => TurnManager.OnTurnAdvanced -= Act;
 
     void Start()
     {
-        // Bu objenin bulunduğu tile'ı bul
         Vector3 pos = transform.position;
-        x = Mathf.RoundToInt(pos.x / LevelLoader.instance.tileSize);
-        y = LevelLoader.instance.height - 1 - Mathf.RoundToInt(pos.y / LevelLoader.instance.tileSize);
-
-        TurnManager.OnTurnAdvanced += Act;
+        X = Mathf.RoundToInt(pos.x / LevelLoader.instance.tileSize);
+        Y = LevelLoader.instance.height - 1 - Mathf.RoundToInt(pos.y / LevelLoader.instance.tileSize);
     }
-
-    void OnDestroy() => TurnManager.OnTurnAdvanced -= Act;
 
     void Act()
     {
-        // %50 ihtimal idle kal, %50 ihtimal hareket et
         if (Random.value < 0.5f) return;
 
-        int dx = Random.Range(-1, 2);
-        int dy = Random.Range(-1, 2);
+        Vector2Int[] directions = new[] {
+            Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
+        };
+        Vector2Int dir = directions[Random.Range(0, directions.Length)];
 
-        int newX = x + dx;
-        int newY = y + dy;
+        if (!MovementHelper.TryMove(this, dir)) Debug.Log("Enemy couldn't move");
 
-        if (!IsValidMove(newX, newY)) return;
-
-        // Harita güncelle
-        var map = LevelLoader.instance.levelMap;
-        map[x, y] = TileSymbols.TypeToSymbol(TileType.Empty);
-        map[newX, newY] = TileSymbols.TypeToSymbol(TileType.Enemy);
-
-        // Görsel taşı
-        transform.position = new Vector3(newX * LevelLoader.instance.tileSize, (LevelLoader.instance.height - newY - 1) * LevelLoader.instance.tileSize, 0);
-
-        // Pozisyon güncelle
-        x = newX;
-        y = newY;
+        transform.position = new Vector3(X * LevelLoader.instance.tileSize,
+                                         (LevelLoader.instance.height - Y - 1) * LevelLoader.instance.tileSize, 0);
+        OnMoved(X, Y);
     }
 
-    bool IsValidMove(int nx, int ny)
+    public void OnMoved(int newX, int newY)
     {
-        if (nx < 0 || ny < 0 || nx >= LevelLoader.instance.width || ny >= LevelLoader.instance.height)
-            return false;
-        var c = LevelLoader.instance.levelMap[nx, ny];
-        return TileSymbols.SymbolToType(c) == TileType.Empty;
+        X = newX;
+        Y = newY;
     }
 }
