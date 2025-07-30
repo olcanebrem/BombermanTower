@@ -99,50 +99,52 @@ public class LevelLoader : MonoBehaviour
     }
 
     void CreateMapVisual()
-{
-    tileObjects = new GameObject[width, height];
-    for (int y = 0; y < height; y++)
     {
-        for (int x = 0; x < width; x++)
+        tileObjects = new GameObject[width, height];
+        for (int y = 0; y < height; y++)
         {
-            char c = levelMap[x, y];
-            Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
-            TileType type = TileSymbols.SymbolToType(c);
-
-            GameObject tileGO = null;
-
-            if (type == TileType.PlayerSpawn)
+            for (int x = 0; x < width; x++)
             {
-                playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
-                tileObjects[x, y] = playerObject;
-                continue;
-            }
+                char c = levelMap[x, y];
+                Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+                TileType type = TileSymbols.SymbolToType(c);
 
-            if (prefabMap.TryGetValue(type, out var prefab))
-            {
-                tileGO = Instantiate(prefab, pos, Quaternion.identity, transform);
+                GameObject tileGO = null;
 
-                // Instantiate'dan sonra Init varsa çağır
-                var enemyShooter = tileGO.GetComponent<EnemyShooterTile>();
-                if (enemyShooter != null)
+                if (type == TileType.PlayerSpawn)
                 {
-                    enemyShooter.Init(x, y);
-                    Debug.Log($"Enemy shooter at ({x},{y}) initialized.");
+                    playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
+                     var player = playerObject.GetComponent<PlayerController>();
+                    player?.Init(x, y);
+                    tileObjects[x, y] = playerObject;
+                    continue;
                 }
 
-               
+                if (prefabMap.TryGetValue(type, out var prefab))
+                {
+                    tileGO = Instantiate(prefab, pos, Quaternion.identity, transform);
 
-                // Gerekirse diğer tile scriptleri için de Init çağrısı ekle
-            }
-            else
-            {
-                tileGO = CreateAsciiTile(c, pos);
-            }
+                    // Instantiate'dan sonra Init varsa çağır
+                    var enemyShooter = tileGO.GetComponent<EnemyShooterTile>();
+                    if (enemyShooter != null)
+                    {
+                        enemyShooter.Init(x, y);
+                        Debug.Log($"Enemy shooter at ({x},{y}) initialized.");
+                    }
 
-            tileObjects[x, y] = tileGO;
+                
+
+                    // Gerekirse diğer tile scriptleri için de Init çağrısı ekle
+                }
+                else
+                {
+                    tileGO = CreateAsciiTile(c, pos);
+                }
+
+                tileObjects[x, y] = tileGO;
+            }
         }
     }
-}
 
 
 

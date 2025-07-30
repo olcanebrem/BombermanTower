@@ -1,10 +1,11 @@
 using UnityEngine;
 
-public class Projectile : MonoBehaviour
+public class Projectile : MonoBehaviour, IMovable
 {
-    public int x, y;
+    public int X { get; set; }
+    public int Y { get; set; }
     public Vector2Int direction;
-    
+    public TileType TileType => TileType.Projectile;
     public static Projectile Spawn(int x, int y, Vector2Int direction)
     {
         Vector3 pos = new Vector3(x * LevelLoader.instance.tileSize, 
@@ -19,8 +20,8 @@ public class Projectile : MonoBehaviour
             return null;
         }
 
-        proj.x = x;
-        proj.y = y;
+        proj.X = x;
+        proj.Y = y;
         proj.direction = direction;
         return proj;
     }
@@ -32,11 +33,10 @@ public class Projectile : MonoBehaviour
     {
         Move();
     }
-
     void Move()
     {
-        int newX = x + direction.x;
-        int newY = y + direction.y;
+        int newX = X + direction.x;
+        int newY = Y + direction.y;
 
         // Harita sınırları kontrolü
         if (newX < 0 || newX >= LevelLoader.instance.width || newY < 0 || newY >= LevelLoader.instance.height)
@@ -57,14 +57,18 @@ public class Projectile : MonoBehaviour
         }
 
         // Harita güncelle
-        LevelLoader.instance.levelMap[x, y] = TileSymbols.TypeToSymbol(TileType.Empty);
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToSymbol(TileType.Empty);
         LevelLoader.instance.levelMap[newX, newY] = '*'; // projectile karakteri
 
         // Görsel pozisyon güncelle
         transform.position = new Vector3(newX * LevelLoader.instance.tileSize,
             (LevelLoader.instance.height - newY - 1) * LevelLoader.instance.tileSize, 0);
 
-        x = newX;
-        y = newY;
+        OnMoved(newX, newY);
+    }
+    public void OnMoved(int newX, int newY)
+    {
+        X = newX;
+        Y = newY;
     }
 }
