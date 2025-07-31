@@ -1,10 +1,13 @@
 using UnityEngine;
 
-public class EnemyShooterTile : MonoBehaviour, IMovable, ITurnBased
+public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable
 {
+    public int X { get; set; }
+    public int Y { get; set; }
     private int turnCounter = 0;
     private int turnsElapsed = 4;
     public TileType TileType => TileType.EnemyShooter;
+    public GameObject projectilePrefab;
     void OnEnable()
     {
         if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
@@ -17,10 +20,7 @@ public class EnemyShooterTile : MonoBehaviour, IMovable, ITurnBased
         TurnManager.OnTurnAdvanced -= OnTurn;
     }
     public bool HasActedThisTurn { get; set; }
-    public void ResetTurn() => HasActedThisTurn = false;
 
-    public int X { get; set; }
-    public int Y { get; set; }
 
     public void Init(int x, int y)
     {
@@ -68,18 +68,21 @@ public class EnemyShooterTile : MonoBehaviour, IMovable, ITurnBased
         Y = newY;
     }
     void ShootRandomDirection()
+{
+    // Güvenlik kontrolü: Inspector'dan prefab atanmış mı?
+    if (projectilePrefab == null)
     {
-        // Rastgele yön seç
-        Vector2Int[] directions = new Vector2Int[] {
-            Vector2Int.up,
-            Vector2Int.down,
-            Vector2Int.left,
-            Vector2Int.right
-        };
-
-        Vector2Int dir = directions[Random.Range(0, directions.Length)];
-
-        // Spawn projectile'u kendi (x,y) pozisyonundan oluştur
-        Projectile.Spawn(X, Y, dir);
+        Debug.LogError("EnemyShooterTile'a projectilePrefab atanmamış!", gameObject);
+        return;
     }
+
+    // ... rastgele yön seçme kodunuz aynı ...
+    Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+    Vector2Int dir = directions[Random.Range(0, directions.Length)];
+
+    // Yeni Spawn metodunu çağırırken, kendi prefabımızı ona veriyoruz.
+    Projectile.Spawn(this.projectilePrefab, X, Y, dir);
+}
+
+    public void ResetTurn() => HasActedThisTurn = false;
 }

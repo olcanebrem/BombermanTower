@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour, IMovable, ITurnBased
+public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable
 {
     public int X { get; set; }
     public int Y { get; set; }
@@ -36,15 +36,6 @@ public class PlayerController : MonoBehaviour, IMovable, ITurnBased
     {
         X = newX;
         Y = newY;
-
-        if (LevelLoader.instance.playerObject != null)
-        {
-            LevelLoader.instance.playerObject.transform.position = new Vector3(
-                newX * LevelLoader.instance.tileSize,
-                (LevelLoader.instance.height - newY - 1) * LevelLoader.instance.tileSize,
-                0);
-            ResetTurn();
-        }
     }
 
     public void Init(int x, int y)
@@ -53,14 +44,10 @@ public class PlayerController : MonoBehaviour, IMovable, ITurnBased
         Y = y;
     }
 
-    void PlaceBomb()
-    {
-        char[,] map = LevelLoader.instance.levelMap;
-        if (map[X, Y] == TileSymbols.TypeToSymbol(TileType.PlayerSpawn))
-        {
-            LevelLoader.instance.PlaceBombAt(X, Y, explosionRange, stepDuration);
-        }
-        HasActedThisTurn = true;
-    }
+    
     public void ResetTurn() => HasActedThisTurn = false;
+    public void PlaceBomb()
+    {
+        
+    }
 }

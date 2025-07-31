@@ -24,6 +24,24 @@ public class TurnManager : MonoBehaviour
     // kendisi yönetmelidir.
     private List<ITurnBased> turnBasedObjects = new List<ITurnBased>();
     // **********************************************************
+    // --- Liste Yönetim Metodları (Public) ---
+    // Nesnelerin kendilerini bu listeye eklemesi için.
+    public void Register(ITurnBased obj)
+    {
+        if (!turnBasedObjects.Contains(obj))
+        {
+            turnBasedObjects.Add(obj);
+        }
+    }
+
+    // Nesnelerin yok olmadan önce kendilerini listeden çıkarması için.
+    public void Unregister(ITurnBased obj)
+    {
+        if (turnBasedObjects.Contains(obj))
+        {
+            turnBasedObjects.Remove(obj);
+        }
+    }
 
 
     // --- Unity Yaşam Döngüsü Metodları ---
@@ -43,24 +61,6 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // --- Liste Yönetim Metodları (Public) ---
-    // Nesnelerin kendilerini bu listeye eklemesi için.
-    public void Register(ITurnBased obj)
-    {
-        if (!turnBasedObjects.Contains(obj))
-        {
-            turnBasedObjects.Add(obj);
-        }
-    }
-
-    // Nesnelerin yok olmadan önce kendilerini listeden çıkarması için.
-    public void Unregister(ITurnBased obj)
-    {
-        if (turnBasedObjects.Contains(obj))
-        {
-            turnBasedObjects.Remove(obj);
-        }
-    }
 
     // --- Ana Tur Yönetim Metodu ---
     public static event Action OnTurnAdvanced;

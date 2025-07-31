@@ -20,19 +20,19 @@ public static class TileSymbols
     {
         switch (type)
         {
-            case TileType.Wall: return '#';
-            case TileType.PlayerSpawn: return 'P';
-            case TileType.Breakable: return 'B';
-            case TileType.Empty: return ' ';
-            case TileType.Gate: return 'G';
-            case TileType.Coin: return 'C';
-            case TileType.Stairs: return 'S';
-            case TileType.Enemy: return 'E';
-            case TileType.EnemyShooter: return 'F';
-            case TileType.Bomb: return 'X';
-            case TileType.Projectile: return '*';
-            case TileType.Health: return 'H';
-            default: return '?';
+            case TileType.Wall:         return '█';
+            case TileType.Empty:        return ' ';
+            case TileType.Breakable:    return '▒';
+            case TileType.Gate:         return '∩';
+            case TileType.Stairs:       return '≡';
+            case TileType.PlayerSpawn:  return '☺';
+            case TileType.Enemy:        return '☠';
+            case TileType.EnemyShooter: return 'Ψ';
+            case TileType.Bomb:         return '◎';
+            case TileType.Projectile:   return '·';
+            case TileType.Coin:         return '¤';
+            case TileType.Health:       return '♥';
+            default:                    return '?'; 
         }
     }
 
@@ -40,19 +40,19 @@ public static class TileSymbols
     {
         switch (symbol)
         {
-            case '#': return TileType.Wall;
-            case 'P': return TileType.PlayerSpawn;
-            case 'B': return TileType.Breakable;
+            case '█': return TileType.Wall;
             case ' ': return TileType.Empty;
-            case 'G': return TileType.Gate;
-            case 'C': return TileType.Coin;
-            case 'S': return TileType.Stairs;
-            case 'E': return TileType.Enemy;
-            case 'F': return TileType.EnemyShooter;
-            case 'X': return TileType.Bomb;
-            case '*': return TileType.Projectile;
-            case 'H': return TileType.Health;
-            default: return TileType.Empty;
+            case '▒': return TileType.Breakable;
+            case '∩': return TileType.Gate;
+            case '≡': return TileType.Stairs;
+            case '☺': return TileType.PlayerSpawn;
+            case '☠': return TileType.Enemy;
+            case 'Ψ': return TileType.EnemyShooter;
+            case '◎': return TileType.Bomb;
+            case '·': return TileType.Projectile;
+            case '¤': return TileType.Coin;
+            case '♥': return TileType.Health;
+            default:  return TileType.Empty;
         }
     }
 }

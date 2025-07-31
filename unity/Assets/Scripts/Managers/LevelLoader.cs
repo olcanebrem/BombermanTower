@@ -5,18 +5,17 @@ using System.Collections.Generic;
 public struct TilePrefabEntry
 {
     public TileType type;
-    public GameObject prefab;
+    public TileBase prefab;
 }
 public class LevelLoader : MonoBehaviour
 {
     public static LevelLoader instance;
     public TilePrefabEntry[] tilePrefabs;
-    private Dictionary<TileType, GameObject> prefabMap;
+    private Dictionary<TileType, TileBase> prefabMap;
     public int tileSize = 30;
     public Font asciiFont;
     public GameObject playerPrefab;
-    public GameObject bombPrefab;
-    public GameObject projectilePrefab;
+    
 
     public int width = 10;
     public int height = 30;
@@ -26,26 +25,65 @@ public class LevelLoader : MonoBehaviour
 
     public char[,] levelMap;
 
+    void Awake()
+{
+    // --- BÖLÜM 1: KENDİNİ TANITMA ---
+    // Bu metodun hangi GameObject üzerinde çalıştığını ve kaç tane prefabı olduğunu bize söyle.
+    // Bu log, hiyerarşideki nesneye tıklanabilir bir link içerir.
+    Debug.Log($"AWAKE ÇAĞRILDI: Ben '{gameObject.name}' (ID: {GetInstanceID()}). " +
+              $"Inspector'daki prefab listemin boyutu: {tilePrefabs.Length}", gameObject);
+
+    // --- BÖLÜM 2: SİNGLETON KONTROLÜ (EN ÖNEMLİ KISIM) ---
+    // Eğer 'instance' daha önceden başka bir nesne tarafından doldurulmuşsa...
+    if (instance != null)
+    {
+        // Bu bir hatadır! Bize durumu kırmızı renkte, kritik bir hata olarak bildir.
+        Debug.LogError($"KRİTİK HATA: Sahnede zaten bir LevelLoader var! " +
+                       $"Hayatta kalan patron: '{instance.gameObject.name}' (ID: {instance.GetInstanceID()}). " +
+                       $"Ben ('{gameObject.name}') kendimi yok ediyorum!", gameObject);
+        
+        // Bu kopya nesneyi yok et ve bu metodun çalışmasını derhal durdur.
+        Destroy(gameObject);
+        return;
+    }
+
+    // --- BÖLÜM 3: PATRON OLMA ---
+    // Eğer buraya kadar gelebildiysek, biz ilk ve tek örneğiz. Ofis bizimdir.
+    Debug.Log($"PATRON OLDUM: Ben '{gameObject.name}'. Artık projenin tek LevelLoader'ıyım.", gameObject);
+    instance = this;
+    
+    // İsteğe bağlı: Sahneler arası geçişte yok olmamak için.
+    // DontDestroyOnLoad(gameObject);
+
+    // --- BÖLÜM 4: SÖZLÜĞÜ GÜVENLE DOLDURMA ---
+    // Artık tek patron olduğumuza göre, sözlüğümüzü güvenle doldurabiliriz.
+    // Önceki önerideki gibi TileBase veya GameObject, ne kullanıyorsanız...
+    prefabMap = new Dictionary<TileType, TileBase>(); 
+    foreach (var entry in tilePrefabs)
+    {
+        if (entry.prefab != null && !prefabMap.ContainsKey(entry.type))
+        {
+            prefabMap.Add(entry.type, entry.prefab);
+        }
+    }
+    Debug.Log($"Sözlük dolduruldu. Toplam {prefabMap.Count} eleman eklendi.", gameObject);
+}
+
     void Start()
     {
+        // Awake'in işini bitirdiğinden emin olduktan sonra haritayı oluştur.
         GenerateRandomLevel();
         CreateMapVisual();
     }
-    void Awake()
+    void Update()
+{
+    // Her saniye bize prefab listesinin boyutunu ve bu nesnenin ID'sini söyle.
+    if (Time.frameCount % 60 == 0) // Yaklaşık saniyede bir çalışır
     {
-        prefabMap = new();
-        foreach (var entry in tilePrefabs)
-        {
-            if (!prefabMap.ContainsKey(entry.type))
-                prefabMap.Add(entry.type, entry.prefab);
-        }
-        if (instance != null && instance != this)
-            Destroy(gameObject);
-        else
-            instance = this;
+        Debug.Log($"Ben '{gameObject.name}' (ID: {GetInstanceID()}). " +
+                  $"Prefab listemin boyutu: {tilePrefabs.Length}");
     }
-
-
+}
     void GenerateRandomLevel()
     {
         levelMap = new char[width, height];
@@ -105,47 +143,41 @@ public class LevelLoader : MonoBehaviour
         {
             for (int x = 0; x < width; x++)
             {
+                // Değişken adı 'c'
                 char c = levelMap[x, y];
                 Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
                 TileType type = TileSymbols.SymbolToType(c);
 
-                GameObject tileGO = null;
-
+                // Oyuncu özel durumu (bu kısım doğru)
                 if (type == TileType.PlayerSpawn)
                 {
                     playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
-                     var player = playerObject.GetComponent<PlayerController>();
-                    player?.Init(x, y);
+                    playerObject.GetComponent<PlayerController>()?.Init(x, y);
                     tileObjects[x, y] = playerObject;
                     continue;
                 }
 
-                if (prefabMap.TryGetValue(type, out var prefab))
+                // Prefab bulma ve oluşturma mantığı
+                if (prefabMap.TryGetValue(type, out var tileBasePrefab))
                 {
-                    tileGO = Instantiate(prefab, pos, Quaternion.identity, transform);
+                    TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
 
-                    // Instantiate'dan sonra Init varsa çağır
-                    var enemyShooter = tileGO.GetComponent<EnemyShooterTile>();
-                    if (enemyShooter != null)
-                    {
-                        enemyShooter.Init(x, y);
-                        Debug.Log($"Enemy shooter at ({x},{y}) initialized.");
-                    }
+                    // DÜZELTME 1: Değişken adını 'c' olarak kullan
+                    newTile.SetVisual(c);
 
-                
-
-                    // Gerekirse diğer tile scriptleri için de Init çağrısı ekle
+                    // DÜZELTME 2: Init'i güvenli bir şekilde çağır
+                    (newTile as IInitializable)?.Init(x, y);
+                    
+                    // DÜZELTME 3: Diziye Component'i değil, GameObject'i ata
+                    tileObjects[x, y] = newTile.gameObject;
                 }
-                else
+                else // Prefab yoksa manuel oluştur
                 {
-                    tileGO = CreateAsciiTile(c, pos);
+                    Debug.LogError($"Prefab bulunamadı: {type}");
                 }
-
-                tileObjects[x, y] = tileGO;
             }
         }
     }
-
 
 
     GameObject CreateAsciiTile(char symbol, Vector3 position)
@@ -171,15 +203,5 @@ public class LevelLoader : MonoBehaviour
 
         return tileGO;
     }
-    public void PlaceBombAt(int x, int y, int range, float duration)
-    {
-        Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
-        GameObject bombGO = Instantiate(bombPrefab, pos, Quaternion.identity, transform);
-        
-        BombTile bombTile = bombGO.GetComponent<BombTile>();
-        bombTile.Init(x, y, range, duration);
-        
-        levelMap[x, y] = TileSymbols.TypeToSymbol(TileType.Bomb);
-        tileObjects[x, y] = bombGO;
-    }
+    
 }

@@ -1,16 +1,21 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-public class BombTile : MonoBehaviour, ITurnBased
-{
-    public int x, y;
+public class BombTile : TileBase, ITurnBased, IInitializable
+{   
+    public int X { get; set; }
+    public int Y { get; set; }
     public int explosionRange;
     public float turnDuration;
+
     private bool exploded = false;
     private int turnsElapsed = 0;
+    private int turnsToExplode = 3;
+
     public bool HasActedThisTurn { get; set; }
     public void ResetTurn() { HasActedThisTurn = false; }
 
+    public GameObject explosionPrefab; 
     Text text;
 
     void Start()
@@ -20,77 +25,83 @@ public class BombTile : MonoBehaviour, ITurnBased
     }
     void OnEnable()
     {
-        // Önce kendini listeye kaydet
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Register(this);
-        }
-        // Sonra event'e abone ol
+        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
         TurnManager.OnTurnAdvanced += OnTurn;
     }
 
     void OnDisable()
     {
-        // Önce kaydını sil
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Unregister(this);
-        }
-        // Sonra abonelikten çık
+        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
         TurnManager.OnTurnAdvanced -= OnTurn;
     }
 
-    public void Init(int x, int y, int range, float turnDuration)
+    public void Init(int x, int y)
     {
-        this.x = x;
-        this.y = y;
-        this.explosionRange = range;
-        this.turnDuration = turnDuration;
+        this.X = x;
+        this.Y = y;
+        
     }
-
+    
     void OnTurn()
     {
         if (HasActedThisTurn || exploded) return;
 
         turnsElapsed++;
-        // UI'daki metni güncelle
-        text.text = (3 - turnsElapsed).ToString();
-        if (turnsElapsed >= 3) // 3 tur sonra patlasın
+        if (turnsElapsed >= turnsToExplode)
         {
-            Explode();
+            // Explode metodunu doğrudan çağırmak yerine, Coroutine'i başlatıyoruz.
+            StartCoroutine(ExplosionCoroutine());
         }
+        HasActedThisTurn = true;
     }
 
-    void Explode()
+    // --- Patlama Mantığı (Coroutine ile) ---
+    private IEnumerator ExplosionCoroutine()
     {
         exploded = true;
-        Debug.Log($"Bomb exploded at ({x},{y})");
+        float delay = 0.05f; // Her bir patlama halkası arasındaki saniye cinsinden gecikme
 
-        // Patlama efektini + şeklinde oluştur
-        CreateExplosionAt(x, y);
+        // Önce bombanın kendi görselini haritadan kaldır.
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToSymbol(TileType.Empty);
+        GetComponent<CanvasRenderer>().SetAlpha(0); // Bombayı görünmez yap ama script'in çalışması için objeyi yok etme
 
+        // Merkezden başla
+        CreateExplosionAt(X, Y);
+        yield return new WaitForSeconds(delay);
+
+        // Halkaları dışa doğru oluştur
         for (int i = 1; i <= explosionRange; i++)
         {
-            CreateExplosionAt(x + i, y);
-            CreateExplosionAt(x - i, y);
-            CreateExplosionAt(x, y + i);
-            CreateExplosionAt(x, y - i);
+            CreateExplosionAt(X + i, Y);
+            CreateExplosionAt(X - i, Y);
+            CreateExplosionAt(X, Y + i);
+            CreateExplosionAt(X, Y - i);
+            yield return new WaitForSeconds(delay);
         }
 
-        // Patlama sonrası bombayı haritadan kaldır ve objeyi yok et
-        LevelLoader.instance.levelMap[x, y] = TileSymbols.TypeToSymbol(TileType.Empty);
+        // Patlama bitti, şimdi bombanın kendisini tamamen yok et.
         Destroy(gameObject);
     }
 
     void CreateExplosionAt(int px, int py)
     {
-        if (px < 0 || px >= LevelLoader.instance.width || py < 0 || py >= LevelLoader.instance.height)
-            return;
+        var ll = LevelLoader.instance;
+        if (px < 0 || px >= ll.width || py < 0 || py >= ll.height) return;
 
-        // Burada patlama görselini oluşturabilirsin (örn: Instantiate explosion prefab)
-        // Ya da haritada 'X' karakterini koy:
-        LevelLoader.instance.levelMap[px, py] = 'X'; // Patlama karakteri
+        // Hedefteki duvarı kırma gibi etkileşimler buraya eklenebilir.
+        if (TileSymbols.SymbolToType(ll.levelMap[px,py]) == TileType.Wall) return;
 
-        // İstersen bu patlama alanlarını ayrı objeler olarak instantiate edip belli süre sonra kaldırabilirsin.
+        // Mantıksal haritayı 'patlama' olarak işaretle
+        ll.levelMap[px, py] = '※'; // Patlama için özel bir sembol
+
+        // Explosion prefabını oluştur
+        GameObject explosionGO = Instantiate(explosionPrefab, 
+            new Vector3(px * ll.tileSize, (ll.height - py - 1) * ll.tileSize, 0), 
+            Quaternion.identity, ll.transform);
+            
+        // Oluşturulan patlamayı kur
+        explosionGO.GetComponent<IInitializable>()?.Init(px, py);
+        explosionGO.GetComponent<TileBase>()?.SetVisual('※');
     }
+
 }

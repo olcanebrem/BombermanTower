@@ -1,9 +1,14 @@
 using UnityEngine;
-public class GateTile : TileBehavior
+public class GateTile : TileBase
 {
-    public override void OnPlayerEnter()
+    public int X { get; set; }
+    public int Y { get; set; }
+    public TileType TileType => TileType.Gate;
+    public bool HasActedThisTurn { get; set; }
+    
+    public void Init(int x, int y)
     {
-        Debug.Log("Level geçiliyor...");
-        // LevelLoader.instance.LoadNextLevel(); gibi
+        this.X = x;
+        this.Y = y;
     }
 }

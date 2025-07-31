@@ -1,5 +1,5 @@
 using UnityEngine;
-public class EnemyTile : TileBehavior, IMovable, ITurnBased
+public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
 {
     public int X { get; set; }
     public int Y { get; set; }
@@ -49,4 +49,10 @@ public class EnemyTile : TileBehavior, IMovable, ITurnBased
     }
 
     public void ResetTurn() => HasActedThisTurn = false;
+
+    public void Init(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
 }

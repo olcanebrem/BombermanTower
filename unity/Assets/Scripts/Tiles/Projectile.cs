@@ -1,23 +1,32 @@
 using UnityEngine;
 
-public class Projectile : MonoBehaviour, IMovable, ITurnBased
+public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
 {
     public int X { get; set; }
     public int Y { get; set; }
     public Vector2Int direction;
     public TileType TileType => TileType.Projectile;
+    
     public bool HasActedThisTurn { get; set; }
-    public static Projectile Spawn(int x, int y, Vector2Int direction)
+    public GameObject projectilePrefab;
+    
+    // Artık LevelLoader'ı değil, doğrudan kullanılacak prefabı parametre olarak alıyor.
+    public static Projectile Spawn(GameObject prefabToSpawn, int x, int y, Vector2Int direction)
     {
-        Vector3 pos = new Vector3(x * LevelLoader.instance.tileSize, 
-                                  (LevelLoader.instance.height - y - 1) * LevelLoader.instance.tileSize, 0);
+        // LevelLoader'dan tileSize ve height gibi bilgileri hâlâ alabiliriz, bu kabul edilebilir.
+        // Çünkü bu, dünyanın genel fiziksel özellikleridir.
+        float tileSize = LevelLoader.instance.tileSize;
+        int height = LevelLoader.instance.height;
 
-        GameObject projectileGO = Instantiate(LevelLoader.instance.projectilePrefab, pos, Quaternion.identity, LevelLoader.instance.transform);
+        Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+
+        // LevelLoader'ın sözlüğüne erişmek yerine, bize verilen prefabı kullanıyoruz.
+        GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, LevelLoader.instance.transform);
 
         Projectile proj = projectileGO.GetComponent<Projectile>();
         if (proj == null)
         {
-            Debug.LogError("Projectile component not found!");
+            Debug.LogError("Verilen prefabda Projectile component'i bulunamadı!", prefabToSpawn);
             return null;
         }
 
@@ -80,6 +89,11 @@ public class Projectile : MonoBehaviour, IMovable, ITurnBased
     {
         X = newX;
         Y = newY;
+    }
+    public void Init(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
     }
     public void ResetTurn() => HasActedThisTurn = false;
 }
