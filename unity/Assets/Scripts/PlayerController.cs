@@ -20,8 +20,8 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable
     {
         if (HasActedThisTurn) return;
 
-        if (Input.GetKey(KeyCode.W) && MovementHelper.TryMove(this, Vector2Int.up)) HasActedThisTurn = true;
-        if (Input.GetKey(KeyCode.S) && MovementHelper.TryMove(this, Vector2Int.down)) HasActedThisTurn = true;
+        if (Input.GetKey(KeyCode.W) && MovementHelper.TryMove(this, Vector2Int.down)) HasActedThisTurn = true;
+        if (Input.GetKey(KeyCode.S) && MovementHelper.TryMove(this, Vector2Int.up)) HasActedThisTurn = true;
         if (Input.GetKey(KeyCode.A) && MovementHelper.TryMove(this, Vector2Int.left)) HasActedThisTurn = true;
         if (Input.GetKey(KeyCode.D) && MovementHelper.TryMove(this, Vector2Int.right)) HasActedThisTurn = true;
         if (Input.GetKeyDown(KeyCode.Space))
