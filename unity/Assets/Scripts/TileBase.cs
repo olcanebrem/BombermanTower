@@ -1,26 +1,27 @@
 using UnityEngine;
-using UnityEngine.UI; // Text bileşeni için bu gerekli
+using TMPro; // TextMeshPro'yu kullanmak için bu satır ŞART!
 
 public class TileBase : MonoBehaviour
 {
-    // [SerializeField] sayesinde bu alanı Unity Inspector'dan atayabileceğiz.
-    // Her prefabın kendi Text bileşenini buraya sürükleyeceğiz.
     [SerializeField]
-    private Text visualText;
+    // Değişkenin türünü TextMeshProUGUI olarak değiştiriyoruz.
+    private TextMeshProUGUI visualText;
 
-    /// <summary>
-    /// Bu tile'ın görselini merkezi TileSymbols'dan gelen karaktere göre ayarlar.
-    /// LevelLoader tarafından çağrılacak.
-    /// </summary>
-    public void SetVisual(char symbol)
+    void Awake()
+    {
+        // Eğer visualText Inspector'dan atanmamışsa, onu kendi bulsun.
+        if (visualText == null)
+        {
+            visualText = GetComponentInChildren<TextMeshProUGUI>();
+        }
+    }
+
+    // Metod artık char değil, string alıyor.
+    public void SetVisual(string symbol)
     {
         if (visualText != null)
         {
-            visualText.text = symbol.ToString();
-        }
-        else
-        {
-            Debug.LogError($"'{gameObject.name}' prefabında 'visualText' atanmamış!");
+            visualText.text = symbol;
         }
     }
 }

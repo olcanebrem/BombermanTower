@@ -62,7 +62,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable
         float delay = 0.05f; // Her bir patlama halkası arasındaki saniye cinsinden gecikme
 
         // Önce bombanın kendi görselini haritadan kaldır.
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToSymbol(TileType.Empty);
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
         GetComponent<CanvasRenderer>().SetAlpha(0); // Bombayı görünmez yap ama script'in çalışması için objeyi yok etme
 
         // Merkezden başla
@@ -84,24 +84,42 @@ public class BombTile : TileBase, ITurnBased, IInitializable
     }
 
     void CreateExplosionAt(int px, int py)
+{
+    var ll = LevelLoader.instance;
+
+    // 1. Harita sınırlarını kontrol et.
+    if (px < 0 || px >= ll.width || py < 0 || py >= ll.height)
     {
-        var ll = LevelLoader.instance;
-        if (px < 0 || px >= ll.width || py < 0 || py >= ll.height) return;
-
-        // Hedefteki duvarı kırma gibi etkileşimler buraya eklenebilir.
-        if (TileSymbols.SymbolToType(ll.levelMap[px,py]) == TileType.Wall) return;
-
-        // Mantıksal haritayı 'patlama' olarak işaretle
-        ll.levelMap[px, py] = '※'; // Patlama için özel bir sembol
-
-        // Explosion prefabını oluştur
-        GameObject explosionGO = Instantiate(explosionPrefab, 
-            new Vector3(px * ll.tileSize, (ll.height - py - 1) * ll.tileSize, 0), 
-            Quaternion.identity, ll.transform);
-            
-        // Oluşturulan patlamayı kur
-        explosionGO.GetComponent<IInitializable>()?.Init(px, py);
-        explosionGO.GetComponent<TileBase>()?.SetVisual('※');
+        return;
     }
+
+    // 2. Hedefteki karenin tipini, veri sembolünü kullanarak öğren.
+    TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[px, py]);
+
+    // 3. Patlamanın duvarları etkilememesini sağla.
+    if (targetType == TileType.Wall)
+    {
+        return;
+    }
+
+    // 4. VERİ KATMANINI GÜNCELLE: levelMap'e basit bir karakter koy.
+    // Bu, patlamanın mantıksal haritadaki izidir.
+    // '※' gibi özel bir karakter kullanabiliriz, ama tutarlılık için
+    // bir TileType'a karşılık gelen sembolü kullanmak daha iyidir.
+    // Şimdilik 'X' (Bomb) sembolünü kullanalım.
+    ll.levelMap[px, py] = TileSymbols.TypeToDataSymbol(TileType.Bomb);
+
+    // 5. GÖRSEL KATMANI OLUŞTUR: Explosion prefabını instantiate et.
+    GameObject explosionGO = Instantiate(explosionPrefab, 
+        new Vector3(px * ll.tileSize, (ll.height - py - 1) * ll.tileSize, 0), 
+        Quaternion.identity, ll.transform);
+        
+    // 6. OLUŞTURULAN NESNEYİ AYARLA:
+    // a) Patlamanın nerede olduğunu bilmesi için Init'i çağır.
+    explosionGO.GetComponent<IInitializable>()?.Init(px, py);
+    
+    // b) Patlamanın görselini (emojisini) ayarla.
+    explosionGO.GetComponent<TileBase>()?.SetVisual("💥");
+}
 
 }

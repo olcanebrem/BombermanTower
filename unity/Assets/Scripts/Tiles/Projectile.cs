@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
 {
@@ -30,12 +31,50 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
             return null;
         }
 
-        proj.X = x;
-        proj.Y = y;
+        proj.Init(x, y); // Init'i burada çağırabiliriz.
         proj.direction = direction;
         return proj;
     }
+    // Start metodu, nesne tamamen sahneye eklendikten sonra çalışır.
+    void Start()
+    {
+        // Görseli ayarlama işini bir sonraki frame'e erteleyen bir Coroutine başlat.
+        StartCoroutine(SetVisualDelayed());
+    }
 
+    private IEnumerator SetVisualDelayed()
+    {
+        // Bir sonraki frame'i bekle. Bu, TMP'nin Awake'ini çalıştırması için zaman tanır.
+        yield return null; 
+
+        // Artık TMP hazır, görseli güvenle ayarlayabiliriz.
+        string visual = TileSymbols.TypeToVisualSymbol(this.TileType);
+        SetVisual(visual);
+        // --- 2. ROTASYONU AYARLA (YENİ KISIM) ---
+        // Yön vektörüne göre doğru açıyı hesapla.
+        float angle = 180f;
+
+        if (direction == Vector2Int.up)
+        {
+            angle = 270f;
+        }
+        else if (direction == Vector2Int.down)
+        {
+            angle = 90f;
+        }
+        else if (direction == Vector2Int.right)
+        {
+            angle = 0f; // Veya 270f
+        }
+        else if (direction == Vector2Int.left)
+        {
+            angle = 180f;
+        }
+
+        // Hesaplanan açıyı GameObject'in rotasyonuna uygula.
+        // Z ekseni etrafında döndürüyoruz.
+        transform.rotation = Quaternion.Euler(0, 0, angle);
+    }
     void OnEnable()
     {
         if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
@@ -65,7 +104,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         }
 
         char nextTileChar = LevelLoader.instance.levelMap[newX, newY];
-        TileType nextTileType = TileSymbols.SymbolToType(nextTileChar);
+        TileType nextTileType = TileSymbols.DataSymbolToType(nextTileChar);
 
         // Engel varsa patla / yok ol
         if (nextTileType == TileType.Wall || nextTileType == TileType.Breakable || nextTileType == TileType.Gate)
@@ -76,8 +115,8 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         }
 
         // Harita güncelle
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToSymbol(TileType.Empty);
-        LevelLoader.instance.levelMap[newX, newY] = '*'; // projectile karakteri
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        LevelLoader.instance.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Projectile);
 
         // Görsel pozisyon güncelle
         transform.position = new Vector3(newX * LevelLoader.instance.tileSize,

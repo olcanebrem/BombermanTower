@@ -69,14 +69,6 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable
     }
     void ShootRandomDirection()
 {
-    // Güvenlik kontrolü: Inspector'dan prefab atanmış mı?
-    if (projectilePrefab == null)
-    {
-        Debug.LogError("EnemyShooterTile'a projectilePrefab atanmamış!", gameObject);
-        return;
-    }
-
-    // ... rastgele yön seçme kodunuz aynı ...
     Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
     Vector2Int dir = directions[Random.Range(0, directions.Length)];
 

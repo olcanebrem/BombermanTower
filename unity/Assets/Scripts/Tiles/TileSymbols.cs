@@ -1,57 +1,84 @@
+using UnityEngine;
+
 public enum TileType
 {
     Wall,
-    PlayerSpawn,
-    Breakable,
     Empty,
+    Breakable,
     Gate,
-    Coin,
     Stairs,
+    PlayerSpawn,
     Enemy,
     EnemyShooter,
     Bomb,
     Projectile,
-    Health
+    Coin,
+    Health,
+    Unknown
 }
-
 public static class TileSymbols
 {
-    public static char TypeToSymbol(TileType type)
+    // --- GÖRSEL KATMAN İÇİN ---
+    // Bir Tipi, ekranda gösterilecek olan EMOJI'ye çevirir.
+    public static string TypeToVisualSymbol(TileType type)
     {
         switch (type)
         {
-            case TileType.Wall:         return '█';
-            case TileType.Empty:        return ' ';
-            case TileType.Breakable:    return '▒';
-            case TileType.Gate:         return '∩';
-            case TileType.Stairs:       return '≡';
-            case TileType.PlayerSpawn:  return '☺';
-            case TileType.Enemy:        return '☠';
-            case TileType.EnemyShooter: return 'Ψ';
-            case TileType.Bomb:         return '◎';
-            case TileType.Projectile:   return '·';
-            case TileType.Coin:         return '¤';
-            case TileType.Health:       return '♥';
-            default:                    return '?'; 
+            case TileType.Wall:         return "<sprite name=wall>";
+            case TileType.Empty:        return "<sprite name=empty>";
+            case TileType.Breakable:    return "<sprite name=breakable>";
+            case TileType.Gate:         return "<sprite name=gate>";
+            case TileType.Stairs:       return "<sprite name=stairs>";
+            case TileType.PlayerSpawn:  return "<sprite name=player>";
+            case TileType.Enemy:        return "<sprite name=enemy>";
+            case TileType.EnemyShooter: return "<sprite name=enemyshooter>";
+            case TileType.Bomb:         return "<sprite name=bomb>";
+            case TileType.Projectile:   return "<sprite name=projectile>";
+            case TileType.Coin:         return "<sprite name=coin>";
+            case TileType.Health:       return "<sprite name=health>";
+            default:                    return "<sprite name=unknown>";
         }
     }
 
-    public static TileType SymbolToType(char symbol)
+    // --- VERİ KATMANI İÇİN ---
+    // YENİ METOD: Bir Tipi, levelMap dizisinde saklanacak olan basit KARAKTERE çevirir.
+    public static char TypeToDataSymbol(TileType type)
+    {
+        switch (type)
+        {
+            case TileType.Wall:         return '#';
+            case TileType.Empty:        return ' ';
+            case TileType.Breakable:    return 'B';
+            case TileType.Gate:         return 'G';
+            case TileType.Stairs:       return 'S';
+            case TileType.PlayerSpawn:  return 'P';
+            case TileType.Enemy:        return 'E';
+            case TileType.EnemyShooter: return 'F';
+            case TileType.Bomb:         return 'X';
+            case TileType.Projectile:   return '*';
+            case TileType.Coin:         return 'C';
+            case TileType.Health:       return 'H';
+            default:                    return '?';
+        }
+    }
+
+    // Bir KARAKTERİ, Tipe çevirir. Bu metodun adı artık daha anlamlı.
+    public static TileType DataSymbolToType(char symbol)
     {
         switch (symbol)
         {
-            case '█': return TileType.Wall;
+            case '#': return TileType.Wall;
             case ' ': return TileType.Empty;
-            case '▒': return TileType.Breakable;
-            case '∩': return TileType.Gate;
-            case '≡': return TileType.Stairs;
-            case '☺': return TileType.PlayerSpawn;
-            case '☠': return TileType.Enemy;
-            case 'Ψ': return TileType.EnemyShooter;
-            case '◎': return TileType.Bomb;
-            case '·': return TileType.Projectile;
-            case '¤': return TileType.Coin;
-            case '♥': return TileType.Health;
+            case 'B': return TileType.Breakable;
+            case 'G': return TileType.Gate;
+            case 'S': return TileType.Stairs;
+            case 'P': return TileType.PlayerSpawn;
+            case 'E': return TileType.Enemy;
+            case 'F': return TileType.EnemyShooter;
+            case 'X': return TileType.Bomb;
+            case '*': return TileType.Projectile;
+            case 'C': return TileType.Coin;
+            case 'H': return TileType.Health;
             default:  return TileType.Empty;
         }
     }

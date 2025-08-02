@@ -36,7 +36,7 @@ public class ExplosionTile : TileBase, ITurnBased, IInitializable
         if (turnsToLive < 0)
         {
             // Süremiz doldu. Önce mantıksal haritayı temizle, sonra kendini yok et.
-            LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToSymbol(TileType.Empty);
+            LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
             Destroy(gameObject);
         }
 

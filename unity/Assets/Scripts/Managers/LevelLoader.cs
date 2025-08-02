@@ -91,24 +91,24 @@ public class LevelLoader : MonoBehaviour
         // Hepsini boş yap
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
-                levelMap[x, y] = TileSymbols.TypeToSymbol(TileType.Empty);
+                levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
 
         // Çevre duvarları koy
         for (int x = 0; x < width; x++)
         {
-            levelMap[x, 0] = TileSymbols.TypeToSymbol(TileType.Wall);
-            levelMap[x, height - 1] = TileSymbols.TypeToSymbol(TileType.Wall);
+            levelMap[x, 0] = TileSymbols.TypeToDataSymbol(TileType.Wall);
+            levelMap[x, height - 1] = TileSymbols.TypeToDataSymbol(TileType.Wall);
         }
         for (int y = 0; y < height; y++)
         {
-            levelMap[0, y] = TileSymbols.TypeToSymbol(TileType.Wall);
-            levelMap[width - 1, y] = TileSymbols.TypeToSymbol(TileType.Wall);
+            levelMap[0, y] = TileSymbols.TypeToDataSymbol(TileType.Wall);
+            levelMap[width - 1, y] = TileSymbols.TypeToDataSymbol(TileType.Wall);
         }
 
         // Player spawn'u rastgele yerleştir
         int px = Random.Range(1, width - 1);
         int py = Random.Range(1, height - 1);
-        levelMap[px, py] = TileSymbols.TypeToSymbol(TileType.PlayerSpawn);
+        levelMap[px, py] = TileSymbols.TypeToDataSymbol(TileType.PlayerSpawn);
 
         // Örnek olarak diğer bazı nesneleri rastgele yerleştir
         PlaceRandom(TileType.Coin, 10);
@@ -128,9 +128,9 @@ public class LevelLoader : MonoBehaviour
         {
             int x = Random.Range(1, width - 1);
             int y = Random.Range(1, height - 1);
-            if (levelMap[x, y] == TileSymbols.TypeToSymbol(TileType.Empty))
+            if (levelMap[x, y] == TileSymbols.TypeToDataSymbol(TileType.Empty))
             {
-                levelMap[x, y] = TileSymbols.TypeToSymbol(type);
+                levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
                 placed++;
             }
         }
@@ -143,42 +143,56 @@ public class LevelLoader : MonoBehaviour
         {
             for (int x = 0; x < width; x++)
             {
-                // Değişken adı 'c'
-                char c = levelMap[x, y];
-                Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
-                TileType type = TileSymbols.SymbolToType(c);
+                // --- 1. ADIM: ÇEVİRİM ---
+                // Haritadan okunan basit karakter (örn: 'P')
+                char symbolChar = levelMap[x, y];
+                // Karakteri TİPE çevir. Bu, tüm mantığın temelidir.
+                TileType type = TileSymbols.DataSymbolToType(symbolChar);
 
-                // Oyuncu özel durumu (bu kısım doğru)
+                // Boş kareler bir hata değildir, bu yüzden hiçbir şey yapmadan devam et.
+                if (type == TileType.Empty)
+                {
+                    continue;
+                }
+
+                // --- 2. ADIM: VERİ HAZIRLAMA ---
+                Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+                // Tipi EMOJİ'ye çevir.
+                string emojiSymbol = TileSymbols.TypeToVisualSymbol(type);
+
+                // --- 3. ADIM: OLUŞTURMA ---
+
+                // Oyuncuyu tipi üzerinden kontrol etmek daha güvenlidir.
                 if (type == TileType.PlayerSpawn)
                 {
                     playerObject = Instantiate(playerPrefab, pos, Quaternion.identity, transform);
                     playerObject.GetComponent<PlayerController>()?.Init(x, y);
                     tileObjects[x, y] = playerObject;
-                    continue;
+                    continue; // Oyuncu yerleştirildi, bu döngü adımı bitti.
                 }
 
-                // Prefab bulma ve oluşturma mantığı
+                // Diğer tüm tipler için prefab bulmayı dene.
                 if (prefabMap.TryGetValue(type, out var tileBasePrefab))
                 {
                     TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
 
-                    // DÜZELTME 1: Değişken adını 'c' olarak kullan
-                    newTile.SetVisual(c);
+                    // Görseli, hazırladığımız emoji string'i ile ayarla.
+                    newTile.SetVisual(emojiSymbol);
 
-                    // DÜZELTME 2: Init'i güvenli bir şekilde çağır
+                    // Init metodunu güvenli bir şekilde çağır.
                     (newTile as IInitializable)?.Init(x, y);
                     
-                    // DÜZELTME 3: Diziye Component'i değil, GameObject'i ata
+                    // Diziyi güncelle.
                     tileObjects[x, y] = newTile.gameObject;
                 }
-                else // Prefab yoksa manuel oluştur
+                else // Prefab sözlükte bulunamadıysa, bu bir hatadır.
                 {
-                    Debug.LogError($"Prefab bulunamadı: {type}");
+                    // Hata mesajını daha bilgilendirici hale getirelim.
+                    Debug.LogError($"Prefab bulunamadı! Harita Karakteri: '{symbolChar}', Anlaşılan Tip: {type}");
                 }
             }
         }
     }
-
 
     GameObject CreateAsciiTile(char symbol, Vector3 position)
     {

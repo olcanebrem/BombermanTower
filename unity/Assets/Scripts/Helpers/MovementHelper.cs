@@ -28,7 +28,7 @@ public static class MovementHelper
         }
 
         // Hedefteki karede ne var?
-        TileType targetType = TileSymbols.SymbolToType(ll.levelMap[newX, newY]);
+        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
 
         // Hedefteki kareye girilebilir mi?
         // Bu switch yapısı, gelecekte yeni kurallar eklemeyi kolaylaştırır.
@@ -64,8 +64,8 @@ public static class MovementHelper
         );
 
         // b) MANTIKSAL HARİTA GÜNCELLEME: levelMap dizisini güncelle.
-        ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToSymbol(TileType.Empty); // Eski yeri boşalt.
-        ll.levelMap[newX, newY] = TileSymbols.TypeToSymbol(mover.TileType);      // Yeni yeri doldur.
+        ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToDataSymbol(TileType.Empty); // Eski yeri boşalt.
+        ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(mover.TileType);      // Yeni yeri doldur.
 
         // c) NESNENİN KENDİ DURUMUNU GÜNCELLEME: Nesneye yeni koordinatlarını bildir.
         mover.OnMoved(newX, newY);
