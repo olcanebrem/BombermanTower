@@ -59,8 +59,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualText: {fileID: 4500058380682614219}
-  explosionRange: 2
-  stepDuration: 0.1
+  bombPrefab: {fileID: 9048555102869179715, guid: 1836c43e7c4f24c41802b2a5078017da, type: 3}
 --- !u!114 &4500058380682614219
 MonoBehaviour:
   m_ObjectHideFlags: 0

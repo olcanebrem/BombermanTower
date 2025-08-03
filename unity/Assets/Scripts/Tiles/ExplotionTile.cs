@@ -1,10 +1,29 @@
 using UnityEngine;
+using System;
 public class ExplosionTile : TileBase, ITurnBased, IInitializable
 {
     public int X { get; set; }
     public int Y { get; set; }
     private int turnsToLive = 1; // Patlama efektinin kaç tur ekranda kalacağı
 
+    void OnEnable()
+    {
+        // Kendini TurnManager'ın listesine kaydettirir.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Register(this);
+        }
+    }
+
+    void OnDisable()
+    {
+        // Kendini TurnManager'ın listesinden siler.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
+    }
+    
     // --- Arayüzlerin Uygulanması ---
     public bool HasActedThisTurn { get; set; }
     public void ResetTurn() => HasActedThisTurn = false;
@@ -15,19 +34,16 @@ public class ExplosionTile : TileBase, ITurnBased, IInitializable
     }
     // --------------------------------
 
-    void OnEnable()
+    public void ExecuteTurn()
     {
-        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
-        TurnManager.OnTurnAdvanced += OnTurn;
+        if (HasActedThisTurn) return;
+
+        OnTurn();
+        
+        HasActedThisTurn = true;
     }
 
-    void OnDisable()
-    {
-        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
-        TurnManager.OnTurnAdvanced -= OnTurn;
-    }
-
-    void OnTurn()
+    public void OnTurn()
     {
         if (HasActedThisTurn) return;
 

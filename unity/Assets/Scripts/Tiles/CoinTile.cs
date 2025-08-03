@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 public class CoinTile : TileBase
 {
     public int X { get; set; }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
 {
     public int X { get; set; }
@@ -9,15 +10,34 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
     
     void OnEnable()
     {
-        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
-        TurnManager.OnTurnAdvanced += OnTurn;
+        // Kendini TurnManager'ın listesine kaydettirir.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Register(this);
+        }
     }
 
     void OnDisable()
     {
-        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
-        TurnManager.OnTurnAdvanced -= OnTurn;
+        // Kendini TurnManager'ın listesinden siler.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
     }
+    
+    public void ExecuteTurn()
+    {
+        if (HasActedThisTurn)
+        {
+            return;
+        }
+
+        OnTurn();
+        
+        HasActedThisTurn = true;
+    }
+    
     void Start()
     {
         Vector3 pos = transform.position;
@@ -27,12 +47,12 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
 
     void OnTurn()
     {
-        if (HasActedThisTurn || Random.value < 0.5f) return;
+        if (HasActedThisTurn || UnityEngine.Random.value < 0.5f) return;
 
         Vector2Int[] directions = new[] {
             Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
         };
-        Vector2Int dir = directions[Random.Range(0, directions.Length)];
+        Vector2Int dir = directions[UnityEngine.Random.Range(0, directions.Length)];
 
         if (!MovementHelper.TryMove(this, dir)) Debug.Log("Enemy couldn't move");
 

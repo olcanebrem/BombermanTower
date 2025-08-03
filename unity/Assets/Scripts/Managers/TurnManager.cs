@@ -1,50 +1,17 @@
 using UnityEngine;
-using System;
-using System.Collections.Generic; 
-using System.Linq;           
+using System.Collections.Generic;
+using System.Linq;
 
 public class TurnManager : MonoBehaviour
 {
-    // --- Singleton Kurulumu ---
     public static TurnManager Instance { get; private set; }
 
-    // --- Ayarlanabilir Değişkenler ---
-    public float turnInterval = 0.1f;
-    
-    // --- Dahili Durum Değişkenleri ---
+    public float turnInterval = 0.2f; // Hızı daha kontrol edilebilir yapmak için biraz artırdım.
     private float turnTimer = 0f;
+
     public int TurnCount { get; private set; } = 0;
-
-    // **********************************************************
-    // ******** İŞTE LİSTENİN YAZILDIĞI YER BURASI ********
-    //
-    // Bu liste, ITurnBased arayüzünü uygulayan tüm aktif nesnelerin
-    // kaydını tutar.
-    // 'private' olması önemlidir, çünkü bu listeyi sadece TurnManager'ın
-    // kendisi yönetmelidir.
     private List<ITurnBased> turnBasedObjects = new List<ITurnBased>();
-    // **********************************************************
-    // --- Liste Yönetim Metodları (Public) ---
-    // Nesnelerin kendilerini bu listeye eklemesi için.
-    public void Register(ITurnBased obj)
-    {
-        if (!turnBasedObjects.Contains(obj))
-        {
-            turnBasedObjects.Add(obj);
-        }
-    }
 
-    // Nesnelerin yok olmadan önce kendilerini listeden çıkarması için.
-    public void Unregister(ITurnBased obj)
-    {
-        if (turnBasedObjects.Contains(obj))
-        {
-            turnBasedObjects.Remove(obj);
-        }
-    }
-
-
-    // --- Unity Yaşam Döngüsü Metodları ---
     void Awake()
     {
         if (Instance == null) Instance = this;
@@ -56,28 +23,55 @@ public class TurnManager : MonoBehaviour
         turnTimer += Time.deltaTime;
         if (turnTimer >= turnInterval)
         {
-            turnTimer = 0f;
+            turnTimer -= turnInterval; // Tam olarak aralık kadar azaltmak, zaman kaymasını önler.
             AdvanceTurn();
         }
     }
 
+    public void Register(ITurnBased obj)
+    {
+        if (!turnBasedObjects.Contains(obj)) turnBasedObjects.Add(obj);
+    }
 
-    // --- Ana Tur Yönetim Metodu ---
-    public static event Action OnTurnAdvanced;
-    
-    public void AdvanceTurn()
+    public void Unregister(ITurnBased obj)
+    {
+        if (turnBasedObjects.Contains(obj)) turnBasedObjects.Remove(obj);
+    }
+
+    void AdvanceTurn()
     {
         TurnCount++;
 
-        // 1. HAZIRLIK: Listeyi kullanarak herkese "resetlen" komutu ver.
-        // .ToList() kullanmak, döngü sırasında bir nesne kendini listeden çıkarırsa
-        // (örneğin patlayan bir bomba) hata almayı önler. Güvenli bir yöntemdir.
-        foreach (var obj in turnBasedObjects.ToList()) 
+        // 1. Herkesi yeni tura hazırla.
+        foreach (var obj in turnBasedObjects.ToList())
         {
-            obj?.ResetTurn(); // Nesne null değilse resetle
+            obj.ResetTurn();
         }
 
-        // 2. EYLEM: Herkes hazır olduğuna göre, yeni turun başladığını duyur.
-        OnTurnAdvanced?.Invoke();
+        // 2. Oynayacakların bir kopyasını al ve KESİN BİR SIRAYA SOK.
+        // Bu, tüm kaosun ve yarış durumlarının önüne geçen en önemli adımdır.
+        var unitsToPlay = turnBasedObjects
+            .OrderBy(u => GetExecutionOrder(u))
+            .ToList();
+
+        // 3. Sırayla herkesin "beynini" çalıştır.
+        // Bu döngü anında, tek bir frame içinde, belirlenen sırada tamamlanır.
+        foreach (var unit in unitsToPlay)
+        {
+            if (unit == null || (unit as MonoBehaviour) == null) continue;
+            
+            unit.ExecuteTurn();
+        }
+    }
+
+    // Sıralamayı belirleyen merkezi kural motoru.
+    private int GetExecutionOrder(ITurnBased unit)
+    {
+        if (unit is PlayerController) return 0; // Oyuncu her zaman ilk eylem şansına sahip olur.
+        if (unit is EnemyShooterTile) return 1; // Düşmanlar ikinci.
+        if (unit is EnemyTile) return 1;
+        if (unit is Projectile) return 2;      // Mermiler en son hareket eder.
+        if (unit is BombTile) return 3;        // Bombalar daha da sonra patlar.
+        return 100; // Diğer her şey.
     }
 }

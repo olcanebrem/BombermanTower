@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using System;
 public class BombTile : TileBase, ITurnBased, IInitializable
 {   
     public int X { get; set; }
@@ -17,24 +18,31 @@ public class BombTile : TileBase, ITurnBased, IInitializable
 
     public GameObject explosionPrefab; 
     Text text;
+    
+    void OnEnable()
+    {
+        // Kendini TurnManager'ın listesine kaydettirir.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Register(this);
+        }
+    }
 
+    void OnDisable()
+    {
+        // Kendini TurnManager'ın listesinden siler.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
+    }
+    
     void Start()
     {
         gameObject.name = "Bomb";
         text = GetComponent<Text>();
     }
-    void OnEnable()
-    {
-        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
-        TurnManager.OnTurnAdvanced += OnTurn;
-    }
-
-    void OnDisable()
-    {
-        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
-        TurnManager.OnTurnAdvanced -= OnTurn;
-    }
-
+    
     public void Init(int x, int y)
     {
         this.X = x;
@@ -82,44 +90,40 @@ public class BombTile : TileBase, ITurnBased, IInitializable
         // Patlama bitti, şimdi bombanın kendisini tamamen yok et.
         Destroy(gameObject);
     }
-
-    void CreateExplosionAt(int px, int py)
-{
-    var ll = LevelLoader.instance;
-
-    // 1. Harita sınırlarını kontrol et.
-    if (px < 0 || px >= ll.width || py < 0 || py >= ll.height)
+    public void ExecuteTurn()
     {
-        return;
-    }
+        if (HasActedThisTurn) return;
 
-    // 2. Hedefteki karenin tipini, veri sembolünü kullanarak öğren.
-    TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[px, py]);
-
-    // 3. Patlamanın duvarları etkilememesini sağla.
-    if (targetType == TileType.Wall)
-    {
-        return;
-    }
-
-    // 4. VERİ KATMANINI GÜNCELLE: levelMap'e basit bir karakter koy.
-    // Bu, patlamanın mantıksal haritadaki izidir.
-    // '※' gibi özel bir karakter kullanabiliriz, ama tutarlılık için
-    // bir TileType'a karşılık gelen sembolü kullanmak daha iyidir.
-    // Şimdilik 'X' (Bomb) sembolünü kullanalım.
-    ll.levelMap[px, py] = TileSymbols.TypeToDataSymbol(TileType.Bomb);
-
-    // 5. GÖRSEL KATMANI OLUŞTUR: Explosion prefabını instantiate et.
-    GameObject explosionGO = Instantiate(explosionPrefab, 
-        new Vector3(px * ll.tileSize, (ll.height - py - 1) * ll.tileSize, 0), 
-        Quaternion.identity, ll.transform);
+        OnTurn();
         
-    // 6. OLUŞTURULAN NESNEYİ AYARLA:
-    // a) Patlamanın nerede olduğunu bilmesi için Init'i çağır.
-    explosionGO.GetComponent<IInitializable>()?.Init(px, py);
-    
-    // b) Patlamanın görselini (emojisini) ayarla.
-    explosionGO.GetComponent<TileBase>()?.SetVisual("💥");
-}
+        HasActedThisTurn = true;
+    }
+        void CreateExplosionAt(int px, int py)
+    {
+        var ll = LevelLoader.instance;
+        if (px < 0 || px >= ll.width || py < 0 || py >= ll.height) return;
 
+        // --- CASUS KODU ---
+        // Bu patlamanın kimi hedef aldığını bize söyle.
+        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[px, py]);
+        Debug.LogWarning($"Patlama ({px},{py}) koordinatını etkiliyor. Hedefteki Tip: {targetType}");
+        // ------------------
+
+        // Hedefteki nesneyi bul ve potansiyel olarak yok et.
+        GameObject targetObject = ll.tileObjects[px, py];
+        if (targetObject != null)
+        {
+            // EĞER HEDEF OYUNCUYSA, KIRMIZI ALARM VER!
+            if (targetObject.GetComponent<PlayerController>() != null)
+            {
+                Debug.LogError($"!!! PATLAMA OYUNCUYU VURDU !!! ({px},{py})", targetObject);
+            }
+            
+            // Burada hedefi yok eden bir kod olabilir.
+            // Örneğin: Destroy(targetObject);
+        }
+
+        // ... Geri kalan patlama oluşturma kodlarınız ...
+        // Örneğin: Instantiate(explosionPrefab, ...);
+    }
 }

@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using System;
 public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable
 {
     public int X { get; set; }
@@ -8,31 +8,35 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable
     private int turnsElapsed = 4;
     public TileType TileType => TileType.EnemyShooter;
     public GameObject projectilePrefab;
+    public bool HasActedThisTurn { get; set; }
     void OnEnable()
     {
-        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
-        TurnManager.OnTurnAdvanced += OnTurn;
+        // Kendini TurnManager'ın listesine kaydettirir.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Register(this);
+        }
     }
 
     void OnDisable()
     {
-        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
-        TurnManager.OnTurnAdvanced -= OnTurn;
+        // Kendini TurnManager'ın listesinden siler.
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
     }
-    public bool HasActedThisTurn { get; set; }
-
-
-    public void Init(int x, int y)
+    
+    public void ExecuteTurn()
     {
-        this.X = x;
-        this.Y = y;
-    }
 
-    private void OnTurn()
-    {
-        if (HasActedThisTurn) return;
-        // Ateş etme kontrolü
-        turnCounter++;
+        if (HasActedThisTurn)
+        {
+            return;
+        }
+
+        // Düşmanın AI mantığı burada çalışır.
+         turnCounter++;
 
         if (turnCounter >= turnsElapsed)
         {
@@ -43,10 +47,10 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable
         else // Ateş etmediyse, hareket etmeyi düşünebilir
         {
             // %50 ihtimalle hareket etmeye karar ver
-            if (Random.value > 0.5f)
+            if (UnityEngine.Random.value > 0.5f)
             {
-                int dx = Random.Range(-1, 2);
-                int dy = Random.Range(-1, 2);
+                int dx = UnityEngine.Random.Range(-1, 2);
+                int dy = UnityEngine.Random.Range(-1, 2);
 
                 // Hareketi denemek için merkezi MovementHelper'ı çağır.
                 // MovementHelper'ın kendisi tüm kontrolleri yapacak.
@@ -61,20 +65,19 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable
                 }
             }
         }
+        
     }
-    public void OnMoved(int newX, int newY)
-    {
-        X = newX;
-        Y = newY;
-    }
-    void ShootRandomDirection()
-{
-    Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-    Vector2Int dir = directions[Random.Range(0, directions.Length)];
+    public void Init(int x, int y) { this.X = x; this.Y = y; }
+    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
 
-    // Yeni Spawn metodunu çağırırken, kendi prefabımızı ona veriyoruz.
-    Projectile.Spawn(this.projectilePrefab, X, Y, dir);
-}
+    void ShootRandomDirection()
+    {
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        Vector2Int dir = directions[UnityEngine.Random.Range(0, directions.Length)];
+
+        // Yeni Spawn metodunu çağırırken, kendi prefabımızı ona veriyoruz.
+        Projectile.Spawn(this.projectilePrefab, X, Y, dir);
+    }
 
     public void ResetTurn() => HasActedThisTurn = false;
 }

@@ -1,138 +1,102 @@
 using UnityEngine;
-using System.Collections;
 
 public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
 {
-    public int X { get; set; }
-    public int Y { get; set; }
-    public Vector2Int direction;
+    // --- Arayüzler ve Değişkenler ---
+    public int X { get; private set; }
+    public int Y { get; private set; }
     public TileType TileType => TileType.Projectile;
-    
     public bool HasActedThisTurn { get; set; }
-    public GameObject projectilePrefab;
-    
-    // Artık LevelLoader'ı değil, doğrudan kullanılacak prefabı parametre olarak alıyor.
+    private Vector2Int direction;
+    private bool isFirstTurn = true;
+
+    //=========================================================================
+    // KAYIT VE KURULUM
+    //=========================================================================
+    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
+    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    public void Init(int x, int y) { this.X = x; this.Y = y; }
+
     public static Projectile Spawn(GameObject prefabToSpawn, int x, int y, Vector2Int direction)
     {
-        // LevelLoader'dan tileSize ve height gibi bilgileri hâlâ alabiliriz, bu kabul edilebilir.
-        // Çünkü bu, dünyanın genel fiziksel özellikleridir.
-        float tileSize = LevelLoader.instance.tileSize;
-        int height = LevelLoader.instance.height;
-
-        Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
-
-        // LevelLoader'ın sözlüğüne erişmek yerine, bize verilen prefabı kullanıyoruz.
-        GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, LevelLoader.instance.transform);
-
+        var ll = LevelLoader.instance;
+        Vector3 pos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
+        GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, ll.transform);
         Projectile proj = projectileGO.GetComponent<Projectile>();
-        if (proj == null)
-        {
-            Debug.LogError("Verilen prefabda Projectile component'i bulunamadı!", prefabToSpawn);
-            return null;
-        }
-
-        proj.Init(x, y); // Init'i burada çağırabiliriz.
+        proj.Init(x, y);
         proj.direction = direction;
         return proj;
     }
-    // Start metodu, nesne tamamen sahneye eklendikten sonra çalışır.
+
     void Start()
     {
-        // Görseli ayarlama işini bir sonraki frame'e erteleyen bir Coroutine başlat.
-        StartCoroutine(SetVisualDelayed());
-    }
-
-    private IEnumerator SetVisualDelayed()
-    {
-        // Bir sonraki frame'i bekle. Bu, TMP'nin Awake'ini çalıştırması için zaman tanır.
-        yield return null; 
-
-        // Artık TMP hazır, görseli güvenle ayarlayabiliriz.
-        string visual = TileSymbols.TypeToVisualSymbol(this.TileType);
-        SetVisual(visual);
-        // --- 2. ROTASYONU AYARLA (YENİ KISIM) ---
-        // Yön vektörüne göre doğru açıyı hesapla.
-        float angle = 180f;
-
-        if (direction == Vector2Int.up)
-        {
-            angle = 270f;
-        }
-        else if (direction == Vector2Int.down)
-        {
-            angle = 90f;
-        }
-        else if (direction == Vector2Int.right)
-        {
-            angle = 0f; // Veya 270f
-        }
-        else if (direction == Vector2Int.left)
-        {
-            angle = 180f;
-        }
-
-        // Hesaplanan açıyı GameObject'in rotasyonuna uygula.
-        // Z ekseni etrafında döndürüyoruz.
+        SetVisual(TileSymbols.TypeToVisualSymbol(this.TileType));
+        float angle = 0f;
+        if (direction == Vector2Int.up) angle = 0f;
+        else if (direction == Vector2Int.down) angle = 180f;
+        else if (direction == Vector2Int.right) angle = -90f;
+        else if (direction == Vector2Int.left) angle = 90f;
         transform.rotation = Quaternion.Euler(0, 0, angle);
     }
-    void OnEnable()
-    {
-        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
-        TurnManager.OnTurnAdvanced += OnTurn;
-    }
 
-    void OnDisable()
-    {
-        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
-        TurnManager.OnTurnAdvanced -= OnTurn;
-    }
-    void OnTurn()
+    //=========================================================================
+    // TUR TABANLI EYLEMLER (ITurnBased)
+    //=========================================================================
+    public void ResetTurn() => HasActedThisTurn = false;
+
+    public void ExecuteTurn()
     {
         if (HasActedThisTurn) return;
+        if (isFirstTurn) { isFirstTurn = false; HasActedThisTurn = true; return; }
         Move();
+        HasActedThisTurn = true;
     }
+
+    //=========================================================================
+    // HAREKET VE YOK OLMA MANTIĞI
+    //=========================================================================
     void Move()
     {
         int newX = X + direction.x;
         int newY = Y + direction.y;
+        var ll = LevelLoader.instance;
 
-        // Harita sınırları kontrolü
-        if (newX < 0 || newX >= LevelLoader.instance.width || newY < 0 || newY >= LevelLoader.instance.height)
+        // 1. Sınır Kontrolü
+        if (newX < 0 || newX >= ll.width || newY < 0 || newY >= ll.height)
         {
-            Destroy(gameObject);
+            Die();
             return;
         }
 
-        char nextTileChar = LevelLoader.instance.levelMap[newX, newY];
-        TileType nextTileType = TileSymbols.DataSymbolToType(nextTileChar);
+        // 2. Hedef Analizi
+        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
 
-        // Engel varsa patla / yok ol
-        if (nextTileType == TileType.Wall || nextTileType == TileType.Breakable || nextTileType == TileType.Gate)
+        // 3. Çarpışma Kontrolü
+        if (!MovementHelper.TryMove(this, direction))
         {
-            Debug.Log($"Projectile hit wall at ({newX}, {newY})");
-            Destroy(gameObject);
+            // Hedef geçilebilir değil. Bu bir engeldir.
+            // Gelecekte, hedefin ne olduğuna göre farklı eylemler yapılabilir.
+            // Örneğin: if (targetType == TileType.Player || targetType == TileType.Enemy) { DealDamage(); }
+            
+            // Şimdilik, neye çarparsa çarpsın, SADECE KENDİNİ yok et.
+            Die();
             return;
         }
 
-        // Harita güncelle
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        LevelLoader.instance.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Projectile);
-
-        // Görsel pozisyon güncelle
-        transform.position = new Vector3(newX * LevelLoader.instance.tileSize,
-            (LevelLoader.instance.height - newY - 1) * LevelLoader.instance.tileSize, 0);
-
+        // 4. Hareket Uygulaması (Eğer çarpışma olmadıysa)
+        transform.position = new Vector3(newX * ll.tileSize, (ll.height - newY - 1) * ll.tileSize, 0);
+        ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Projectile);
         OnMoved(newX, newY);
     }
-    public void OnMoved(int newX, int newY)
+
+    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+
+    private void Die()
     {
-        X = newX;
-        Y = newY;
+        // Sadece kendi izini haritadan sil.
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        // Sadece kendi GameObject'ini yok et.
+        Destroy(gameObject);
     }
-    public void Init(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-    }
-    public void ResetTurn() => HasActedThisTurn = false;
 }

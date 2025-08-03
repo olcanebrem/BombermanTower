@@ -114,7 +114,20 @@ public class LevelLoader : MonoBehaviour
             }
         }
     }
-
+    public void DebugPrintMap()
+    {
+        Debug.Log("--- Haritanın Mevcut Durumu ---");
+        string mapString = "";
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                mapString += levelMap[x, y];
+            }
+            mapString += "\n"; // Her satırdan sonra yeni bir satıra geç
+        }
+        Debug.Log(mapString);
+    }
     // CreateMapVisual metodunuz neredeyse hiç değişmeden çalışmaya devam edecek!
     // Sadece oyuncu oluşturma mantığını en sona taşıdık.
     void CreateMapVisual()
@@ -141,26 +154,53 @@ public class LevelLoader : MonoBehaviour
                 {
                     Debug.LogWarning($"Prefab bulunamadı, bu tip için: {type}");
                 }
-                    // --- YENİ OYUNCU OLUŞTURMA BLOĞU ---
-                    // Tüm harita bittikten sonra, oyuncuyu özel koordinatlarına yerleştir.
-                    Vector3 playerPos = new Vector3(playerStartX * tileSize, (height - playerStartY - 1) * tileSize, 0);
-                    playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
-                    
-                    // 1. Oyuncunun tipini al (PlayerSpawn).
-                    TileType playerType = TileType.PlayerSpawn;
-                    // 2. Bu tipe karşılık gelen görseli (sprite etiketini) al.
-                    string playerVisual = TileSymbols.TypeToVisualSymbol(playerType);
-                    // 3. Oyuncu nesnesinin üzerindeki TileBase bileşenini bul ve görselini ayarla.
-                    playerObject.GetComponent<TileBase>()?.SetVisual(playerVisual);
-                    // ---------------------------------------------------------
-
-                    // Init metodunu çağır.
-                    playerObject.GetComponent<PlayerController>()?.Init(playerStartX, playerStartY);
-                    
-                    // Oyuncunun GameObject'ini de tileObjects dizisine ekleyelim ki referans tam olsun.
-                    tileObjects[playerStartX, playerStartY] = playerObject;
                 
             }
         }
+        // --- YENİ OYUNCU OLUŞTURMA BLOĞU ---
+        // Tüm harita bittikten sonra, oyuncuyu özel koordinatlarına yerleştir.
+        Vector3 playerPos = new Vector3(playerStartX * tileSize, (height - playerStartY - 1) * tileSize, 0);
+        playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+        
+        // ... Görseli ayarlama kodları ...
+        playerObject.GetComponent<TileBase>()?.SetVisual(TileSymbols.TypeToVisualSymbol(TileType.Player));
+
+        // Init metodunu çağır.
+        var playerController = playerObject.GetComponent<PlayerController>();
+        playerController?.Init(playerStartX, playerStartY);
+        
+        // Oyuncunun GameObject'ini tileObjects dizisine ekle.
+        tileObjects[playerStartX, playerStartY] = playerObject;
+
+        // --- HATAYI DÜZELTEN EN ÖNEMLİ SATIR ---
+        // Mantıksal haritadaki başlangıç noktasını, oyuncunun GERÇEK TİPİ ile güncelle.
+        if (playerController != null)
+        {
+            levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(playerController.TileType);
+        }
     }
+    public void PlaceBombAt(int x, int y)
+{
+    // GÜVENLİK KİLİDİ: Eğer bu kare bir şekilde doluysa, hiçbir şey yapma.
+    if (TileSymbols.DataSymbolToType(levelMap[x, y]) != TileType.Empty)
+    {
+        Debug.LogWarning($"({x},{y}) dolu olduğu için bomba konulamadı. İçerik: {TileSymbols.DataSymbolToType(levelMap[x,y])}");
+        return;
+    }
+
+    // Sözlükten Bomb prefabını al
+    if (prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab))
+    {
+        Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+        TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, transform);
+
+        // Bombayı kur
+        newBomb.SetVisual(TileSymbols.TypeToVisualSymbol(TileType.Bomb));
+        (newBomb as IInitializable)?.Init(x, y);
+        
+        // Haritaları GÜNCELLE
+        tileObjects[x, y] = newBomb.gameObject; // Nesne haritasını güncelle
+        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb); // Mantıksal haritayı güncelle
+    }
+}
 }

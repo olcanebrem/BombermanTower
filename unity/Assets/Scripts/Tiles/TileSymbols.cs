@@ -8,6 +8,7 @@ public enum TileType
     Gate,
     Stairs,
     PlayerSpawn,
+    Player,
     Enemy,
     EnemyShooter,
     Bomb,
@@ -30,6 +31,7 @@ public static class TileSymbols
             case TileType.Gate:         return "<sprite name=gate>";
             case TileType.Stairs:       return "<sprite name=stairs>";
             case TileType.PlayerSpawn:  return "<sprite name=player>";
+            case TileType.Player:       return "<sprite name=player>";
             case TileType.Enemy:        return "<sprite name=enemy>";
             case TileType.EnemyShooter: return "<sprite name=enemyshooter>";
             case TileType.Bomb:         return "<sprite name=bomb>";
@@ -52,6 +54,7 @@ public static class TileSymbols
             case TileType.Gate:         return 'G';
             case TileType.Stairs:       return 'S';
             case TileType.PlayerSpawn:  return 'P';
+            case TileType.Player:       return 'P';
             case TileType.Enemy:        return 'E';
             case TileType.EnemyShooter: return 'F';
             case TileType.Bomb:         return 'X';
