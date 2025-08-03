@@ -18,6 +18,28 @@ public static class MovementHelper
     TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
     if (!IsTilePassable(targetType)) return false;
 
+    // --- YENİ TOPLAMA MANTIĞI BURADA ---
+    // Eğer hedefte bir Coin varsa...
+    if (targetType == TileType.Coin)
+    {
+        // Sadece oyuncu coin toplayabilsin.
+        if (mover is PlayerController)
+        {
+            // 1. GameManager'a coin topladığımızı bildir.
+            GameManager.Instance.CollectCoin();
+            
+            // 2. O koordinattaki Coin GameObject'ini yok et.
+            GameObject coinObject = ll.tileObjects[newX, newY];
+            if (coinObject != null)
+            {
+                Object.Destroy(coinObject); // MonoBehaviour.Destroy yerine Object.Destroy kullan
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
     // --- UYGULAMA (Tüm kontrollerden geçti) ---
 
     // 1. Görseli güncelle
@@ -26,7 +48,7 @@ public static class MovementHelper
         (ll.height - newY - 1) * ll.tileSize,
         0
     );
-
+    
     // 2. Mantıksal haritayı (`levelMap`) güncelle
     ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
     ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(mover.TileType);
