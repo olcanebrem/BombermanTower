@@ -9,28 +9,32 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     public TileType TileType => TileType.Player;
     public bool HasActedThisTurn { get; set; }
     public GameObject bombPrefab;
+    private Vector2Int lastMoveDirection;
+    public int MaxHealth { get; set; }
+    public int CurrentHealth { get; set; }
+    public event Action OnHealthChanged;
+    // --- YENİ ÇAPRAZ HAREKET TAMPONU DEĞİŞKENLERİ ---
+    private Vector2Int bufferedMove; // Tamponlanan ilk hareket
+    private float bufferTimer;       // Tamponun ne kadar süre geçerli olacağı
+    public float diagonalBufferTime = 0.1f; // İkinci tuşa basmak için saniye cinsinden süre
+    // -------------------------------------------------
 
     private Vector2Int nextMoveDirection;
     private bool wantsToPlaceBomb;
-    private Vector2Int lastMoveDirection; // Oyuncunun en son hareket ettiği yönü saklar.
 
-    // --- Girdi Yönetimi ---
-    void Update()
+    //=========================================================================
+    // KAYIT VE KURULUM
+    //=========================================================================
+    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
+    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    public void Init(int x, int y)
     {
-        // Eğer bir sonraki tur için zaten bir komut ayarlanmışsa, yenisini alma.
-        // Bu, oyuncunun çok hızlı komut vermesini engeller.
-        if (nextMoveDirection != Vector2Int.zero || wantsToPlaceBomb) return;
-
-        if (Input.GetKey(KeyCode.W)) nextMoveDirection = Vector2Int.down;
-        else if (Input.GetKey(KeyCode.S)) nextMoveDirection = Vector2Int.up;
-        else if (Input.GetKey(KeyCode.A)) nextMoveDirection = Vector2Int.left;
-        else if (Input.GetKey(KeyCode.D)) nextMoveDirection = Vector2Int.right;
-        else if (Input.GetKeyDown(KeyCode.Space)) wantsToPlaceBomb = true;
+        this.X = x;
+        this.Y = y;
+        this.lastMoveDirection = Vector2Int.up;
+        this.MaxHealth = 3;
+        this.CurrentHealth = MaxHealth;
     }
-    // --- IDamageable Arayüzünden Gelenler ---
-    public int CurrentHealth { get; private set; }
-    public int MaxHealth { get; private set; }
-    public event Action OnHealthChanged;
 
     public void TakeDamage(int damageAmount)
     {
@@ -63,7 +67,6 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         OnHealthChanged?.Invoke();
     }
     // --- ITurnBased Metodları ---
-    public void ResetTurn() => HasActedThisTurn = false;
 
     private void Die()
     {
@@ -75,26 +78,84 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         // Time.timeScale = 0; 
         Destroy(gameObject);
     }
+    //=========================================================================
+    // GİRDİ YÖNETİMİ (UPDATE) - TAMAMEN YENİDEN YAZILDI
+    //=========================================================================
+    void Update()
+    {
+        // Eğer bir sonraki tur için zaten bir komut ayarlanmışsa, yeni girdi alma.
+        if (nextMoveDirection != Vector2Int.zero || wantsToPlaceBomb) return;
+
+        // Zamanlayıcıyı güncelle
+        if (bufferTimer > 0)
+        {
+            bufferTimer -= Time.deltaTime;
+        }
+        else
+        {
+            // Eğer zamanlayıcı dolduysa ve tamponda bir hareket varsa,
+            // bu, tek bir tuşa basıldığı anlamına gelir.
+            if (bufferedMove != Vector2Int.zero)
+            {
+                nextMoveDirection = bufferedMove;
+                bufferedMove = Vector2Int.zero;
+            }
+        }
+
+        // Girdileri oku
+        Vector2Int currentInput = Vector2Int.zero;
+        if (Input.GetKeyDown(KeyCode.W)) currentInput += Vector2Int.down;
+        if (Input.GetKeyDown(KeyCode.S)) currentInput += Vector2Int.up;
+        if (Input.GetKeyDown(KeyCode.A)) currentInput += Vector2Int.left;
+        if (Input.GetKeyDown(KeyCode.D)) currentInput += Vector2Int.right;
+        if (Input.GetKeyDown(KeyCode.Space)) wantsToPlaceBomb = true;
+
+        // Eğer bir yön girdisi varsa...
+        if (currentInput != Vector2Int.zero)
+        {
+            // Eğer tampon boşsa, bu ilk basılan tuştur.
+            if (bufferedMove == Vector2Int.zero)
+            {
+                bufferedMove = currentInput;
+                bufferTimer = diagonalBufferTime;
+            }
+            // Eğer tampon doluysa, bu ikinci basılan tuştur.
+            else
+            {
+                // İki yönü birleştir (örneğin, sol + yukarı = sol-yukarı).
+                // Sadece dikey ve yatay eksenler farklıysa birleştir.
+                if (bufferedMove.x == 0 && currentInput.y == 0 || bufferedMove.y == 0 && currentInput.x == 0)
+                {
+                    nextMoveDirection = bufferedMove + currentInput;
+                    bufferedMove = Vector2Int.zero;
+                    bufferTimer = 0;
+                }
+            }
+        }
+    }
+
+    //=========================================================================
+    // TUR TABANLI EYLEMLER (ITurnBased) - Değişiklik Yok
+    //=========================================================================
+    public void ResetTurn() => HasActedThisTurn = false;
+
     public void ExecuteTurn()
     {
         if (HasActedThisTurn) return;
 
-        // Kaydedilmiş bir hareket niyeti varsa uygula
         if (nextMoveDirection != Vector2Int.zero)
         {
             if (MovementHelper.TryMove(this, nextMoveDirection, out Vector3 targetPos))
             {
+                lastMoveDirection = nextMoveDirection;
                 StartCoroutine(SmoothMove(targetPos));
                 HasActedThisTurn = true;
             }
-            // Niyet işleme konulduğu için sıfırla.
             nextMoveDirection = Vector2Int.zero;
         }
-        // Kaydedilmiş bir bomba niyeti varsa uygula
         else if (wantsToPlaceBomb)
         {
-            PlaceBomb();
-            HasActedThisTurn = true;
+            if (PlaceBomb()) HasActedThisTurn = true;
             wantsToPlaceBomb = false;
         }
     }
@@ -121,7 +182,6 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         TurnManager.Instance.ReportAnimationEnd();
     }
     // --- Diğer Metodlar ---
-    public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 3; this.CurrentHealth = MaxHealth; }
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
     bool PlaceBomb()
     {
@@ -149,15 +209,6 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         }
     }
     
-    // KAYIT METODLARI (ÇOK ÖNEMLİ)
-    void OnEnable()
-    {
-        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
-    }
-
-    void OnDisable()
-    {
-        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
-    }
+    
 
 }
