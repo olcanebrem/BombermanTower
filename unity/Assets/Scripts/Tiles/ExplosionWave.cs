@@ -7,12 +7,21 @@ public class ExplosionWave : TileBase, IMovable, ITurnBased, IInitializable
     public int Y { get; private set; }
     public TileType TileType => TileType.Explosion;
     public bool HasActedThisTurn { get; set; }
+    private bool isAnimating = false;
 
     private Vector2Int direction;
     private int stepsRemaining;
 
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    void OnDisable() 
+    {
+    if (isAnimating)
+        {
+            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
+            if (TurnManager.Instance != null) TurnManager.Instance.ReportAnimationEnd();
+            TurnManager.Instance.Unregister(this);
+        }
+    }
 
     public void Init(int x, int y) { this.X = x; this.Y = y; }
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
@@ -87,6 +96,7 @@ public class ExplosionWave : TileBase, IMovable, ITurnBased, IInitializable
 
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
+        isAnimating = true; // Animasyon başladı
         TurnManager.Instance.ReportAnimationStart();
         // ... (Diğer script'lerdeki SmoothMove ile aynı kod) ...
         Vector3 startPosition = transform.position;
@@ -101,5 +111,6 @@ public class ExplosionWave : TileBase, IMovable, ITurnBased, IInitializable
         }
         transform.position = targetPosition;
         TurnManager.Instance.ReportAnimationEnd();
+        isAnimating = false; // Animasyon bitti
     }
 }

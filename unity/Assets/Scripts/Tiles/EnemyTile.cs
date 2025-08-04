@@ -11,12 +11,21 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
     public int CurrentHealth { get; private set; }
     public int MaxHealth { get; private set; }
     public event Action OnHealthChanged;
+    private bool isAnimating = false;
     
     //=========================================================================
     // KAYIT VE KURULUM
     //=========================================================================
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    void OnDisable() 
+    {
+    if (isAnimating)
+        {
+            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
+            if (TurnManager.Instance != null) TurnManager.Instance.ReportAnimationEnd();
+            TurnManager.Instance.Unregister(this);
+        }
+    }
     public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 1; this.CurrentHealth = MaxHealth; }
 
     //=========================================================================
@@ -64,6 +73,7 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
 
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
+        isAnimating = true;
         TurnManager.Instance.ReportAnimationStart();
         Vector3 startPosition = transform.position;
         float elapsedTime = 0f;
@@ -77,6 +87,7 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
         }
         transform.position = targetPosition;
         TurnManager.Instance.ReportAnimationEnd();
+        isAnimating = false;
     }
 
     public void TakeDamage(int damageAmount)

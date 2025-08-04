@@ -10,8 +10,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable
 
     public int explosionRange = 2;
     public int turnsToExplode = 3;
-    public GameObject explosionPrefab; // Inspector'dan ExplosionWave_Prefab'ı buraya ata
-
+    public GameObject explosionPrefab;          
     private bool exploded = false;
     private int turnsElapsed = 0;
 

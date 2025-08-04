@@ -13,13 +13,22 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
     private int turnsToShoot = 4;
     public int CurrentHealth { get; private set; }
     public int MaxHealth { get; private set; }
+    private bool isAnimating = false;
     public event Action OnHealthChanged;
     
     //=========================================================================
     // KAYIT VE KURULUM
     //=========================================================================
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    void OnDisable() 
+    {
+    if (isAnimating)
+        {
+            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
+            if (TurnManager.Instance != null) TurnManager.Instance.ReportAnimationEnd();
+            TurnManager.Instance.Unregister(this);
+        }
+    }
     public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 1; this.CurrentHealth = MaxHealth; }
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
 
@@ -59,6 +68,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
     //=========================================================================
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
+        isAnimating = true; // Animasyon başladı
         TurnManager.Instance.ReportAnimationStart();
         Vector3 startPosition = transform.position;
         float elapsedTime = 0f;
@@ -72,6 +82,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         }
         transform.position = targetPosition;
         TurnManager.Instance.ReportAnimationEnd();
+        isAnimating = false; // Animasyon bitti
     }
 
     void ShootRandomDirection()
