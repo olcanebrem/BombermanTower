@@ -18,9 +18,10 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     private float bufferTimer;       // Tamponun ne kadar süre geçerli olacağı
     public float diagonalBufferTime = 0.1f; // İkinci tuşa basmak için saniye cinsinden süre
     // -------------------------------------------------
-
-    private Vector2Int nextMoveDirection;
-    private bool wantsToPlaceBomb;
+    // --- Girdi Değişkenleri ---
+    
+    private Vector2Int moveIntent;
+    private bool bombIntent;
 
     //=========================================================================
     // KAYIT VE KURULUM
@@ -78,59 +79,29 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         // Time.timeScale = 0; 
         Destroy(gameObject);
     }
-    //=========================================================================
-    // GİRDİ YÖNETİMİ (UPDATE) - TAMAMEN YENİDEN YAZILDI
-    //=========================================================================
     void Update()
     {
-        // Eğer bir sonraki tur için zaten bir komut ayarlanmışsa, yeni girdi alma.
-        if (nextMoveDirection != Vector2Int.zero || wantsToPlaceBomb) return;
+        // Girdiyi her frame sıfırla.
+        moveIntent = Vector2Int.zero;
+        
+        // Yatay ve dikey girdileri ayrı ayrı oku.
+        int horizontal = 0;
+        int vertical = 0;
 
-        // Zamanlayıcıyı güncelle
-        if (bufferTimer > 0)
-        {
-            bufferTimer -= Time.deltaTime;
-        }
-        else
-        {
-            // Eğer zamanlayıcı dolduysa ve tamponda bir hareket varsa,
-            // bu, tek bir tuşa basıldığı anlamına gelir.
-            if (bufferedMove != Vector2Int.zero)
-            {
-                nextMoveDirection = bufferedMove;
-                bufferedMove = Vector2Int.zero;
-            }
-        }
+        if (Input.GetKey(KeyCode.W)) vertical = -1; // Mantıksal Yukarı (Görsel Aşağı'nın tersi)
+        if (Input.GetKey(KeyCode.S)) vertical = 1;  // Mantıksal Aşağı
+        if (Input.GetKey(KeyCode.A)) horizontal = -1;
+        if (Input.GetKey(KeyCode.D)) horizontal = 1;
 
-        // Girdileri oku
-        Vector2Int currentInput = Vector2Int.zero;
-        if (Input.GetKeyDown(KeyCode.W)) currentInput += Vector2Int.down;
-        if (Input.GetKeyDown(KeyCode.S)) currentInput += Vector2Int.up;
-        if (Input.GetKeyDown(KeyCode.A)) currentInput += Vector2Int.left;
-        if (Input.GetKeyDown(KeyCode.D)) currentInput += Vector2Int.right;
-        if (Input.GetKeyDown(KeyCode.Space)) wantsToPlaceBomb = true;
+        // Girdileri birleştir.
+        // Eğer hem dikey hem yatay tuşa basılıyorsa, bu bir çapraz harekettir.
+        // Eğer sadece birine basılıyorsa, bu normal bir harekettir.
+        moveIntent = new Vector2Int(horizontal, vertical);
 
-        // Eğer bir yön girdisi varsa...
-        if (currentInput != Vector2Int.zero)
+        // Bomba girdisi sadece bir kere tetiklenmeli (GetKeyDown).
+        if (Input.GetKeyDown(KeyCode.Space))
         {
-            // Eğer tampon boşsa, bu ilk basılan tuştur.
-            if (bufferedMove == Vector2Int.zero)
-            {
-                bufferedMove = currentInput;
-                bufferTimer = diagonalBufferTime;
-            }
-            // Eğer tampon doluysa, bu ikinci basılan tuştur.
-            else
-            {
-                // İki yönü birleştir (örneğin, sol + yukarı = sol-yukarı).
-                // Sadece dikey ve yatay eksenler farklıysa birleştir.
-                if (bufferedMove.x == 0 && currentInput.y == 0 || bufferedMove.y == 0 && currentInput.x == 0)
-                {
-                    nextMoveDirection = bufferedMove + currentInput;
-                    bufferedMove = Vector2Int.zero;
-                    bufferTimer = 0;
-                }
-            }
+            bombIntent = true;
         }
     }
 
@@ -139,24 +110,35 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     //=========================================================================
     public void ResetTurn() => HasActedThisTurn = false;
 
-    public void ExecuteTurn()
+        public void ExecuteTurn()
     {
         if (HasActedThisTurn) return;
 
-        if (nextMoveDirection != Vector2Int.zero)
+        // ... bomba niyetini kontrol etme kısmı aynı ...
+        if (bombIntent)
         {
-            if (MovementHelper.TryMove(this, nextMoveDirection, out Vector3 targetPos))
+            if (PlaceBomb())
             {
-                lastMoveDirection = nextMoveDirection;
+                HasActedThisTurn = true;
+            }
+            bombIntent = false;
+            return;
+        }
+
+        // Hareket niyetini kontrol et.
+        if (moveIntent != Vector2Int.zero)
+        {
+            if (MovementHelper.TryMove(this, moveIntent, out Vector3 targetPos))
+            {
+                // --- EN ÖNEMLİ DEĞİŞİKLİK ---
+                // Artık hareketin çapraz olup olmadığını kontrol etmiyoruz.
+                // Yapılan her başarılı hareket, yeni "son yön" olur.
+                lastMoveDirection = moveIntent;
+                // ---------------------------------
+                
                 StartCoroutine(SmoothMove(targetPos));
                 HasActedThisTurn = true;
             }
-            nextMoveDirection = Vector2Int.zero;
-        }
-        else if (wantsToPlaceBomb)
-        {
-            if (PlaceBomb()) HasActedThisTurn = true;
-            wantsToPlaceBomb = false;
         }
     }
     private IEnumerator SmoothMove(Vector3 targetPosition)
@@ -183,30 +165,36 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     }
     // --- Diğer Metodlar ---
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+        /// <summary>
+    /// Oyuncunun komşu karelerine, en son baktığı yöne öncelik vererek bomba koymayı dener.
+    /// </summary>
+    /// <returns>Bomba başarıyla konulduysa true, konulamadıysa false döndürür.</returns>
     bool PlaceBomb()
     {
         if (bombPrefab == null) return false;
 
-        // 1. Hedef koordinatları, "hafızadaki" yöne göre hesapla.
-        int targetX = X + lastMoveDirection.x;
-        int targetY = Y + lastMoveDirection.y;
-
         var ll = LevelLoader.instance;
 
-        // 2. Hedefin harita içinde ve BOŞ olup olmadığını kontrol et.
-        if (targetX >= 0 && targetX < ll.width && targetY >= 0 && targetY < ll.height &&
-            TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
-        {
-            // 3. Eğer hedef uygunsa, bombayı koy ve başarı bildir.
-            ll.PlaceBombAt(targetX, targetY);
-            return true; 
-        }
-        else
-        {
-            // 4. Eğer hedef uygun değilse, başarısızlık bildir.
-            Debug.Log("Bomba konulacak yer dolu veya harita dışında!");
-            return false;
-        }
+        // 1. Kontrol edilecek yönler için bir öncelik listesi oluştur.
+        // Önce en son bakılan yönü, sonra diğerlerini dene.
+        
+        
+            int targetX = X + lastMoveDirection.x;
+            int targetY = Y + lastMoveDirection.y;
+
+            // Hedefin harita içinde ve BOŞ olup olmadığını kontrol et.
+            if (targetX >= 0 && targetX < ll.width && targetY >= 0 && targetY < ll.height &&
+                TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
+            {
+                // 3. İlk bulunan uygun yere bombayı koy ve işlemi bitir.
+                ll.PlaceBombAt(targetX, targetY);
+                return true; 
+            }
+        
+
+        // 4. Eğer tüm komşu kareler doluysa, başarısızlık bildir.
+        Debug.Log("Bomba koymak için etrafta boş yer yok!");
+        return false;
     }
     
     

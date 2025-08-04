@@ -7,7 +7,7 @@ public class TurnManager : MonoBehaviour
 {
     public static TurnManager Instance { get; private set; }
 
-    public float turnInterval = 0.1f; // Hızı daha kontrol edilebilir yapmak için biraz artırdım.
+    public float turnInterval = 0.01f; // Hızı daha kontrol edilebilir yapmak için biraz artırdım.
     private float turnTimer = 0f;
 
     public int TurnCount { get; private set; } = 0;
