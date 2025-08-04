@@ -1,87 +1,78 @@
 using UnityEngine;
-using System;
-public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
+using System.Collections;
+
+public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
 {
-    public int X { get; set; }
-    public int Y { get; set; }
-    
+    // --- Arayüzler ve Değişkenler ---
+    public int X { get; private set; }
+    public int Y { get; private set; }
     public TileType TileType => TileType.Enemy;
     public bool HasActedThisTurn { get; set; }
-    
-    void OnEnable()
-    {
-        // Kendini TurnManager'ın listesine kaydettirir.
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Register(this);
-        }
-    }
 
-    void OnDisable()
-    {
-        // Kendini TurnManager'ın listesinden siler.
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Unregister(this);
-        }
-    }
-    
-    public int CurrentHealth { get; private set; }
-    public int MaxHealth { get; private set; }
-    public event Action OnHealthChanged;
+    //=========================================================================
+    // KAYIT VE KURULUM
+    //=========================================================================
+    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
+    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    public void Init(int x, int y) { this.X = x; this.Y = y; }
 
-    public void TakeDamage(int damageAmount)
-    {
-        CurrentHealth -= damageAmount;
-        OnHealthChanged?.Invoke();
-    }
-    public void ExecuteTurn()
-    {
-        if (HasActedThisTurn)
-        {
-            return;
-        }
-
-        OnTurn();
-        
-        HasActedThisTurn = true;
-    }
-    
-    void Start()
-    {
-        Vector3 pos = transform.position;
-        X = Mathf.RoundToInt(pos.x / LevelLoader.instance.tileSize);
-        Y = LevelLoader.instance.height - 1 - Mathf.RoundToInt(pos.y / LevelLoader.instance.tileSize);
-    }
-
-    void OnTurn()
-    {
-        if (HasActedThisTurn || UnityEngine.Random.value < 0.5f) return;
-
-        Vector2Int[] directions = new[] {
-            Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
-        };
-        Vector2Int dir = directions[UnityEngine.Random.Range(0, directions.Length)];
-
-        if (!MovementHelper.TryMove(this, dir)) Debug.Log("Enemy couldn't move");
-
-        transform.position = new Vector3(X * LevelLoader.instance.tileSize,
-                                         (LevelLoader.instance.height - Y - 1) * LevelLoader.instance.tileSize, 0);
-        OnMoved(X, Y);
-        HasActedThisTurn = true;
-    }
-
-    public void OnMoved(int newX, int newY)
-    {
-        X = newX;
-        Y = newY;
-    }
-
+    //=========================================================================
+    // TUR TABANLI EYLEMLER (ITurnBased)
+    //=========================================================================
     public void ResetTurn() => HasActedThisTurn = false;
 
-    public void Init(int x, int y)
+    /// <summary>
+    /// TurnManager tarafından, bu düşmanın sırası geldiğinde çağrılır.
+    /// </summary>
+    public void ExecuteTurn()
     {
-        X = x;
-        Y = y;
+        if (HasActedThisTurn) return;
+
+        // --- Basit AI Karar Verme Mantığı ---
+        // %50 ihtimalle rastgele bir yöne hareket etmeyi dene.
+        if (UnityEngine.Random.value > 0.5f)
+        {
+            // Rastgele bir yön seç (çapraz hareket dahil)
+            Vector2Int moveDirection = new Vector2Int(UnityEngine.Random.Range(-1, 2), UnityEngine.Random.Range(-1, 2));
+
+            // Eğer seçilen yön (0,0) ise (yani yerinde durma), bir şey yapma.
+            if (moveDirection == Vector2Int.zero)
+            {
+                HasActedThisTurn = true; // Pas geçmek de bir eylemdir.
+                return;
+            }
+            
+            // Hareketi mantıksal olarak dene.
+            if (MovementHelper.TryMove(this, moveDirection, out Vector3 targetPos))
+            {
+                // Başarılı olursa, görsel animasyonu başlat.
+                StartCoroutine(SmoothMove(targetPos));
+            }
+        }
+        
+        // Düşman eylemini (hareket etme veya pas geçme) yaptı.
+        HasActedThisTurn = true;
+    }
+
+    //=========================================================================
+    // HAREKET (IMovable)
+    //=========================================================================
+    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+
+    private IEnumerator SmoothMove(Vector3 targetPosition)
+    {
+        TurnManager.Instance.ReportAnimationStart();
+        Vector3 startPosition = transform.position;
+        float elapsedTime = 0f;
+        float moveDuration = 0.15f;
+
+        while (elapsedTime < moveDuration)
+        {
+            transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        transform.position = targetPosition;
+        TurnManager.Instance.ReportAnimationEnd();
     }
 }

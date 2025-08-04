@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Collections;
 public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
@@ -40,11 +41,30 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
     void Start()
     {
         SetVisual(TileSymbols.TypeToVisualSymbol(this.TileType));
+
         float angle = 0f;
-        if (direction == Vector2Int.up) angle = 0f;
-        else if (direction == Vector2Int.down) angle = 180f;
-        else if (direction == Vector2Int.right) angle = -90f;
-        else if (direction == Vector2Int.left) angle = 90f;
+
+        // PlayerController'daki mantığın aynısını kullanalım:
+        // Vector2Int.down -> Görsel olarak YUKARI
+        // Vector2Int.up   -> Görsel olarak AŞAĞI
+
+        if (direction == Vector2Int.right) // Görsel olarak SAĞ
+        {
+            angle = 0f;
+        }
+        else if (direction == Vector2Int.left) // Görsel olarak SOL
+        {
+            angle = 180f;
+        }
+        else if (direction == Vector2Int.down) // Görsel olarak YUKARI
+        {
+            angle = 90f;
+        }
+        else if (direction == Vector2Int.up) // Görsel olarak AŞAĞI
+        {
+            angle = 270f;
+        }
+
         transform.rotation = Quaternion.Euler(0, 0, angle);
     }
 
@@ -56,56 +76,62 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
     public void ExecuteTurn()
     {
         if (HasActedThisTurn) return;
-        if (isFirstTurn) { isFirstTurn = false; HasActedThisTurn = true; return; }
-        Move();
+
+        // Merminin, doğduğu ilk turda hareket etmesini engelle.
+        if (isFirstTurn)
+        {
+            isFirstTurn = false;
+            HasActedThisTurn = true;
+            return;
+        }
+
+        // --- YENİ HAREKET MANTIĞI ---
+        // 1. MovementHelper'a mantıksal bir hareket denemesi yaptır.
+        if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos))
+        {
+            // 2. Eğer hareket mantıksal olarak başarılıysa, GÖRSEL animasyonu başlat.
+            StartCoroutine(SmoothMove(targetPos));
+        }
+        else
+        {
+            // 3. Eğer hareket mantıksal olarak başarısızsa (bir engele çarptı), kendini yok et.
+            Die();
+        }
+        // -----------------------------
+
         HasActedThisTurn = true;
     }
+
 
     //=========================================================================
     // HAREKET VE YOK OLMA MANTIĞI
     //=========================================================================
-    void Move()
-    {
-        int newX = X + direction.x;
-        int newY = Y + direction.y;
-        var ll = LevelLoader.instance;
-
-        // 1. Sınır Kontrolü
-        if (newX < 0 || newX >= ll.width || newY < 0 || newY >= ll.height)
-        {
-            Die();
-            return;
-        }
-
-        // 2. Hedef Analizi
-        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
-
-        // 3. Çarpışma Kontrolü
-        if (!MovementHelper.TryMove(this, direction))
-        {
-            // Hedef geçilebilir değil. Bu bir engeldir.
-            // Gelecekte, hedefin ne olduğuna göre farklı eylemler yapılabilir.
-            // Örneğin: if (targetType == TileType.Player || targetType == TileType.Enemy) { DealDamage(); }
-            
-            // Şimdilik, neye çarparsa çarpsın, SADECE KENDİNİ yok et.
-            Die();
-            return;
-        }
-
-        // 4. Hareket Uygulaması (Eğer çarpışma olmadıysa)
-        transform.position = new Vector3(newX * ll.tileSize, (ll.height - newY - 1) * ll.tileSize, 0);
-        ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Projectile);
-        OnMoved(newX, newY);
-    }
-
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+
+    private IEnumerator SmoothMove(Vector3 targetPosition)
+    {
+        TurnManager.Instance.ReportAnimationStart();
+        Vector3 startPosition = transform.position;
+        float elapsedTime = 0f;
+        float moveDuration = 0.15f;
+
+        while (elapsedTime < moveDuration)
+        {
+            transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        transform.position = targetPosition;
+        TurnManager.Instance.ReportAnimationEnd();
+    }
 
     private void Die()
     {
-        // Sadece kendi izini haritadan sil.
+        // Mantıksal haritadaki izini temizle.
         LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        // Sadece kendi GameObject'ini yok et.
+        // Nesne haritasındaki referansını temizle.
+        LevelLoader.instance.tileObjects[X, Y] = null;
+        // GameObject'i yok et.
         Destroy(gameObject);
     }
 }

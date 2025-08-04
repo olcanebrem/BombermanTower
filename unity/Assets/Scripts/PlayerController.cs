@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Collections;
 public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
@@ -81,10 +82,10 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         // Kaydedilmiş bir hareket niyeti varsa uygula
         if (nextMoveDirection != Vector2Int.zero)
         {
-            if (MovementHelper.TryMove(this, nextMoveDirection))
+            if (MovementHelper.TryMove(this, nextMoveDirection, out Vector3 targetPos))
             {
+                StartCoroutine(SmoothMove(targetPos));
                 HasActedThisTurn = true;
-                lastMoveDirection = nextMoveDirection; // Hareket yönünü kaydet.
             }
             // Niyet işleme konulduğu için sıfırla.
             nextMoveDirection = Vector2Int.zero;
@@ -97,7 +98,28 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             wantsToPlaceBomb = false;
         }
     }
+    private IEnumerator SmoothMove(Vector3 targetPosition)
+    {
+        // Animasyonun başladığını TurnManager'a bildir.
+        TurnManager.Instance.ReportAnimationStart();
 
+        Vector3 startPosition = transform.position;
+        float elapsedTime = 0f;
+        float moveDuration = 0.15f; // Animasyonun süresi (TurnManager'ın interval'ından küçük olmalı)
+
+        while (elapsedTime < moveDuration)
+        {
+            transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);
+            elapsedTime += Time.deltaTime;
+            yield return null; // Bir sonraki frame'e kadar bekle
+        }
+
+        // Nesnenin tam olarak hedefte olduğundan emin ol.
+        transform.position = targetPosition;
+
+        // Animasyonun bittiğini TurnManager'a bildir.
+        TurnManager.Instance.ReportAnimationEnd();
+    }
     // --- Diğer Metodlar ---
     public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 3; this.CurrentHealth = MaxHealth; }
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
@@ -137,5 +159,5 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     {
         if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
     }
-    
+
 }

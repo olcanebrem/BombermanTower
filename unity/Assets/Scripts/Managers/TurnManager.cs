@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
 
 public class TurnManager : MonoBehaviour
 {
@@ -11,7 +12,10 @@ public class TurnManager : MonoBehaviour
 
     public int TurnCount { get; private set; } = 0;
     private List<ITurnBased> turnBasedObjects = new List<ITurnBased>();
-
+    // --- SENKRONİZASYON DEĞİŞKENLERİ ---
+    private bool isTurnInProgress = false;
+    private int activeAnimations = 0; // Aktif olan animasyonların sayısı
+    // -----------------------------------------
     void Awake()
     {
         if (Instance == null) Instance = this;
@@ -20,12 +24,45 @@ public class TurnManager : MonoBehaviour
 
     void Update()
     {
+        // Eğer bir tur zaten devam ediyorsa, yenisini başlatma.
+        if (isTurnInProgress) return;
+
         turnTimer += Time.deltaTime;
         if (turnTimer >= turnInterval)
         {
-            turnTimer -= turnInterval; // Tam olarak aralık kadar azaltmak, zaman kaymasını önler.
-            AdvanceTurn();
+            turnTimer -= turnInterval;
+            // AdvanceTurn'ü doğrudan çağırmak yerine, Coroutine'i başlat.
+            StartCoroutine(AdvanceTurnCoroutine());
         }
+    }
+     // --- ANİMASYON KONTROL METODLARI ---
+    public void ReportAnimationStart() => activeAnimations++;
+    public void ReportAnimationEnd() => activeAnimations--;
+    // ------------------------------------
+
+    private IEnumerator AdvanceTurnCoroutine()
+    {
+        isTurnInProgress = true;
+        TurnCount++;
+
+        foreach (var obj in turnBasedObjects.ToList()) obj.ResetTurn();
+
+        var unitsToPlay = turnBasedObjects.OrderBy(u => GetExecutionOrder(u)).ToList();
+
+        // 1. MANTIKSAL TURU ANINDA ÇÖZ
+        foreach (var unit in unitsToPlay)
+        {
+            if (unit != null && (unit as MonoBehaviour) != null)
+            {
+                unit.ExecuteTurn();
+            }
+        }
+
+        // 2. GÖRSEL TURUN BİTMESİNİ BEKLE
+        // Tüm animasyonlar bitene kadar (sayaç sıfır olana kadar) bu satırda bekle.
+        yield return new WaitUntil(() => activeAnimations == 0);
+
+        isTurnInProgress = false;
     }
 
     public void Register(ITurnBased obj)

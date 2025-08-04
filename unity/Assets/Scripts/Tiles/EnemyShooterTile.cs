@@ -1,92 +1,93 @@
 using UnityEngine;
-using System;
-public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
+using System.Collections; // <<<--- HATAYI DÜZELTEN EN ÖNEMLİ SATIR
+
+public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable
 {
-    public int X { get; set; }
-    public int Y { get; set; }
-    private int turnCounter = 0;
-    private int turnsElapsed = 4;
+    // --- Arayüzler ve Değişkenler ---
+    public int X { get; private set; }
+    public int Y { get; private set; }
     public TileType TileType => TileType.EnemyShooter;
-    public GameObject projectilePrefab;
     public bool HasActedThisTurn { get; set; }
-    void OnEnable()
-    {
-        // Kendini TurnManager'ın listesine kaydettirir.
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Register(this);
-        }
-    }
+    public GameObject projectilePrefab;
+    private int turnCounter = 0;
+    private int turnsToShoot = 4;
 
-    void OnDisable()
-    {
-        // Kendini TurnManager'ın listesinden siler.
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Unregister(this);
-        }
-    }
-    
-    public int CurrentHealth { get; private set; }
-    public int MaxHealth { get; private set; }
-    public event Action OnHealthChanged;
-
-    public void TakeDamage(int damageAmount)
-    {
-        CurrentHealth -= damageAmount;
-        OnHealthChanged?.Invoke();
-    }    
-    public void ExecuteTurn()
-    {
-
-        if (HasActedThisTurn)
-        {
-            return;
-        }
-
-        // Düşmanın AI mantığı burada çalışır.
-         turnCounter++;
-
-        if (turnCounter >= turnsElapsed)
-        {
-            ShootRandomDirection();
-            turnCounter = 0;
-            HasActedThisTurn = true; // Eylem yapıldı, tur bitti.
-        }
-        else // Ateş etmediyse, hareket etmeyi düşünebilir
-        {
-            // %50 ihtimalle hareket etmeye karar ver
-            if (UnityEngine.Random.value > 0.5f)
-            {
-                int dx = UnityEngine.Random.Range(-1, 2);
-                int dy = UnityEngine.Random.Range(-1, 2);
-
-                // Hareketi denemek için merkezi MovementHelper'ı çağır.
-                // MovementHelper'ın kendisi tüm kontrolleri yapacak.
-                Vector2Int moveDirection = new Vector2Int(dx, dy);
-
-                bool didMove = MovementHelper.TryMove(this, moveDirection);
-
-                // Sadece GERÇEKTEN hareket ettiyse eylem yapmış sayılır.
-                if (didMove)
-                {
-                    HasActedThisTurn = true; // Eylem yapıldı, tur bitti.
-                }
-            }
-        }
-        
-    }
+    //=========================================================================
+    // KAYIT VE KURULUM
+    //=========================================================================
+    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
+    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
     public void Init(int x, int y) { this.X = x; this.Y = y; }
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
 
-    void ShootRandomDirection()
-    {
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-        Vector2Int dir = directions[UnityEngine.Random.Range(0, directions.Length)];
+    //=========================================================================
+    // TUR TABANLI EYLEMLER (ITurnBased)
+    //=========================================================================
+    public void ResetTurn() => HasActedThisTurn = false;
 
-        // Yeni Spawn metodunu çağırırken, kendi prefabımızı ona veriyoruz.
-        Projectile.Spawn(this.projectilePrefab, X, Y, dir);
+    public void ExecuteTurn()
+    {
+        if (HasActedThisTurn) return;
+
+        turnCounter++;
+        if (turnCounter >= turnsToShoot)
+        {
+            ShootRandomDirection();
+            turnCounter = 0;
+            HasActedThisTurn = true;
+        }
+        else
+        {
+            if (UnityEngine.Random.value > 0.5f)
+            {
+                Vector2Int moveDirection = new Vector2Int(UnityEngine.Random.Range(-1, 2), UnityEngine.Random.Range(-1, 2));
+                
+                if (MovementHelper.TryMove(this, moveDirection, out Vector3 targetPos))
+                {
+                    StartCoroutine(SmoothMove(targetPos));
+                    HasActedThisTurn = true;
+                }
+            }
+        }
     }
 
-    public void ResetTurn() => HasActedThisTurn = false;
+    //=========================================================================
+    // HAREKET VE DİĞER EYLEMLER
+    //=========================================================================
+    private IEnumerator SmoothMove(Vector3 targetPosition)
+    {
+        TurnManager.Instance.ReportAnimationStart();
+        Vector3 startPosition = transform.position;
+        float elapsedTime = 0f;
+        float moveDuration = 0.15f;
+
+        while (elapsedTime < moveDuration)
+        {
+            transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        transform.position = targetPosition;
+        TurnManager.Instance.ReportAnimationEnd();
+    }
+
+    void ShootRandomDirection()
+    {
+        if (projectilePrefab == null) return;
+        
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        Vector2Int dir = directions[UnityEngine.Random.Range(0, directions.Length)];
+        
+        int startX = X + dir.x;
+        int startY = Y + dir.y;
+
+        var ll = LevelLoader.instance;
+        if (startX < 0 || startX >= ll.width || startY < 0 || startY >= ll.height) return;
+
+        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[startX, startY]);
+        if (MovementHelper.IsTilePassable(targetType))
+        {
+            Projectile.Spawn(this.projectilePrefab, startX, startY, dir);
+        }
+    }
 }
