@@ -130,55 +130,77 @@ public class LevelLoader : MonoBehaviour
     }
     // CreateMapVisual metodunuz neredeyse hiç değişmeden çalışmaya devam edecek!
     // Sadece oyuncu oluşturma mantığını en sona taşıdık.
-    void CreateMapVisual()
+void CreateMapVisual()
+{
+    // 1. Referans haritalarımızı oluştur.
+    tileObjects = new GameObject[width, height];
+
+    // 2. JENERİK TILE'LARI OLUŞTURMA DÖNGÜSÜ
+    // Bu döngü, oyuncu DIŞINDAKİ her şeyi oluşturur.
+    for (int y = 0; y < height; y++)
     {
-        tileObjects = new GameObject[width, height];
-        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
         {
-            for (int x = 0; x < width; x++)
+            char symbolChar = levelMap[x, y];
+            TileType type = TileSymbols.DataSymbolToType(symbolChar);
+
+            // Boş kareleri ve oyuncunun başlangıç noktasını atla.
+            // Oyuncu, bu döngü bittikten sonra özel olarak oluşturulacak.
+            if (type == TileType.Empty || type == TileType.PlayerSpawn)
             {
-                char symbolChar = levelMap[x, y];
-                TileType type = TileSymbols.DataSymbolToType(symbolChar);
+                continue;
+            }
 
-                if (type == TileType.Empty) continue;
-
-                if (prefabMap.TryGetValue(type, out var tileBasePrefab))
-                {
-                    Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
-                    TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
-                    newTile.SetVisual(TileSymbols.TypeToVisualSymbol(type));
-                    (newTile as IInitializable)?.Init(x, y);
-                    tileObjects[x, y] = newTile.gameObject;
-                }
-                else
-                {
-                    Debug.LogWarning($"Prefab bulunamadı, bu tip için: {type}");
-                }
+            // Prefab sözlüğünde bu tip için bir girdi var mı diye bak.
+            if (prefabMap.TryGetValue(type, out var tileBasePrefab))
+            {
+                Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+                TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
                 
+                // Yeni oluşturulan tile'ı kur.
+                newTile.SetVisual(TileSymbols.TypeToVisualSymbol(type));
+                (newTile as IInitializable)?.Init(x, y);
+                
+                // Referans haritasına ekle.
+                tileObjects[x, y] = newTile.gameObject;
+            }
+            else
+            {
+                Debug.LogWarning($"Prefab bulunamadı, bu tip için: {type}");
             }
         }
-        // --- YENİ OYUNCU OLUŞTURMA BLOĞU ---
-        // Tüm harita bittikten sonra, oyuncuyu özel koordinatlarına yerleştir.
-        Vector3 playerPos = new Vector3(playerStartX * tileSize, (height - playerStartY - 1) * tileSize, 0);
-        playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
-        
-        // ... Görseli ayarlama kodları ...
-        playerObject.GetComponent<TileBase>()?.SetVisual(TileSymbols.TypeToVisualSymbol(TileType.Player));
-
-        // Init metodunu çağır.
-        var playerController = playerObject.GetComponent<PlayerController>();
-        playerController?.Init(playerStartX, playerStartY);
-        
-        // Oyuncunun GameObject'ini tileObjects dizisine ekle.
-        tileObjects[playerStartX, playerStartY] = playerObject;
-
-        // --- HATAYI DÜZELTEN EN ÖNEMLİ SATIR ---
-        // Mantıksal haritadaki başlangıç noktasını, oyuncunun GERÇEK TİPİ ile güncelle.
-        if (playerController != null)
-        {
-            levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(playerController.TileType);
-        }
     }
+
+    // --- 3. OYUNCUYU OLUŞTURMA BLOĞU ---
+    // Tüm jenerik tile'lar oluşturulduktan sonra, oyuncuyu özel olarak ele al.
+
+    // a) Oyuncunun başlangıç pozisyonunu hesapla.
+    // Bu 'playerStartX' ve 'playerStartY' değişkenleri LoadLevelFromFile'da doldurulmuştu.
+    Vector3 playerPos = new Vector3(playerStartX * tileSize, (height - playerStartY - 1) * tileSize, 0);
+    
+    // b) Oyuncuyu, hesaplanan bu pozisyonda oluştur.
+    playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+    
+    // c) Gerekli bileşen referanslarını SADECE BİR KERE al.
+    var playerController = playerObject.GetComponent<PlayerController>();
+    var playerTileBase = playerObject.GetComponent<TileBase>();
+
+    // d) Oyuncunun görselini ayarla.
+    if (playerTileBase != null)
+    {
+        playerTileBase.SetVisual(TileSymbols.TypeToVisualSymbol(TileType.Player));
+    }
+
+    // e) Oyuncunun mantığını kur ve diğer yöneticilere kaydettir.
+    if (playerController != null)
+    {
+        playerController.Init(playerStartX, playerStartY);
+        GameManager.Instance.RegisterPlayer(playerController);
+    }
+    
+    // f) Oyuncunun referansını, nesne haritasındaki doğru yere koy.
+    tileObjects[playerStartX, playerStartY] = playerObject;
+}
     public void PlaceBombAt(int x, int y)
 {
     // GÜVENLİK KİLİDİ: Eğer bu kare bir şekilde doluysa, hiçbir şey yapma.

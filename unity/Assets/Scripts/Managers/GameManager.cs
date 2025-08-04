@@ -1,55 +1,76 @@
 using UnityEngine;
-using TMPro; // TextMeshPro kullanacağımız için bu gerekli
+using UnityEngine.UI; // Image kullanmak için bu gerekli olabilir
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
-    // Singleton kurulumu
     public static GameManager Instance { get; private set; }
 
-    // Inspector'dan atayacağımız UI metni
+    // --- Coin UI ---
     public TextMeshProUGUI coinText;
-
-    // Oyun durumu değişkenleri
     private int coinsCollected = 0;
+
+    // --- YENİ VE BASİTLEŞTİRİLMİŞ CAN SİSTEMİ ---
+    public GameObject heartPrefab; // Basit, sadece Image içeren Heart_Prefab'ı buraya atayacağız.
+    public Transform healthBarContainer; // Hiyerarşi'deki HealthBarContainer'ı buraya atayacağız.
+    
+    private IDamageable playerHealth;
+    // ---------------------------------------------
 
     void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            // İsteğe bağlı: Sahneler arası geçişte GameManager'ın yok olmamasını sağlar
-            // DontDestroyOnLoad(gameObject); 
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
     }
 
     void Start()
     {
-        // Oyun başladığında UI'ı ilk değerle güncelle
         UpdateCoinUI();
+        UpdateHealthBar();
     }
 
     /// <summary>
-    /// Para toplandığında çağrılır. Skoru artırır ve UI'ı günceller.
+    /// Oyuncu oluşturulduğunda LevelLoader tarafından çağrılır.
+    /// Can barını oyuncunun sağlık sistemine bağlar.
     /// </summary>
+    public void RegisterPlayer(IDamageable player)
+    {
+        playerHealth = player;
+        // Oyuncunun OnHealthChanged olayına abone ol. Canı her değiştiğinde UpdateHealthBar'ı çağır.
+        playerHealth.OnHealthChanged += UpdateHealthBar;
+        
+        // Can barını ilk kez oluştur.
+        UpdateHealthBar();
+    }
+
+    private void UpdateHealthBar()
+    {
+        if (playerHealth == null || healthBarContainer == null || heartPrefab == null) return;
+
+        // 1. Konteynerin içindeki tüm eski kalpleri yok et.
+        foreach (Transform child in healthBarContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        // 2. Oyuncunun MEVCUT canı kadar yeni kalp oluştur.
+        for (int i = 0; i < playerHealth.CurrentHealth; i++)
+        {
+            Instantiate(heartPrefab, healthBarContainer);
+        }
+    }
+
     public void CollectCoin()
     {
         coinsCollected++;
-        Debug.Log($"Coin toplandı! Toplam: {coinsCollected}");
         UpdateCoinUI();
     }
 
-    /// <summary>
-    /// Ekrondaki para metnini günceller.
-    /// </summary>
     private void UpdateCoinUI()
     {
         if (coinText != null)
         {
-            // Para sembolü için sprite etiketimizi kullanabiliriz!
+            // Sprite ismini kontrol et, MyGame_SpriteAsset'te ne ise o olmalı.
             coinText.text = $"<sprite name=coin> {coinsCollected}";
         }
     }

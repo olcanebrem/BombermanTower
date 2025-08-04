@@ -1,5 +1,6 @@
 using UnityEngine;
-public class Breakable : TileBase
+using System;
+public class Breakable : TileBase, IDamageable
 {
     public int X { get; set; }
     public int Y { get; set; }
@@ -10,5 +11,15 @@ public class Breakable : TileBase
     {
         this.X = x;
         this.Y = y;
+    }
+    
+    public int CurrentHealth { get; private set; }
+    public int MaxHealth { get; private set; }
+    public event Action OnHealthChanged;
+
+    public void TakeDamage(int damageAmount)
+    {
+        CurrentHealth -= damageAmount;
+        OnHealthChanged?.Invoke();
     }
 }

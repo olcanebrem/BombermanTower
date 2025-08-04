@@ -1,6 +1,6 @@
 using UnityEngine;
-
-public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable
+using System;
+public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
@@ -26,12 +26,53 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable
         else if (Input.GetKey(KeyCode.D)) nextMoveDirection = Vector2Int.right;
         else if (Input.GetKeyDown(KeyCode.Space)) wantsToPlaceBomb = true;
     }
+    // --- IDamageable Arayüzünden Gelenler ---
+    public int CurrentHealth { get; private set; }
+    public int MaxHealth { get; private set; }
+    public event Action OnHealthChanged;
 
+    public void TakeDamage(int damageAmount)
+    {
+        CurrentHealth -= damageAmount;
+        if (CurrentHealth < 0) CurrentHealth = 0;
+
+        Debug.Log($"Oyuncu {damageAmount} hasar aldı! Kalan can: {CurrentHealth}");
+
+        // Canımız değişti, herkese haber ver!
+        OnHealthChanged?.Invoke();
+
+        if (CurrentHealth <= 0)
+        {
+            Die();
+        }
+    }
+    public void Heal(int healAmount)
+    {
+        CurrentHealth += healAmount;
+
+        // Canın, maksimum canı aşmasını engelle.
+        if (CurrentHealth > MaxHealth)
+        {
+            CurrentHealth = MaxHealth;
+        }
+
+        Debug.Log($"Oyuncu {healAmount} can kazandı! Mevcut can: {CurrentHealth}");
+
+        // Canımız değiştiği için, can barını güncelleyecek olan olayı tetikle.
+        OnHealthChanged?.Invoke();
+    }
     // --- ITurnBased Metodları ---
     public void ResetTurn() => HasActedThisTurn = false;
-    void OnDestroy()
+
+    private void Die()
     {
-        Debug.LogError($"OYUNCU YOK EDİLİYOR! Son bilinen konum: ({X},{Y})", this.gameObject);
+        Debug.LogError("OYUNCU ÖLDÜ!");
+        // Oyuncuyu haritadan kaldır
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        LevelLoader.instance.tileObjects[X, Y] = null;
+        // Oyunu durdur veya yeniden başlatma ekranını göster
+        // Time.timeScale = 0; 
+        Destroy(gameObject);
     }
     public void ExecuteTurn()
     {
@@ -58,7 +99,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable
     }
 
     // --- Diğer Metodlar ---
-    public void Init(int x, int y) { this.X = x; this.Y = y; }
+    public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 3; this.CurrentHealth = MaxHealth; }
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
     bool PlaceBomb()
     {
@@ -96,4 +137,5 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable
     {
         if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
     }
+    
 }

@@ -18,28 +18,19 @@ public static class MovementHelper
     TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
     if (!IsTilePassable(targetType)) return false;
 
-    // --- YENİ TOPLAMA MANTIĞI BURADA ---
-    // Eğer hedefte bir Coin varsa...
-    if (targetType == TileType.Coin)
+    // --- YENİ VE TEMİZ ETKİLEŞİM MANTIĞI ---
+    GameObject targetObject = ll.tileObjects[newX, newY];
+    if (targetObject != null)
     {
-        // Sadece oyuncu coin toplayabilsin.
-        if (mover is PlayerController)
+        // Hedefteki nesnenin "toplanabilir" bir yanı var mı?
+        var collectible = targetObject.GetComponent<ICollectible>();
+        if (collectible != null)
         {
-            // 1. GameManager'a coin topladığımızı bildir.
-            GameManager.Instance.CollectCoin();
-            
-            // 2. O koordinattaki Coin GameObject'ini yok et.
-            GameObject coinObject = ll.tileObjects[newX, newY];
-            if (coinObject != null)
-            {
-                Object.Destroy(coinObject); // MonoBehaviour.Destroy yerine Object.Destroy kullan
-            }
-        }
-        else
-        {
-            return false;
+            // Varsa, onun kendi OnCollect metodunu çağır ve hareket edenin kim olduğunu söyle.
+            collectible.OnCollect(mover.gameObject);
         }
     }
+    
     // --- UYGULAMA (Tüm kontrollerden geçti) ---
 
     // 1. Görseli güncelle
@@ -79,9 +70,9 @@ public static class MovementHelper
         {
             // Geçilebilir tiplerin "beyaz listesi"
             case TileType.Empty:
-            case TileType.Coin:
-            case TileType.Health:
             case TileType.Stairs:
+            case TileType.Health:
+            case TileType.Coin:
                 return true;
 
             // Diğer her şey geçilemezdir.

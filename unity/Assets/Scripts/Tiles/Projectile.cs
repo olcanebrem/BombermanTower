@@ -1,6 +1,6 @@
 using UnityEngine;
-
-public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
+using System;
+public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
@@ -27,7 +27,16 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         proj.direction = direction;
         return proj;
     }
+    
+    public int CurrentHealth { get; private set; }
+    public int MaxHealth { get; private set; }
+    public event Action OnHealthChanged;
 
+    public void TakeDamage(int damageAmount)
+    {
+        CurrentHealth -= damageAmount;
+        OnHealthChanged?.Invoke();
+    }
     void Start()
     {
         SetVisual(TileSymbols.TypeToVisualSymbol(this.TileType));

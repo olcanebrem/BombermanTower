@@ -1,6 +1,6 @@
 using UnityEngine;
 using System;
-public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
+public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     public int X { get; set; }
     public int Y { get; set; }
@@ -26,6 +26,15 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
         }
     }
     
+    public int CurrentHealth { get; private set; }
+    public int MaxHealth { get; private set; }
+    public event Action OnHealthChanged;
+
+    public void TakeDamage(int damageAmount)
+    {
+        CurrentHealth -= damageAmount;
+        OnHealthChanged?.Invoke();
+    }
     public void ExecuteTurn()
     {
         if (HasActedThisTurn)
