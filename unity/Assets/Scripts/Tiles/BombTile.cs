@@ -1,129 +1,104 @@
-using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
-using System;
+using System.Collections;
+
 public class BombTile : TileBase, ITurnBased, IInitializable
-{   
-    public int X { get; set; }
-    public int Y { get; set; }
-    public int explosionRange;
-    public float turnDuration;
+{
+    public int X { get; private set; }
+    public int Y { get; private set; }
+    public TileType TileType => TileType.Bomb;
+    public bool HasActedThisTurn { get; set; }
+
+    public int explosionRange = 2;
+    public int turnsToExplode = 3;
+    public GameObject explosionPrefab; // Inspector'dan ExplosionWave_Prefab'ı buraya ata
 
     private bool exploded = false;
     private int turnsElapsed = 0;
-    private int turnsToExplode = 3;
 
-    public bool HasActedThisTurn { get; set; }
-    public void ResetTurn() { HasActedThisTurn = false; }
+    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
+    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    public void Init(int x, int y) { this.X = x; this.Y = y; }
+    public void ResetTurn() => HasActedThisTurn = false;
 
-    public GameObject explosionPrefab; 
-    Text text;
-    
-    void OnEnable()
-    {
-        // Kendini TurnManager'ın listesine kaydettirir.
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Register(this);
-        }
-    }
-
-    void OnDisable()
-    {
-        // Kendini TurnManager'ın listesinden siler.
-        if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.Unregister(this);
-        }
-    }
-    
-    void Start()
-    {
-        gameObject.name = "Bomb";
-        text = GetComponent<Text>();
-    }
-    
-    public void Init(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-        
-    }
-    
-    void OnTurn()
+    public void ExecuteTurn()
     {
         if (HasActedThisTurn || exploded) return;
 
         turnsElapsed++;
         if (turnsElapsed >= turnsToExplode)
         {
-            // Explode metodunu doğrudan çağırmak yerine, Coroutine'i başlatıyoruz.
-            StartCoroutine(ExplosionCoroutine());
+            Explode();
+            exploded = true;
         }
         HasActedThisTurn = true;
     }
 
-    // --- Patlama Mantığı (Coroutine ile) ---
-    private IEnumerator ExplosionCoroutine()
+        void Explode()
     {
-        exploded = true;
-        float delay = 0.05f; // Her bir patlama halkası arasındaki saniye cinsinden gecikme
+        Debug.Log($"Bomb at ({X},{Y}) exploded!");
 
-        // Önce bombanın kendi görselini haritadan kaldır.
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        GetComponent<CanvasRenderer>().SetAlpha(0); // Bombayı görünmez yap ama script'in çalışması için objeyi yok etme
-
-        // Merkezden başla
-        CreateExplosionAt(X, Y);
-        yield return new WaitForSeconds(delay);
-
-        // Halkaları dışa doğru oluştur
-        for (int i = 1; i <= explosionRange; i++)
+        // --- YENİ: İLK HASAR VE ETKİLEŞİM BÖLÜMÜ ---
+        // 1. Patlamanın merkezini ve dört komşusunu kontrol et.
+        Vector2Int[] explosionArea = new Vector2Int[]
         {
-            CreateExplosionAt(X + i, Y);
-            CreateExplosionAt(X - i, Y);
-            CreateExplosionAt(X, Y + i);
-            CreateExplosionAt(X, Y - i);
-            yield return new WaitForSeconds(delay);
-        }
+            new Vector2Int(X, Y),       // Merkez
+            new Vector2Int(X + 1, Y),   // Sağ
+            new Vector2Int(X - 1, Y),   // Sol
+            new Vector2Int(X, Y + 1),   // Aşağı (Mantıksal)
+            new Vector2Int(X, Y - 1)    // Yukarı (Mantıksal)
+        };
 
-        // Patlama bitti, şimdi bombanın kendisini tamamen yok et.
+        foreach (var pos in explosionArea)
+        {
+            // Bu pozisyondaki nesneye hasar vermeyi dene.
+            DealDamageAt(pos.x, pos.y);
+        }
+        // ------------------------------------------------
+
+        // --- MEVCUT: PATLAMA DALGALARINI OLUŞTURMA BÖLÜMÜ ---
+        // Dört ana yöne doğru ExplosionWave'leri ateşle.
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        foreach (var dir in directions)
+        {
+            int startX = X + dir.x;
+            int startY = Y + dir.y;
+            var ll = LevelLoader.instance;
+
+            if (startX >= 0 && startX < ll.width && startY >= 0 && startY < ll.height &&
+                MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[startX, startY])))
+            {
+                ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange - 1);
+            }
+        }
+        // ----------------------------------------------------
+
+        // Bombanın kendisini sistemden temizle.
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        LevelLoader.instance.tileObjects[X, Y] = null;
         Destroy(gameObject);
     }
-    public void ExecuteTurn()
-    {
-        if (HasActedThisTurn) return;
 
-        OnTurn();
-        
-        HasActedThisTurn = true;
-    }
-        void CreateExplosionAt(int px, int py)
+    /// <summary>
+    /// Belirtilen koordinattaki IDamageable bir nesneye hasar verir.
+    /// </summary>
+    private void DealDamageAt(int x, int y)
     {
         var ll = LevelLoader.instance;
-        if (px < 0 || px >= ll.width || py < 0 || py >= ll.height) return;
 
-        // --- CASUS KODU ---
-        // Bu patlamanın kimi hedef aldığını bize söyle.
-        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[px, py]);
-        Debug.LogWarning($"Patlama ({px},{py}) koordinatını etkiliyor. Hedefteki Tip: {targetType}");
-        // ------------------
+        // Koordinatların geçerli olduğundan emin ol.
+        if (x < 0 || x >= ll.width || y < 0 || y >= ll.height) return;
 
-        // Hedefteki nesneyi bul ve potansiyel olarak yok et.
-        GameObject targetObject = ll.tileObjects[px, py];
+        // O koordinattaki GameObject'i bul.
+        GameObject targetObject = ll.tileObjects[x, y];
         if (targetObject != null)
         {
-            // EĞER HEDEF OYUNCUYSA, KIRMIZI ALARM VER!
-            if (targetObject.GetComponent<PlayerController>() != null)
+            // Üzerinde IDamageable arayüzü var mı diye bak.
+            var damageable = targetObject.GetComponent<IDamageable>();
+            if (damageable != null)
             {
-                Debug.LogError($"!!! PATLAMA OYUNCUYU VURDU !!! ({px},{py})", targetObject);
+                // Varsa, hasar ver!
+                damageable.TakeDamage(1); // Örnek olarak 1 hasar
             }
-            
-            // Burada hedefi yok eden bir kod olabilir.
-            // Örneğin: Destroy(targetObject);
         }
-
-        // ... Geri kalan patlama oluşturma kodlarınız ...
-        // Örneğin: Instantiate(explosionPrefab, ...);
     }
 }

@@ -1,20 +1,23 @@
 using UnityEngine;
 using System.Collections;
-
-public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
+using System;
+public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
     public int Y { get; private set; }
     public TileType TileType => TileType.Enemy;
     public bool HasActedThisTurn { get; set; }
-
+    public int CurrentHealth { get; private set; }
+    public int MaxHealth { get; private set; }
+    public event Action OnHealthChanged;
+    
     //=========================================================================
     // KAYIT VE KURULUM
     //=========================================================================
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
-    public void Init(int x, int y) { this.X = x; this.Y = y; }
+    public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 1; this.CurrentHealth = MaxHealth; }
 
     //=========================================================================
     // TUR TABANLI EYLEMLER (ITurnBased)
@@ -74,5 +77,21 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable
         }
         transform.position = targetPosition;
         TurnManager.Instance.ReportAnimationEnd();
+    }
+
+    public void TakeDamage(int damageAmount)
+    {
+        CurrentHealth -= damageAmount;
+        OnHealthChanged?.Invoke();
+        if (CurrentHealth <= 0) Die();
+    }
+    private void Die()
+    {
+        // Mantıksal haritadaki izini temizle.
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        // Nesne haritasındaki referansını temizle.
+        LevelLoader.instance.tileObjects[X, Y] = null;
+        // GameObject'i yok et.
+        Destroy(gameObject);
     }
 }

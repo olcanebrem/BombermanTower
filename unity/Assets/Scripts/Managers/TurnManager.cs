@@ -103,12 +103,12 @@ public class TurnManager : MonoBehaviour
 
     // Sıralamayı belirleyen merkezi kural motoru.
     private int GetExecutionOrder(ITurnBased unit)
-    {
-        if (unit is PlayerController) return 0; // Oyuncu her zaman ilk eylem şansına sahip olur.
-        if (unit is EnemyShooterTile) return 1; // Düşmanlar ikinci.
-        if (unit is EnemyTile) return 1;
-        if (unit is Projectile) return 2;      // Mermiler en son hareket eder.
-        if (unit is BombTile) return 3;        // Bombalar daha da sonra patlar.
-        return 100; // Diğer her şey.
-    }
+{
+    if (unit is PlayerController) return 0;
+    if (unit is EnemyShooterTile || unit is EnemyTile) return 1;
+    if (unit is ExplosionWave) return 2; // YENİ SIRA
+    if (unit is Projectile) return 3;
+    if (unit is BombTile) return 4;
+    return 100;
+}
 }

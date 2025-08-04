@@ -16,7 +16,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
     //=========================================================================
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
-    public void Init(int x, int y) { this.X = x; this.Y = y; }
+    public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 1; this.CurrentHealth = MaxHealth; }
 
     public static Projectile Spawn(GameObject prefabToSpawn, int x, int y, Vector2Int direction)
     {

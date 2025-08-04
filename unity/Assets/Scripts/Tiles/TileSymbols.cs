@@ -15,6 +15,7 @@ public enum TileType
     Projectile,
     Coin,
     Health,
+    Explosion,
     Unknown
 }
 public static class TileSymbols
@@ -38,6 +39,7 @@ public static class TileSymbols
             case TileType.Projectile:   return "<sprite name=projectile>";
             case TileType.Coin:         return "<sprite name=coin>";
             case TileType.Health:       return "<sprite name=health>";
+            case TileType.Explosion:    return "<sprite name=explosion>";
             default:                    return "<sprite name=unknown>";
         }
     }
@@ -57,10 +59,11 @@ public static class TileSymbols
             case TileType.Player:       return 'P';
             case TileType.Enemy:        return 'E';
             case TileType.EnemyShooter: return 'F';
-            case TileType.Bomb:         return 'X';
+            case TileType.Bomb:         return 'x';
             case TileType.Projectile:   return '*';
             case TileType.Coin:         return 'C';
             case TileType.Health:       return 'H';
+            case TileType.Explosion:    return 'X';
             default:                    return '?';
         }
     }
@@ -78,10 +81,11 @@ public static class TileSymbols
             case 'P': return TileType.PlayerSpawn;
             case 'E': return TileType.Enemy;
             case 'F': return TileType.EnemyShooter;
-            case 'X': return TileType.Bomb;
+            case 'x': return TileType.Bomb;
             case '*': return TileType.Projectile;
             case 'C': return TileType.Coin;
             case 'H': return TileType.Health;
+            case 'X': return TileType.Explosion;
             default:  return TileType.Empty;
         }
     }

@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 4286188762914832847}
   - component: {fileID: 2718363235774721261}
   m_Layer: 0
-  m_Name: ExplotionTile
+  m_Name: ExplosionWave
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -55,7 +55,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 618472659354836283}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c9050fcb6203ca8448c796ad70c154cc, type: 3}
+  m_Script: {fileID: 11500000, guid: 9a2a3928887171742bb7ccc9d6862c01, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   visualText: {fileID: 2718363235774721261}
@@ -82,7 +82,7 @@ MonoBehaviour:
   m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2140474, guid: 8a89fa14b10d46a99122fd4f73fca9a2, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
