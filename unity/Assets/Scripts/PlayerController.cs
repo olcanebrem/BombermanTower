@@ -79,30 +79,18 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         // Time.timeScale = 0; 
         Destroy(gameObject);
     }
-    void Update()
+        void Update()
     {
-        // Girdiyi her frame sıfırla.
-        moveIntent = Vector2Int.zero;
-        
-        // Yatay ve dikey girdileri ayrı ayrı oku.
+        // --- GİRDİ OKUMA (Her Zaman Çalışır) ---
+        // O anki klavye durumunu geçici değişkenlere oku.
         int horizontal = 0;
         int vertical = 0;
-
-        if (Input.GetKey(KeyCode.W)) vertical = -1; // Mantıksal Yukarı (Görsel Aşağı'nın tersi)
-        if (Input.GetKey(KeyCode.S)) vertical = 1;  // Mantıksal Aşağı
+        if (Input.GetKey(KeyCode.W)) vertical = -1;
+        if (Input.GetKey(KeyCode.S)) vertical = 1;
         if (Input.GetKey(KeyCode.A)) horizontal = -1;
         if (Input.GetKey(KeyCode.D)) horizontal = 1;
-
-        // Girdileri birleştir.
-        // Eğer hem dikey hem yatay tuşa basılıyorsa, bu bir çapraz harekettir.
-        // Eğer sadece birine basılıyorsa, bu normal bir harekettir.
+        if (Input.GetKeyDown(KeyCode.Space)) bombIntent = true;
         moveIntent = new Vector2Int(horizontal, vertical);
-
-        // Bomba girdisi sadece bir kere tetiklenmeli (GetKeyDown).
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            bombIntent = true;
-        }
     }
 
     //=========================================================================

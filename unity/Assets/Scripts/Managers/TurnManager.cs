@@ -13,7 +13,7 @@ public class TurnManager : MonoBehaviour
     public int TurnCount { get; private set; } = 0;
     private List<ITurnBased> turnBasedObjects = new List<ITurnBased>();
     // --- SENKRONİZASYON DEĞİŞKENLERİ ---
-    private bool isTurnInProgress = false;
+    public bool isTurnInProgress = false;
     private int activeAnimations = 0; // Aktif olan animasyonların sayısı
     // -----------------------------------------
     void Awake()

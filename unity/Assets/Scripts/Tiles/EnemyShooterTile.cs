@@ -61,6 +61,8 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
                 }
             }
         }
+        
+        HasActedThisTurn = true;
     }
 
     //=========================================================================
