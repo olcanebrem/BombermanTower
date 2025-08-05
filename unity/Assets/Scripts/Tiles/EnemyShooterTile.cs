@@ -87,23 +87,28 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         isAnimating = false; // Animasyon bitti
     }
 
-    void ShootRandomDirection()
+        void ShootRandomDirection()
     {
         if (projectilePrefab == null) return;
         
+        // ... Yön belirleme kodları ...
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
         Vector2Int dir = directions[UnityEngine.Random.Range(0, directions.Length)];
         
         int startX = X + dir.x;
         int startY = Y + dir.y;
 
-        var ll = LevelLoader.instance;
-        if (startX < 0 || startX >= ll.width || startY < 0 || startY >= ll.height) return;
+        // 1. Mermiyi oluştur.
+        Projectile newProjectile = Projectile.Spawn(this.projectilePrefab, startX, startY, dir);
 
-        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[startX, startY]);
-        if (MovementHelper.IsTilePassable(targetType))
+        // 2. EĞER MERMİ BAŞARIYLA OLUŞTURULDUYSA...
+        if (newProjectile != null)
         {
-            Projectile.Spawn(this.projectilePrefab, startX, startY, dir);
+            // a) Gerekli Sprite'ı veritabanından al.
+            Sprite projectileSprite = LevelLoader.instance.spriteDatabase.GetSprite(TileType.Projectile);
+            
+            // b) Merminin görselini ayarla.
+            newProjectile.GetComponent<TileBase>()?.SetVisual(projectileSprite);
         }
     }
 

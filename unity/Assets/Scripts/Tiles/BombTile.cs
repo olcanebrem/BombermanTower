@@ -31,27 +31,38 @@ public class BombTile : TileBase, ITurnBased, IInitializable
         }
         HasActedThisTurn = true;
     }
-    void Explode()
+        void Explode()
     {
+        // Güvenlik için, menzilin pozitif olduğundan emin ol.
+        if (explosionRange <= 0)
+        {
+            Debug.LogWarning($"Bomb at ({X},{Y}) has zero or negative range. Only exploding at center.");
+            DealDamageAt(X, Y);
+            Die();
+            return;
+        }
+
         Debug.Log($"Bomb at ({X},{Y}) exploded with range {explosionRange}!");
 
         // 1. "Ölüm Turunu" Hesapla
-        // Mevcut tur sayısını al ve buna patlamanın ne kadar süreceğini ekle.
         int currentTurn = TurnManager.Instance.TurnCount;
+        // Patlama, menzili kadar tur sürecek.
         int deathTurn = currentTurn + explosionRange;
 
         // Patlamanın merkezindeki nesneye hasar ver.
         DealDamageAt(X, Y);
 
-        // 2. Dört ana yöne doğru İLK patlama dalgalarını, bu "ölüm turu" bilgisiyle ateşle.
+        // 2. Dört ana yöne doğru İLK patlama dalgalarını ateşle.
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
         foreach (var dir in directions)
         {
             int startX = X + dir.x;
             int startY = Y + dir.y;
             
-            // Patlama dalgasını, TAM MENZİL ve HESAPLANMIŞ ÖLÜM TURU ile oluştur.
-            ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange, deathTurn);
+            // --- EN ÖNEMLİ DÜZELTME ---
+            // İlk dalgaya, kalan menzili ver.
+            // Eğer toplam menzil 4 ise, ilk dalganın 3 adımı kalmıştır.
+            ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange -1, deathTurn);
         }
 
         // Bombanın kendisini sistemden temizle.

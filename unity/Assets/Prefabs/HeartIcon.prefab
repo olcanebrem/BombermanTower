@@ -45,5 +45,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   heartImage: {fileID: 0}
-  fullHeartSprite: {fileID: 0}
+  fullHeartSprite: {fileID: 1922996299, guid: 9f77a895cea21704d951eacec794603f, type: 3}
   emptyHeartSprite: {fileID: 0}

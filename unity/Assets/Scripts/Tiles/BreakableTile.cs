@@ -47,7 +47,6 @@ public class BreakableTile : TileBase, ITurnBased, IInitializable, IDamageable
         OnHealthChanged?.Invoke(); // Belki bir "çatlama" efekti için
 
         // Hasar aldığında anlık olarak renk değiştirsin.
-        StartCoroutine(FlashColor(Color.yellow));
 
         if (CurrentHealth <= 0)
         {
@@ -76,13 +75,5 @@ public class BreakableTile : TileBase, ITurnBased, IInitializable, IDamageable
     }
 
     // PlayerController'dan kopyalanan standart hasar efekti.
-    private IEnumerator FlashColor(Color flashColor)
-    {
-        var renderer = GetComponentInChildren<CanvasRenderer>();
-        if (renderer == null) yield break;
-        Color originalColor = renderer.GetColor();
-        renderer.SetColor(flashColor);
-        yield return new WaitForSeconds(TurnManager.Instance.turnInterval * 0.8f);
-        if (renderer != null) renderer.SetColor(originalColor);
-    }
+    
 }

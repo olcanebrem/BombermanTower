@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MyGame_SpriteAsset
   m_EditorClassIdentifier: 
   hashCode: -228469577
-  material: {fileID: 6807500792137840667}
+  material: {fileID: 2100000, guid: 7d390a235b5a3524bb77b791a0f31cab, type: 2}
   materialHashCode: 0
   m_Version: 1.1.0
   m_FaceInfo:

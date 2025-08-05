@@ -12,13 +12,12 @@ public class LevelLoader : MonoBehaviour
     // --- Singleton ve Temel Ayarlar ---
     public static LevelLoader instance;
     public int tileSize = 30;
-    public Font asciiFont; // Manuel tile oluşturma için
 
     // --- Prefab Yönetimi ---
     public TilePrefabEntry[] tilePrefabs;
     private Dictionary<TileType, TileBase> prefabMap;
     public GameObject playerPrefab; // Oyuncu için özel prefab alanı
-
+    public SpriteDatabase spriteDatabase;
     // --- Seviye Verisi ---
     // Inspector'dan sürükleyeceğimiz .txt dosyası
     public TextAsset levelFile; 
@@ -49,6 +48,7 @@ public class LevelLoader : MonoBehaviour
                 prefabMap.Add(entry.type, entry.prefab);
             }
         }
+        spriteDatabase.Initialize(); // Veri tabanını hazırla
     }
 
     void Start()
@@ -158,7 +158,7 @@ void CreateMapVisual()
                 TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
                 
                 // Yeni oluşturulan tile'ı kur.
-                newTile.SetVisual(TileSymbols.TypeToVisualSymbol(type));
+                newTile.SetVisual(spriteDatabase.GetSprite(type));
                 (newTile as IInitializable)?.Init(x, y);
                 
                 // Referans haritasına ekle.
@@ -188,7 +188,7 @@ void CreateMapVisual()
     // d) Oyuncunun görselini ayarla.
     if (playerTileBase != null)
     {
-        playerTileBase.SetVisual(TileSymbols.TypeToVisualSymbol(TileType.Player));
+        playerTileBase.SetVisual(spriteDatabase.GetSprite(TileType.Player));
     }
 
     // e) Oyuncunun mantığını kur ve diğer yöneticilere kaydettir.
@@ -217,7 +217,7 @@ void CreateMapVisual()
         TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, transform);
 
         // Bombayı kur
-        newBomb.SetVisual(TileSymbols.TypeToVisualSymbol(TileType.Bomb));
+        newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
         (newBomb as IInitializable)?.Init(x, y);
         
         // Haritaları GÜNCELLE

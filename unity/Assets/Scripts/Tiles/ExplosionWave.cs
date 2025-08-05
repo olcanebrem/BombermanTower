@@ -6,7 +6,7 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
     public int Y { get; private set; }
     public TileType TileType => TileType.Explosion;
     public bool HasActedThisTurn { get; set; }
-
+    public static SpriteDatabase spriteDatabase;
     private Vector2Int direction;
     private int stepsRemaining;
     private int deathTurn; // Patlamanın tamamen yok olacağı tur numarası
@@ -18,12 +18,13 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
     public void Init(int x, int y) { this.X = x; this.Y = y; }
     public void OnMoved(int newX, int newY) { }
 
-    // Spawn metodu artık 'deathTurn' parametresini de alıyor.
-    public static void Spawn(GameObject prefab, int x, int y, Vector2Int dir, int range, int deathTurn)
+        public static void Spawn(GameObject prefab, int x, int y, Vector2Int dir, int range, int deathTurn)
     {
         if (range <= 0) return;
 
-        var ll = LevelLoader.instance;
+        // LevelLoader'ın o anki örneğine zaten sahibiz: 'll'
+        var ll = LevelLoader.instance; 
+
         if (x < 0 || x >= ll.width || y < 0 || y >= ll.height || !MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[x, y])))
         {
             DealDamageAt(x, y);
@@ -37,12 +38,14 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
         wave.Init(x, y);
         wave.direction = dir;
         wave.stepsRemaining = range;
-        wave.deathTurn = deathTurn; // Ölüm turunu kaydet
+        wave.deathTurn = deathTurn;
         wave.explosionPrefab = prefab;
         
         ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(wave.TileType);
         ll.tileObjects[x, y] = waveGO;
-        wave.SetVisual(TileSymbols.TypeToVisualSymbol(wave.TileType));
+        
+        // Sprite'ı, 'll' referansı üzerinden, LevelLoader'ın veritabanından al.
+        wave.SetVisual(ll.spriteDatabase.GetSprite(wave.TileType));
     }
 
     public void ResetTurn() => HasActedThisTurn = false;
@@ -61,17 +64,17 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
         // 2. YAYILMA KONTROLÜ: Hâlâ yayılma hakkımız var mı?
         if (stepsRemaining > 0)
         {
-            // Kendi karesindekine hasar ver.
+            // a) Kendi karesindekine hasar ver.
             DealDamageAt(X, Y);
 
-            // Bir sonraki dalgayı, menzili bir azaltarak ve AYNI ÖLÜM TURU ile oluştur.
+            // b) Bir sonraki dalgayı, menzili bir azaltarak ve AYNI ÖLÜM TURU ile oluştur.
             int nextX = X + direction.x;
             int nextY = Y + direction.y;
             Spawn(this.explosionPrefab, nextX, nextY, this.direction, this.stepsRemaining - 1, this.deathTurn);
         }
         
-        // Bu dalganın yayılma görevi bitti, bir sonrakine devretti.
         stepsRemaining = 0;
+
         HasActedThisTurn = true;
     }
 

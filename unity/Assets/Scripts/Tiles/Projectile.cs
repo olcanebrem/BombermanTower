@@ -11,7 +11,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
     private Vector2Int direction;
     private bool isFirstTurn = true;
     private bool isAnimating = false;
-
+    public static SpriteDatabase spriteDatabase;
     //=========================================================================
     // KAYIT VE KURULUM
     //=========================================================================
@@ -33,8 +33,12 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
         GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, ll.transform);
         Projectile proj = projectileGO.GetComponent<Projectile>();
+        
         proj.Init(x, y);
         proj.direction = direction;
+        
+        // GÖRSELİ, ONU YARATAN KİŞİ AYARLAMALI. BURASI DEĞİL.
+        
         return proj;
     }
     
@@ -49,7 +53,6 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
     }
     void Start()
     {
-        SetVisual(TileSymbols.TypeToVisualSymbol(this.TileType));
 
         float angle = 0f;
 

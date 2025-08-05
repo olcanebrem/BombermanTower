@@ -36,3 +36,54 @@ python/.env
 .DS_Store
 *.log
 .env
+# Unity'nin kendi meta ve ayar dosyaları hariç, tüm derlenmiş ve geçici dosyaları dışlar
+
+# --- Unity oluşturma dosyaları ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+
+# --- Visual Studio / JetBrains Rider gibi editör dosyaları ---
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+
+# --- OS / sistem dosyaları ---
+.DS_Store
+Thumbs.db
+
+# --- Crash / Debug / Profiler dosyaları ---
+*.stacktrace
+*.log
+
+# --- Auto-generated Android / Xcode build klasörleri ---
+*.apk
+*.aab
+*.ipa
+*.xcworkspace/
+*.xcodeproj/
+*.xcuserstate
+*.xcuserdata/
+
+# --- Rider özel dosyaları ---
+*.idea/
+*.sln.iml
+
+# --- Unity Collaborate (kullanmıyorsan) ---
+.collab/
+
+# --- Paket Cache ---
+/Packages/manifest.json
+/Packages/packages-lock.json

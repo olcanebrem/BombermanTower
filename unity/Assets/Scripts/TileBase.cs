@@ -1,29 +1,38 @@
 using UnityEngine;
-using TMPro; // TextMeshPro'yu kullanmak için bu satır ŞART!
+using UnityEngine.UI; // Image bileşeni için bu ŞART!
 
 public class TileBase : MonoBehaviour
 {
+    // Artık TextMeshPro değil, bir Image bileşeni bekliyoruz.
     [SerializeField]
-    // Değişkenin türünü TextMeshProUGUI olarak değiştiriyoruz.
-    private TextMeshProUGUI visualText;
+    private Image visualImage;
 
     void Awake()
     {
-        // Eğer visualText Inspector'dan atanmamışsa, onu kendi bulsun.
-        if (visualText == null)
+        // Eğer Inspector'dan atanmamışsa, kendi bulsun.
+        if (visualImage == null)
         {
-            visualText = GetComponentInChildren<TextMeshProUGUI>();
+            visualImage = GetComponentInChildren<Image>();
         }
     }
 
-    // Metod artık char değil, string alıyor.
-    public void SetVisual(string symbol)
+    /// <summary>
+    /// Bu tile'ın görselini, verilen Sprite ile değiştirir.
+    /// </summary>
+    public void SetVisual(Sprite sprite)
     {
-        if (visualText != null)
+        if (visualImage != null)
         {
-            visualText.text = symbol;
+            visualImage.sprite = sprite;
         }
     }
-    public TextMeshProUGUI GetVisualText() => visualText;
 
+    /// <summary>
+    /// Bu TileBase'in kontrol ettiği Image bileşenini dışarıya sunar.
+    /// FlashColor gibi efektler için kullanılır.
+    /// </summary>
+    public Image GetVisualImage()
+    {
+        return visualImage;
+    }
 }
