@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections;
 
 public class ExplosionWave : TileBase, ITurnBased, IInitializable
 {
@@ -10,7 +9,8 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
 
     private Vector2Int direction;
     private int stepsRemaining;
-    private GameObject explosionPrefab; // Kendi prefabını bilmesi için
+    private int deathTurn; // Patlamanın tamamen yok olacağı tur numarası
+    private GameObject explosionPrefab;
 
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
@@ -18,15 +18,14 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
     public void Init(int x, int y) { this.X = x; this.Y = y; }
     public void OnMoved(int newX, int newY) { }
 
-    // Bu, bir ExplosionWave oluşturmanın TEK YETKİLİ yoludur.
-    public static void Spawn(GameObject prefab, int x, int y, Vector2Int dir, int range)
+    // Spawn metodu artık 'deathTurn' parametresini de alıyor.
+    public static void Spawn(GameObject prefab, int x, int y, Vector2Int dir, int range, int deathTurn)
     {
+        if (range <= 0) return;
+
         var ll = LevelLoader.instance;
-        // Hedefin harita içinde ve geçilebilir olduğundan emin ol.
         if (x < 0 || x >= ll.width || y < 0 || y >= ll.height || !MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[x, y])))
         {
-            // Eğer hedef duvar gibiyse, o yöndeki patlamayı durdur.
-            // Ama duvara (veya hedefe) hasar ver.
             DealDamageAt(x, y);
             return;
         }
@@ -38,6 +37,7 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
         wave.Init(x, y);
         wave.direction = dir;
         wave.stepsRemaining = range;
+        wave.deathTurn = deathTurn; // Ölüm turunu kaydet
         wave.explosionPrefab = prefab;
         
         ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(wave.TileType);
@@ -51,25 +51,30 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
     {
         if (HasActedThisTurn) return;
 
-        // 1. Önce kendi karesindekine hasar ver.
-        DealDamageAt(X, Y);
-
-        // 2. Eğer yayılma menzili varsa, bir sonraki dalgayı oluştur.
-        if (stepsRemaining > 0)
+        // 1. ÖLÜM KONTROLÜ: Zamanımız geldi mi?
+        if (TurnManager.Instance.TurnCount >= this.deathTurn)
         {
-            int nextX = X + direction.x;
-            int nextY = Y + direction.y;
-            // Kendini kopyalamak için kendi Spawn metodunu çağırır.
-            Spawn(this.explosionPrefab, nextX, nextY, this.direction, this.stepsRemaining - 1);
+            Die();
+            return;
         }
 
-        // 3. Görevini tamamladıktan sonra (hasar verdi ve yayılmayı tetikledi), kendini yok et.
-        // Bir patlama dalgası sadece bir tur yaşar.
-        Die();
+        // 2. YAYILMA KONTROLÜ: Hâlâ yayılma hakkımız var mı?
+        if (stepsRemaining > 0)
+        {
+            // Kendi karesindekine hasar ver.
+            DealDamageAt(X, Y);
+
+            // Bir sonraki dalgayı, menzili bir azaltarak ve AYNI ÖLÜM TURU ile oluştur.
+            int nextX = X + direction.x;
+            int nextY = Y + direction.y;
+            Spawn(this.explosionPrefab, nextX, nextY, this.direction, this.stepsRemaining - 1, this.deathTurn);
+        }
+        
+        // Bu dalganın yayılma görevi bitti, bir sonrakine devretti.
+        stepsRemaining = 0;
         HasActedThisTurn = true;
     }
 
-    // Bu metodun da static olması gerekir ki Spawn içinden çağırılabilsin.
     private static void DealDamageAt(int x, int y)
     {
         var ll = LevelLoader.instance;
@@ -88,6 +93,4 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
         LevelLoader.instance.tileObjects[X, Y] = null;
         Destroy(gameObject);
     }
-    
-    // Bu script hareket etmediği için SmoothMove'a ihtiyacı yok.
 }

@@ -24,4 +24,6 @@ public class TileBase : MonoBehaviour
             visualText.text = symbol;
         }
     }
+    public TextMeshProUGUI GetVisualText() => visualText;
+
 }

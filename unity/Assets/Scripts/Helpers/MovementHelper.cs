@@ -16,7 +16,7 @@ public static class MovementHelper
         int newX = mover.X + direction.x;
         int newY = mover.Y + direction.y;
         
-        targetWorldPos = Vector3.zero; // Başlangıçta 'out' parametresini sıfırla.
+        targetWorldPos = Vector3.zero;
 
         // --- 1. SINIR KONTROLÜ ---
         if (newX < 0 || newX >= ll.width || newY < 0 || newY >= ll.height)
@@ -24,30 +24,46 @@ public static class MovementHelper
             return false;
         }
 
-        // --- 2. ETKİLEŞİM KONTROLÜ (Toplanabilirler) ---
-        // Hedefteki nesneyle, o kareye girmeden ÖNCE etkileşime gir.
+        // --- 2. HEDEF ANALİZİ ---
         GameObject targetObject = ll.tileObjects[newX, newY];
+        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
+
+        // --- 3. GELİŞMİŞ ETKİLEŞİM KURALI ---
         if (targetObject != null)
         {
+            // a) Hedef "toplanabilir" bir şey mi? (Bu değişmez)
             var collectible = targetObject.GetComponent<ICollectible>();
             if (collectible != null)
             {
-                // OnCollect metodu, coini/healthi yok edebilir.
                 collectible.OnCollect(mover.gameObject);
+            }
+
+            // b) Hedef "saldırılabilir bir BİRİM" mi?
+            if (IsUnit(targetType))
+            {
+                // Evet, hedefte başka bir birim var. Bu bir çarpışmadır.
+                var damageable = targetObject.GetComponent<IDamageable>();
+                if (damageable != null)
+                {
+                    // Hedefteki birime hasar ver.
+                    damageable.TakeDamage(1);
+                }
+                
+                // Çarpışma olduğu için, hareket BAŞARISIZ olur.
+
+                return false;
             }
         }
 
-        // --- 3. GEÇİLEBİLİRLİK KONTROLÜ ---
-        // Etkileşimden SONRA, hedefin artık geçilebilir olup olmadığını kontrol et.
-        // (Örneğin, bir coin toplandıktan sonra o kare artık 'Empty' olur).
-        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
+        // --- 4. GEÇİLEBİLİRLİK KONTROLÜ ---
+        // Etkileşimlerden sonra hedefin son durumunu kontrol et.
+        targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
         if (!IsTilePassable(targetType))
         {
             return false;
         }
 
         // --- 4. UYGULAMA (Tüm kontrollerden geçti) ---
-
         // a) Mantıksal haritaları güncelle
         ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
         ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(mover.TileType);
@@ -77,6 +93,18 @@ public static class MovementHelper
                 return true;
             default:
                 return false;
+        }
+    }
+    private static bool IsUnit(TileType type)
+    {
+        switch (type)
+        {
+            case TileType.Player:
+            case TileType.Enemy:
+            case TileType.EnemyShooter:
+                return true; // Evet, bunlar birimdir.
+            default:
+                return false; // Hayır, diğerleri (Breakable, Bomb, Projectile vb.) birim değildir.
         }
     }
 }

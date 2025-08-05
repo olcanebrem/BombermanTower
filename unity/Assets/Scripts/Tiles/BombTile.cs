@@ -35,18 +35,23 @@ public class BombTile : TileBase, ITurnBased, IInitializable
     {
         Debug.Log($"Bomb at ({X},{Y}) exploded with range {explosionRange}!");
 
+        // 1. "Ölüm Turunu" Hesapla
+        // Mevcut tur sayısını al ve buna patlamanın ne kadar süreceğini ekle.
+        int currentTurn = TurnManager.Instance.TurnCount;
+        int deathTurn = currentTurn + explosionRange;
+
         // Patlamanın merkezindeki nesneye hasar ver.
         DealDamageAt(X, Y);
 
-        // Dört ana yöne doğru ExplosionWave'leri ateşle.
+        // 2. Dört ana yöne doğru İLK patlama dalgalarını, bu "ölüm turu" bilgisiyle ateşle.
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
         foreach (var dir in directions)
         {
             int startX = X + dir.x;
             int startY = Y + dir.y;
             
-            // Patlama dalgasını oluşturma işini tamamen ExplosionWave'in kendisine bırak.
-            ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange);
+            // Patlama dalgasını, TAM MENZİL ve HESAPLANMIŞ ÖLÜM TURU ile oluştur.
+            ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange, deathTurn);
         }
 
         // Bombanın kendisini sistemden temizle.

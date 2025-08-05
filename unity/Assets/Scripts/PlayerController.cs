@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections;
+using TMPro;
 public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
@@ -45,7 +46,11 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
 
         Debug.Log($"Oyuncu {damageAmount} hasar aldı! Kalan can: {CurrentHealth}");
 
-        // Canımız değişti, herkese haber ver!
+        // --- YENİ HASAR EFEKTİ ---
+        // Kendi "hasar aldım" animasyonunu başlat.
+        StartCoroutine(FlashColor(Color.red));
+        // -------------------------
+
         OnHealthChanged?.Invoke();
 
         if (CurrentHealth <= 0)
@@ -53,6 +58,41 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             Die();
         }
     }
+
+    private IEnumerator FlashColor(Color flashColor)
+    {
+        // 1. Görseli sağlayan TextMeshPro bileşenini bul.
+        var visualText = GetComponent<TileBase>()?.GetVisualText();
+        if (visualText == null)
+        {
+            // Eğer TileBase veya TextMeshPro bulunamazsa, güvenlik için çık.
+            yield break;
+        }
+
+        // 2. Metnin KENDİ CanvasRenderer'ını al.
+        //    Bu, en spesifik ve en doğru hedeftir.
+        CanvasRenderer renderer = visualText.canvasRenderer;
+        if (renderer == null)
+        {
+            yield break;
+        }
+
+        // 3. O anki orijinal rengi sakla.
+        Color originalColor = renderer.GetColor();
+
+        // 4. Rengi, istediğimiz "flash" rengine ayarla.
+        renderer.SetColor(flashColor);
+
+        // 5. Kısa bir süre bekle.
+        yield return new WaitForSeconds(TurnManager.Instance.turnInterval * 0.8f);
+
+        // 6. Rengi, sakladığımız orijinal rengine geri döndür.
+        if (renderer != null)
+        {
+            renderer.SetColor(originalColor);
+        }
+    }
+
     public void Heal(int healAmount)
     {
         CurrentHealth += healAmount;

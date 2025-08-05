@@ -204,7 +204,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ceb4cc56becd63548bff2f4c2c45cc5c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  turnInterval: 0.05
+  turnInterval: 0.2
   isTurnInProgress: 0
 --- !u!1 &323567813
 GameObject:
@@ -919,6 +919,7 @@ GameObject:
   - component: {fileID: 2052628527}
   - component: {fileID: 2052628529}
   - component: {fileID: 2052628528}
+  - component: {fileID: 2052628530}
   m_Layer: 0
   m_Name: Turn
   m_TagString: Untagged
@@ -1042,6 +1043,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2052628526}
   m_CullTransparentMesh: 1
+--- !u!114 &2052628530
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2052628526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ef459e0d12d39d4c8868b15d93f5a7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  turnText: {fileID: 2052628528}
 --- !u!1 &2122158499
 GameObject:
   m_ObjectHideFlags: 0
