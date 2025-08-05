@@ -9,6 +9,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     public TileType TileType => TileType.Player;
     public bool HasActedThisTurn { get; set; }
     public GameObject bombPrefab;
+    public GameObject explosionPrefab;
     private Vector2Int lastMoveDirection;
     public int MaxHealth { get; set; }
     public int CurrentHealth { get; set; }

@@ -1,35 +1,36 @@
 using UnityEngine;
 using System.Collections;
 
-public class ExplosionWave : TileBase, IMovable, ITurnBased, IInitializable
+public class ExplosionWave : TileBase, ITurnBased, IInitializable
 {
     public int X { get; private set; }
     public int Y { get; private set; }
     public TileType TileType => TileType.Explosion;
     public bool HasActedThisTurn { get; set; }
-    private bool isAnimating = false;
 
     private Vector2Int direction;
     private int stepsRemaining;
+    private GameObject explosionPrefab; // Kendi prefabını bilmesi için
 
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() 
-    {
-    if (isAnimating)
-        {
-            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
-            if (TurnManager.Instance != null) TurnManager.Instance.ReportAnimationEnd();
-            TurnManager.Instance.Unregister(this);
-        }
-    }
+    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
 
     public void Init(int x, int y) { this.X = x; this.Y = y; }
-    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+    public void OnMoved(int newX, int newY) { }
 
-    // Bu özel Spawn metodu, BombTile tarafından kullanılacak.
+    // Bu, bir ExplosionWave oluşturmanın TEK YETKİLİ yoludur.
     public static void Spawn(GameObject prefab, int x, int y, Vector2Int dir, int range)
     {
         var ll = LevelLoader.instance;
+        // Hedefin harita içinde ve geçilebilir olduğundan emin ol.
+        if (x < 0 || x >= ll.width || y < 0 || y >= ll.height || !MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[x, y])))
+        {
+            // Eğer hedef duvar gibiyse, o yöndeki patlamayı durdur.
+            // Ama duvara (veya hedefe) hasar ver.
+            DealDamageAt(x, y);
+            return;
+        }
+
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
         GameObject waveGO = Instantiate(prefab, pos, Quaternion.identity, ll.transform);
         ExplosionWave wave = waveGO.GetComponent<ExplosionWave>();
@@ -37,8 +38,8 @@ public class ExplosionWave : TileBase, IMovable, ITurnBased, IInitializable
         wave.Init(x, y);
         wave.direction = dir;
         wave.stepsRemaining = range;
+        wave.explosionPrefab = prefab;
         
-        // Başlangıçta haritayı ve görselleri ayarla
         ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(wave.TileType);
         ll.tileObjects[x, y] = waveGO;
         wave.SetVisual(TileSymbols.TypeToVisualSymbol(wave.TileType));
@@ -50,41 +51,35 @@ public class ExplosionWave : TileBase, IMovable, ITurnBased, IInitializable
     {
         if (HasActedThisTurn) return;
 
-        // Eğer gidecek adım kalmadıysa, yok ol.
-        if (stepsRemaining <= 0)
-        {
-            Die();
-            return;
-        }
-        stepsRemaining--;
+        // 1. Önce kendi karesindekine hasar ver.
+        DealDamageAt(X, Y);
 
-        // Bir sonraki kareyi analiz et ve hasar ver.
-        int targetX = X + direction.x;
-        int targetY = Y + direction.y;
-        var ll = LevelLoader.instance;
-
-        if (targetX >= 0 && targetX < ll.width && targetY >= 0 && targetY < ll.height)
+        // 2. Eğer yayılma menzili varsa, bir sonraki dalgayı oluştur.
+        if (stepsRemaining > 0)
         {
-            GameObject targetObject = ll.tileObjects[targetX, targetY];
-            if (targetObject != null)
-            {
-                var damageable = targetObject.GetComponent<IDamageable>();
-                damageable?.TakeDamage(1); // 1 hasar ver
-            }
+            int nextX = X + direction.x;
+            int nextY = Y + direction.y;
+            // Kendini kopyalamak için kendi Spawn metodunu çağırır.
+            Spawn(this.explosionPrefab, nextX, nextY, this.direction, this.stepsRemaining - 1);
         }
 
-        // Hareketi mantıksal olarak dene.
-        if (MovementHelper.TryMove(this, direction, out Vector3 targetPos))
-        {
-            StartCoroutine(SmoothMove(targetPos));
-        }
-        else
-        {
-            // Bir engele çarptıysa, hemen yok ol.
-            Die();
-        }
-
+        // 3. Görevini tamamladıktan sonra (hasar verdi ve yayılmayı tetikledi), kendini yok et.
+        // Bir patlama dalgası sadece bir tur yaşar.
+        Die();
         HasActedThisTurn = true;
+    }
+
+    // Bu metodun da static olması gerekir ki Spawn içinden çağırılabilsin.
+    private static void DealDamageAt(int x, int y)
+    {
+        var ll = LevelLoader.instance;
+        if (x < 0 || x >= ll.width || y < 0 || y >= ll.height) return;
+        
+        GameObject targetObject = ll.tileObjects[x, y];
+        if (targetObject != null)
+        {
+            targetObject.GetComponent<IDamageable>()?.TakeDamage(1);
+        }
     }
 
     private void Die()
@@ -93,24 +88,6 @@ public class ExplosionWave : TileBase, IMovable, ITurnBased, IInitializable
         LevelLoader.instance.tileObjects[X, Y] = null;
         Destroy(gameObject);
     }
-
-    private IEnumerator SmoothMove(Vector3 targetPosition)
-    {
-        isAnimating = true; // Animasyon başladı
-        TurnManager.Instance.ReportAnimationStart();
-        // ... (Diğer script'lerdeki SmoothMove ile aynı kod) ...
-        Vector3 startPosition = transform.position;
-        float elapsedTime = 0f;
-        float moveDuration = 0.15f;
-
-        while (elapsedTime < moveDuration)
-        {
-            transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-        transform.position = targetPosition;
-        TurnManager.Instance.ReportAnimationEnd();
-        isAnimating = false; // Animasyon bitti
-    }
+    
+    // Bu script hareket etmediği için SmoothMove'a ihtiyacı yok.
 }

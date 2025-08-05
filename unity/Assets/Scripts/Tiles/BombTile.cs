@@ -8,7 +8,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable
     public TileType TileType => TileType.Bomb;
     public bool HasActedThisTurn { get; set; }
 
-    public int explosionRange = 2;
+    public int explosionRange = 4;
     public int turnsToExplode = 3;
     public GameObject explosionPrefab;          
     private bool exploded = false;
@@ -31,56 +31,32 @@ public class BombTile : TileBase, ITurnBased, IInitializable
         }
         HasActedThisTurn = true;
     }
-
-        void Explode()
+    void Explode()
     {
-        Debug.Log($"Bomb at ({X},{Y}) exploded!");
+        Debug.Log($"Bomb at ({X},{Y}) exploded with range {explosionRange}!");
 
-        // --- YENİ: İLK HASAR VE ETKİLEŞİM BÖLÜMÜ ---
-        // 1. Patlamanın merkezini ve dört komşusunu kontrol et.
-        Vector2Int[] explosionArea = new Vector2Int[]
-        {
-            new Vector2Int(X, Y),       // Merkez
-            new Vector2Int(X + 1, Y),   // Sağ
-            new Vector2Int(X - 1, Y),   // Sol
-            new Vector2Int(X, Y + 1),   // Aşağı (Mantıksal)
-            new Vector2Int(X, Y - 1)    // Yukarı (Mantıksal)
-        };
+        // Patlamanın merkezindeki nesneye hasar ver.
+        DealDamageAt(X, Y);
 
-        foreach (var pos in explosionArea)
-        {
-            // Bu pozisyondaki nesneye hasar vermeyi dene.
-            DealDamageAt(pos.x, pos.y);
-        }
-        // ------------------------------------------------
-
-        // --- MEVCUT: PATLAMA DALGALARINI OLUŞTURMA BÖLÜMÜ ---
         // Dört ana yöne doğru ExplosionWave'leri ateşle.
         Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
         foreach (var dir in directions)
         {
             int startX = X + dir.x;
             int startY = Y + dir.y;
-            var ll = LevelLoader.instance;
-
-            if (startX >= 0 && startX < ll.width && startY >= 0 && startY < ll.height &&
-                MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[startX, startY])))
-            {
-                ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange - 1);
-            }
+            
+            // Patlama dalgasını oluşturma işini tamamen ExplosionWave'in kendisine bırak.
+            ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange);
         }
-        // ----------------------------------------------------
 
         // Bombanın kendisini sistemden temizle.
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        LevelLoader.instance.tileObjects[X, Y] = null;
-        Destroy(gameObject);
+        Die();
     }
 
     /// <summary>
     /// Belirtilen koordinattaki IDamageable bir nesneye hasar verir.
     /// </summary>
-    private void DealDamageAt(int x, int y)
+    public void DealDamageAt(int x, int y)
     {
         var ll = LevelLoader.instance;
 
@@ -99,5 +75,11 @@ public class BombTile : TileBase, ITurnBased, IInitializable
                 damageable.TakeDamage(1); // Örnek olarak 1 hasar
             }
         }
+    }
+    public void Die()
+    {
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        LevelLoader.instance.tileObjects[X, Y] = null;
+        Destroy(gameObject);
     }
 }

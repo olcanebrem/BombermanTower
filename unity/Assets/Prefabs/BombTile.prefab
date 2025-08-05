@@ -59,8 +59,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualText: {fileID: 7090631827130858020}
-  explosionRange: 0
-  turnDuration: 0
+  explosionRange: 3
+  turnsToExplode: 3
   explosionPrefab: {fileID: 618472659354836283, guid: 1a98a8e16944dbf41a5ca59fb2de826d, type: 3}
 --- !u!114 &7090631827130858020
 MonoBehaviour:

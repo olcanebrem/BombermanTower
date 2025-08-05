@@ -60,6 +60,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   visualText: {fileID: 4500058380682614219}
   bombPrefab: {fileID: 9048555102869179715, guid: 1836c43e7c4f24c41802b2a5078017da, type: 3}
+  explosionPrefab: {fileID: 618472659354836283, guid: 1a98a8e16944dbf41a5ca59fb2de826d, type: 3}
+  diagonalBufferTime: 0.1
 --- !u!114 &4500058380682614219
 MonoBehaviour:
   m_ObjectHideFlags: 0
