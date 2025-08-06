@@ -32,6 +32,7 @@ public class TurnManager : MonoBehaviour
             turnTimer -= turnInterval;
             // AdvanceTurn'ü doğrudan çağırmak yerine, Coroutine'i başlat.
             StartCoroutine(AdvanceTurnCoroutine());
+            LevelLoader.instance.DebugPrintMap();
         }
     }
      // --- ANİMASYON KONTROL METODLARI ---
@@ -43,7 +44,7 @@ public class TurnManager : MonoBehaviour
     {
         isTurnInProgress = true;
         TurnCount++;
-        LevelLoader.instance.DebugPrintMap();
+        
         foreach (var obj in turnBasedObjects.ToList()) obj.ResetTurn();
 
         var unitsToPlay = turnBasedObjects.OrderBy(u => GetExecutionOrder(u)).ToList();

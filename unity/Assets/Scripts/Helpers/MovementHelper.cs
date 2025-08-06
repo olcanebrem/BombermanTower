@@ -28,79 +28,78 @@ public static class MovementHelper
         GameObject targetObject = ll.tileObjects[newX, newY];
         TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
 
-        // --- 3. ETKİLEŞİM KONTROLÜ (Çarpışma ve Toplama) ---
+        // --- ETKİLEŞİM KURALI ---
         if (targetObject != null)
         {
             // a) Hedef "toplanabilir" bir şey mi?
-            targetObject.GetComponent<ICollectible>()?.OnCollect(mover.gameObject);
-
-            // b) Hedef "saldırılabilir bir BİRİM" mi?
-            if (IsUnit(targetType))
+            var collectible = targetObject.GetComponent<ICollectible>();
+            if (collectible != null)
             {
-                // --- YENİ "DOST ATEŞİ" KONTROLÜ ---
-                // Sadece DÜŞMANLAR ve OYUNCU birbirine hasar verebilir.
-                // Düşman düşmana, oyuncu oyuncuya (kendine) vuramaz.
+                if (mover is PlayerController)
+                {
+                    // OnCollect'i çağır. O, temizliği kendi yapacak.
+                    collectible.OnCollect(mover.gameObject);
+                }
+                else { return false; }
+            }
+            // b) Hedef "saldırılabilir bir BİRİM" mi?
+            else if (IsUnit(targetType)) // 'else if' kullanarak öncelik sırası oluşturduk.
+            {
                 bool moverIsPlayer = mover is PlayerController;
                 bool targetIsPlayer = targetType == TileType.Player;
 
-                // Eğer her ikisi de oyuncu veya her ikisi de düşmansa, bu bir "dost" çarpışmasıdır.
-                // Hasar verme, sadece hareket etmelerini engelle.
-                if (moverIsPlayer == targetIsPlayer)
+                if (moverIsPlayer != targetIsPlayer)
                 {
-                    return false; // Hareketi engelle, hasar verme.
+                    // --- EN ÖNEMLİ DÜZELTME BURADA ---
+                    // Hedefteki nesnenin IDamageable bileşenini al ve TakeDamage'i çağır.
+                    var damageable = targetObject.GetComponent<IDamageable>();
+                    damageable?.TakeDamage(1);
                 }
-                // ------------------------------------
-
-                // Eğer biri oyuncu, diğeri düşmansa, bu bir "düşman" çarpışmasıdır.
-                var damageable = targetObject.GetComponent<IDamageable>();
-                damageable?.TakeDamage(1);
-                
-                return false; // Çarpışma olduğu için hareket BAŞARISIZ olur.
+                // Saldırıdan sonra, HAREKET ETME.
+                return false;
             }
         }
         
-        // --- 4. GEÇİLEBİLİLİK KONTROLÜ (DUVAR SORUNUNU ÇÖZEN KISIM) ---
-        // Etkileşimlerden sonra hedefin son durumunu KONTROL ET.
-        // Bu, bir coin toplandıktan sonra o karenin boşa çıkmasını sağlar.
-        // En önemlisi, DUVAR gibi geçilemez nesneleri burada yakalar.
+        // --- 4. GEÇİLEBİLİRLİK KONTROLÜ ---
+        // Etkileşimlerden sonra (örn: coin toplandıktan sonra) hedefin son durumunu kontrol et.
         targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
         if (!IsTilePassable(targetType))
         {
             return false;
         }
 
-        // --- 4. UYGULAMA (Tüm kontrollerden geçti) ---
-        // a) Mantıksal haritaları güncelle
+        // --- 5. UYGULAMA (Eğer hedef boşsa veya toplanabilir bir şeyse) ---
+        targetWorldPos = new Vector3(newX * ll.tileSize, (ll.height - newY - 1) * ll.tileSize, 0);
+        
+        // --- CASUS LOGLARI BURADA ---
+        TileType moverType = mover.TileType;
+        char oldSymbolOnMap = ll.levelMap[mover.X, mover.Y];
+        char newSymbolToWrite = TileSymbols.TypeToDataSymbol(moverType);
+
+        Debug.Log($"--- HAREKET UYGULANIYOR ---");
+        Debug.Log($"Hareket Eden: {mover.GetType().Name} | Tipi: {moverType} | Haritadaki Eski Sembolü: '{oldSymbolOnMap}'");
+        Debug.Log($"Eski Pozisyon ({mover.X},{mover.Y}) temizleniyor.");
+        
         ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(mover.TileType);
+        
+        Debug.Log($"Yeni Pozisyon ({newX},{newY}) '{newSymbolToWrite}' sembolü ile işaretlenecek.");
+        
+        ll.levelMap[newX, newY] = newSymbolToWrite;
+        
         ll.tileObjects[newX, newY] = mover.gameObject;
         ll.tileObjects[mover.X, mover.Y] = null;
         
-        // b) Nesnenin kendi iç koordinatlarını güncelle
         mover.OnMoved(newX, newY);
         
-        // c) Animasyon için hedef dünya pozisyonunu hesapla ve dışarıya bildir
-        targetWorldPos = new Vector3(newX * ll.tileSize, (ll.height - newY - 1) * ll.tileSize, 0);
-
+        // Hareketten hemen sonra haritayı yazdırarak karşılaştırma yapalım.
+        ll.DebugPrintMap();
+        Debug.Log($"--- HAREKET BİTTİ ---");
+        // -------------------------
+        
         return true;
     }
 
-    /// <summary>
-    /// Bir tile tipinin üzerinden geçilebilir olup olmadığını belirleyen merkezi kural.
-    /// </summary>
-    public static bool IsTilePassable(TileType type)
-    {
-        switch (type)
-        {
-            case TileType.Empty:
-            case TileType.Coin:     // Coin'in üzerine gelinebilir (toplamak için)
-            case TileType.Health:   // Health'in üzerine gelinebilir (toplamak için)
-            case TileType.Stairs:
-                return true;
-            default:
-                return false;
-        }
-    }
+    // IsUnit metodu aynı kalır.
     public static bool IsUnit(TileType type)
     {
         switch (type)
@@ -108,9 +107,23 @@ public static class MovementHelper
             case TileType.Player:
             case TileType.Enemy:
             case TileType.EnemyShooter:
-                return true; // Evet, bunlar birimdir.
+                return true;
             default:
-                return false; // Hayır, diğerleri (Breakable, Bomb, Projectile vb.) birim değildir.
+                return false;
+        }
+    }
+
+    // IsTilePassable metodu, artık toplanabilirleri içermemeli.
+    // Çünkü toplanma mantığı yukarıda özel olarak ele alınıyor.
+    public static bool IsTilePassable(TileType type)
+    {
+        switch (type)
+        {
+            case TileType.Empty:
+            case TileType.Stairs:
+                return true;
+            default:
+                return false;
         }
     }
 }

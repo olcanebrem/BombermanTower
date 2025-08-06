@@ -16,20 +16,19 @@ public class HealthTile : TileBase, ICollectible
     }
     public void OnCollect(GameObject collector)
     {
-        // 1. Toplayan nesnenin üzerinde bir 'PlayerController' bileşeni var mı diye KONTROL ET.
         PlayerController player = collector.GetComponent<PlayerController>();
-
-        // 2. EĞER VARSA (yani 'player' değişkeni null değilse)...
         if (player != null)
         {
-            // a) O 'PlayerController' bileşeninin 'Heal' metodunu çağır.
+            // 1. Etkiyi yarat (skoru artır).
             player.Heal(healAmount);
             
-            // b) Kendini yok et.
+            // 2. TÜM İZLERİ ANINDA TEMİZLE.
+            var ll = LevelLoader.instance;
+            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty); // Mantıksal haritayı temizle.
+            ll.tileObjects[X, Y] = null; // Nesne haritasını temizle.
+
+            // 3. Görsel nesneyi yok etme listesine ekle.
             Destroy(gameObject);
         }
-        
-        // 3. EĞER YOKSA (yani toplayan bir düşman veya başka bir şeyse), HİÇBİR ŞEY YAPMA.
-        //    Bu, düşmanların can potlarını "tüketmesini" engeller.
     }
 }

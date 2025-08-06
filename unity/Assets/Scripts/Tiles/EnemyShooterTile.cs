@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System;
+using Debug = UnityEngine.Debug;
 
 public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
@@ -27,7 +28,24 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
     #region Kayıt ve Kurulum
 
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() { /* ... önceki gibi ... */ }
+    void OnDisable()
+    {
+        // Eğer bu nesne, bir animasyonun ortasındayken yok edilirse...
+        if (isAnimating)
+        {
+            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
+            if (TurnManager.Instance != null)
+            {
+                TurnManager.Instance.ReportAnimationEnd();
+            }
+        }
+        
+        // TurnManager'dan kaydı silme işlemi (bu zaten olmalı).
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
+    }
 
     public void Init(int x, int y)
     {
@@ -105,6 +123,11 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
 
     private void Die()
     {
+        // --- EN ÖNEMLİ KANIT ---
+        // Bu Die() metodunu kimin çağırdığını bize söyleyen bir "intihar notu" yazdır.
+        Debug.LogError($"ENEMYTILE YOK OLUYOR! Konum: ({X},{Y}). Tetikleyici Zinciri (StackTrace):\n" + 
+                       $"{new System.Diagnostics.StackTrace().ToString()}", this.gameObject);
+        // -----------------------
         // Mantıksal ve nesne haritalarındaki izini temizle.
         var ll = LevelLoader.instance;
         ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
@@ -138,7 +161,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         }
 
         // Mermiyi oluştur ve kur.
-        Projectile.Spawn(this.projectilePrefab, startX, startY, direction);
+        Projectile.Spawn(this.projectilePrefab, startX, startY, direction, this.TileType);
     }
 
     #endregion
@@ -147,13 +170,13 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
 
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
+        // --- BAYRAKLARI AYARLA ---
         isAnimating = true;
         TurnManager.Instance.ReportAnimationStart();
         
         Vector3 startPosition = transform.position;
         float elapsedTime = 0f;
         float moveDuration = 0.15f;
-
         while (elapsedTime < moveDuration)
         {
             transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);
@@ -164,8 +187,8 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
+        // -------------------------
     }
-
     private IEnumerator FlashColor(Color flashColor)
     {
         var visualImage = GetComponent<TileBase>()?.GetVisualImage();

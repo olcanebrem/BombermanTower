@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 using System.Collections;
+using Debug = UnityEngine.Debug;
+
 public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
@@ -15,6 +17,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     public int MaxHealth { get; set; }
     public int CurrentHealth { get; set; }
     public event Action OnHealthChanged;
+    private bool isAnimating = false;
     // --- YENİ ÇAPRAZ HAREKET TAMPONU DEĞİŞKENLERİ ---
     private Vector2Int bufferedMove; // Tamponlanan ilk hareket
     private float bufferTimer;       // Tamponun ne kadar süre geçerli olacağı
@@ -29,7 +32,24 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     // KAYIT VE KURULUM
     //=========================================================================
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
+    void OnDisable()
+    {
+        // Eğer bu nesne, bir animasyonun ortasındayken yok edilirse...
+        if (isAnimating)
+        {
+            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
+            if (TurnManager.Instance != null)
+            {
+                TurnManager.Instance.ReportAnimationEnd();
+            }
+        }
+        
+        // TurnManager'dan kaydı silme işlemi (bu zaten olmalı).
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
+    }
     public void Init(int x, int y)
     {
         this.X = x;
@@ -160,32 +180,27 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     }
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
-        // Animasyonun başladığını TurnManager'a bildir.
+        // --- BAYRAKLARI AYARLA ---
+        isAnimating = true;
         TurnManager.Instance.ReportAnimationStart();
-
+        
         Vector3 startPosition = transform.position;
         float elapsedTime = 0f;
-        float moveDuration = 0.15f; // Animasyonun süresi (TurnManager'ın interval'ından küçük olmalı)
-
+        float moveDuration = 0.15f;
         while (elapsedTime < moveDuration)
         {
             transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);
             elapsedTime += Time.deltaTime;
-            yield return null; // Bir sonraki frame'e kadar bekle
+            yield return null;
         }
-
-        // Nesnenin tam olarak hedefte olduğundan emin ol.
         transform.position = targetPosition;
-
-        // Animasyonun bittiğini TurnManager'a bildir.
+        
         TurnManager.Instance.ReportAnimationEnd();
+        isAnimating = false;
+        // -------------------------
     }
-    // --- Diğer Metodlar ---
+
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
-        /// <summary>
-    /// Oyuncunun komşu karelerine, en son baktığı yöne öncelik vererek bomba koymayı dener.
-    /// </summary>
-    /// <returns>Bomba başarıyla konulduysa true, konulamadıysa false döndürür.</returns>
     bool PlaceBomb()
     {
         if (bombPrefab == null) return false;
