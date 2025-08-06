@@ -15,6 +15,7 @@ public class TurnManager : MonoBehaviour
     public bool isTurnInProgress = false;
     private int activeAnimations = 0; // Aktif olan animasyonların sayısı
     // -----------------------------------------
+    public bool debugPrintMapOnTurn = true;
     void Awake()
     {
         if (Instance == null) Instance = this;
@@ -32,7 +33,6 @@ public class TurnManager : MonoBehaviour
             turnTimer -= turnInterval;
             // AdvanceTurn'ü doğrudan çağırmak yerine, Coroutine'i başlat.
             StartCoroutine(AdvanceTurnCoroutine());
-            LevelLoader.instance.DebugPrintMap();
         }
     }
      // --- ANİMASYON KONTROL METODLARI ---
@@ -57,7 +57,10 @@ public class TurnManager : MonoBehaviour
                 unit.ExecuteTurn();
             }
         }
-
+        if (debugPrintMapOnTurn && LevelLoader.instance != null)
+        {
+            LevelLoader.instance.DebugPrintMap();
+        }
         // 2. GÖRSEL TURUN BİTMESİNİ BEKLE
         // Tüm animasyonlar bitene kadar (sayaç sıfır olana kadar) bu satırda bekle.
         yield return new WaitUntil(() => activeAnimations == 0);

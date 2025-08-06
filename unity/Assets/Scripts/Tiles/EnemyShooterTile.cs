@@ -160,7 +160,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
             return;
         }
 
-        // Mermiyi oluştur ve kur.
+        // Mermiyi oluştururken, son parametre olarak KENDİ TİPİMİZİ (`this.TileType`) gönderiyoruz.
         Projectile.Spawn(this.projectilePrefab, startX, startY, direction, this.TileType);
     }
 

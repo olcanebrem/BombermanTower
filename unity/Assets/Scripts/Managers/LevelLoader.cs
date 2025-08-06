@@ -204,6 +204,10 @@ public class LevelLoader : MonoBehaviour
         {
             playerController.Init(playerStartX, playerStartY);
             GameManager.Instance.RegisterPlayer(playerController);
+
+            // Oyuncunun mantıksal haritasına kaydet.
+            levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
+            tileObjects[playerStartX, playerStartY] = playerObject;
         }
         
         // f) Oyuncunun referansını, nesne haritasındaki doğru yere koy.

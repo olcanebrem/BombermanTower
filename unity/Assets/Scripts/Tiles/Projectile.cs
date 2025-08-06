@@ -61,21 +61,33 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
     {
         var ll = LevelLoader.instance;
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
+        
+        // 1. Fiziksel nesneyi oluştur.
         GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, ll.transform);
         Projectile proj = projectileGO.GetComponent<Projectile>();
 
-        if (proj != null)
+        if (proj == null)
         {
-            proj.Init(x, y);
-            proj.direction = direction;
-            proj.ownerType = owner;
-            proj.targetPos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
-            // Görselini ayarla
-            Sprite projectileSprite = ll.spriteDatabase.GetSprite(TileType.Projectile);
-            proj.GetComponent<TileBase>()?.SetVisual(projectileSprite);
+            Debug.LogError($"Verilen prefabda ('{prefabToSpawn.name}') Projectile bileşeni bulunamadı!", prefabToSpawn);
+            return null;
         }
-        return proj;
+
+        // 2. İç verilerini kur.
+        proj.Init(x, y);
+        proj.direction = direction;
+        proj.ownerType = owner;
+
+        // --- YENİ VE EN ÖNEMLİ KISIM: MANTIKSAL KAYIT ---
+        // 3. Bu yeni mermiyi, oyunun mantıksal haritalarına kaydet.
+        ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(proj.TileType);
+        ll.tileObjects[x, y] = projectileGO;
+        // -------------------------------------------------
+
+        // 4. Görselini ayarla.
+        Sprite projectileSprite = ll.spriteDatabase.GetSprite(proj.TileType);
+        proj.GetComponent<TileBase>()?.SetVisual(projectileSprite);
         
+        return proj;
     }
 
     // Start metodu, nesne oluşturulduktan sonra SADECE rotasyonu ayarlar.
@@ -105,57 +117,47 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
 
     public void ResetTurn() => HasActedThisTurn = false;
 
-    public void ExecuteTurn()
+        public void ExecuteTurn()
     {
         if (HasActedThisTurn) return;
-        if (isFirstTurn) {isFirstTurn = false;
-            HasActedThisTurn = true;
-            return; }
-
-        // --- YENİ VE AKILLI ÇARPIŞMA MANTIĞI ---
-            // Hareket başarısız olduysa (bir engele çarptı)...
-            int targetX = X + direction.x;
-            int targetY = Y + direction.y;
-            var ll = LevelLoader.instance;
-
-        if (targetX < 0 || targetX >= ll.width || targetY < 0 || targetY >= ll.height)
+        if (isFirstTurn)
         {
-            Die();
+            isFirstTurn = false;
+            HasActedThisTurn = true;
             return;
         }
-        
-        GameObject targetObject = ll.tileObjects[targetX, targetY];
-        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]);
-        
+
+        // Hareketi, tüm kontrolleri ve güncellemeleri yapan merkezi metoda bırakalım.
         if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos))
         {
-            // 2. EĞER HAREKET BAŞARILI OLDUYSA (hedef boştu)...
-            //    ...sadece görsel animasyonu başlat.
             StartCoroutine(SmoothMove(targetPos));
         }
         else
         {
-            // ...hedefin "canı" var mı diye bak.
-            var damageable = targetObject?.GetComponent<IDamageable>();
-            if (damageable != null)
-            {
-                // --- YENİ "DOST ATEŞİ" KONTROLÜ ---
-                bool ownerIsEnemy = IsEnemy(this.ownerType);
-                bool targetIsEnemy = IsEnemy(targetType);
-
-                // Sadece farklı takımdakiler birbirine hasar verebilir.
-                if (ownerIsEnemy != targetIsEnemy)
-                {
-                    damageable.TakeDamage(1);
-                }
-            }
-            
-            // ...ve her halükarda kendini yok et.
+            // Eğer hareket başarısız olduysa (bir engele çarptı),
+            // MovementHelper zaten hasar verme işini halletti.
+            // Bizim tek yapmamız gereken, kendimizi yok etmek.
             Die();
         }
-        // ------------------------------------
 
         HasActedThisTurn = true;
+    }
+
+    private void Die()
+    {
+        var ll = LevelLoader.instance;
+
+        // --- GÜVENLİK KİLİDİ ---
+        // Haritadaki izimizi silmeden önce, o izin gerçekten bize ait olduğunu doğrula.
+        // Bu, başka bir merminin yerini yanlışlıkla silmemizi engeller.
+        if (X >= 0 && X < ll.width && Y >= 0 && Y < ll.height && ll.tileObjects[X, Y] == this.gameObject)
+        {
+            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            ll.tileObjects[X, Y] = null;
+        }
+        
+        // GameObject'i her halükarda yok et.
+        Destroy(gameObject);
     }
 
     /// <summary>
@@ -196,23 +198,6 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
         // -------------------------
-    }
-
-        private void Die()
-    {
-        var ll = LevelLoader.instance;
-
-        // --- YENİ GÜVENLİK KİLİDİ ---
-        // Haritadaki izini silmeden önce, kendi koordinatlarının geçerli olduğundan emin ol.
-        if (X >= 0 && X < ll.width && Y >= 0 && Y < ll.height)
-        {
-            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-            ll.tileObjects[X, Y] = null;
-        }
-        // -----------------------------
-        
-        // GameObject'i her halükarda yok et.
-        Destroy(gameObject);
     }
 
     #endregion
