@@ -1,6 +1,6 @@
 using UnityEngine;
 using System;
-public class HealthTile : TileBase, ICollectible
+public class HealthTile : TileBase, ICollectible, IInitializable
 {
     public int X { get; set; }
     public int Y { get; set; }
