@@ -28,35 +28,41 @@ public static class MovementHelper
         GameObject targetObject = ll.tileObjects[newX, newY];
         TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
 
-        // --- 3. GELİŞMİŞ ETKİLEŞİM KURALI ---
+        // --- 3. ETKİLEŞİM KONTROLÜ (Çarpışma ve Toplama) ---
         if (targetObject != null)
         {
-            // a) Hedef "toplanabilir" bir şey mi? (Bu değişmez)
-            var collectible = targetObject.GetComponent<ICollectible>();
-            if (collectible != null)
-            {
-                collectible.OnCollect(mover.gameObject);
-            }
+            // a) Hedef "toplanabilir" bir şey mi?
+            targetObject.GetComponent<ICollectible>()?.OnCollect(mover.gameObject);
 
             // b) Hedef "saldırılabilir bir BİRİM" mi?
             if (IsUnit(targetType))
             {
-                // Evet, hedefte başka bir birim var. Bu bir çarpışmadır.
-                var damageable = targetObject.GetComponent<IDamageable>();
-                if (damageable != null)
-                {
-                    // Hedefteki birime hasar ver.
-                    damageable.TakeDamage(1);
-                }
-                
-                // Çarpışma olduğu için, hareket BAŞARISIZ olur.
+                // --- YENİ "DOST ATEŞİ" KONTROLÜ ---
+                // Sadece DÜŞMANLAR ve OYUNCU birbirine hasar verebilir.
+                // Düşman düşmana, oyuncu oyuncuya (kendine) vuramaz.
+                bool moverIsPlayer = mover is PlayerController;
+                bool targetIsPlayer = targetType == TileType.Player;
 
-                return false;
+                // Eğer her ikisi de oyuncu veya her ikisi de düşmansa, bu bir "dost" çarpışmasıdır.
+                // Hasar verme, sadece hareket etmelerini engelle.
+                if (moverIsPlayer == targetIsPlayer)
+                {
+                    return false; // Hareketi engelle, hasar verme.
+                }
+                // ------------------------------------
+
+                // Eğer biri oyuncu, diğeri düşmansa, bu bir "düşman" çarpışmasıdır.
+                var damageable = targetObject.GetComponent<IDamageable>();
+                damageable?.TakeDamage(1);
+                
+                return false; // Çarpışma olduğu için hareket BAŞARISIZ olur.
             }
         }
-
-        // --- 4. GEÇİLEBİLİRLİK KONTROLÜ ---
-        // Etkileşimlerden sonra hedefin son durumunu kontrol et.
+        
+        // --- 4. GEÇİLEBİLİLİK KONTROLÜ (DUVAR SORUNUNU ÇÖZEN KISIM) ---
+        // Etkileşimlerden sonra hedefin son durumunu KONTROL ET.
+        // Bu, bir coin toplandıktan sonra o karenin boşa çıkmasını sağlar.
+        // En önemlisi, DUVAR gibi geçilemez nesneleri burada yakalar.
         targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
         if (!IsTilePassable(targetType))
         {
@@ -95,7 +101,7 @@ public static class MovementHelper
                 return false;
         }
     }
-    private static bool IsUnit(TileType type)
+    public static bool IsUnit(TileType type)
     {
         switch (type)
         {

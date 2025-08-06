@@ -51,7 +51,7 @@ public static class TileSymbols
         switch (type)
         {
             case TileType.Wall:         return '#';
-            case TileType.Empty:        return ' ';
+            case TileType.Empty:        return '-';
             case TileType.Breakable:    return 'B';
             case TileType.Gate:         return 'G';
             case TileType.Stairs:       return 'S';
@@ -74,7 +74,7 @@ public static class TileSymbols
         switch (symbol)
         {
             case '#': return TileType.Wall;
-            case ' ': return TileType.Empty;
+            case '-': return TileType.Empty;
             case 'B': return TileType.Breakable;
             case 'G': return TileType.Gate;
             case 'S': return TileType.Stairs;

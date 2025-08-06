@@ -1,88 +1,97 @@
 using UnityEngine;
-using System;
 using System.Collections;
-public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
+
+public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
 {
-    // --- Arayüzler ve Değişkenler ---
+    #region Arayüzler ve Değişkenler
+
+    // --- IMovable ---
     public int X { get; private set; }
     public int Y { get; private set; }
     public TileType TileType => TileType.Projectile;
+
+    // --- ITurnBased ---
     public bool HasActedThisTurn { get; set; }
+
+    // --- Sınıfa Özgü ---
     private Vector2Int direction;
     private bool isFirstTurn = true;
     private bool isAnimating = false;
-    public static SpriteDatabase spriteDatabase;
-    //=========================================================================
-    // KAYIT VE KURULUM
-    //=========================================================================
-    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() 
-    {
-    if (isAnimating)
-        {
-            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
-            if (TurnManager.Instance != null) TurnManager.Instance.ReportAnimationEnd();
-            TurnManager.Instance.Unregister(this);
-        }
-    }
-    public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 1; this.CurrentHealth = MaxHealth; }
+    private Transform visualTransform;
+    
+    #endregion
 
+    #region Kayıt ve Kurulum
+
+    void OnEnable()
+    {
+        if (TurnManager.Instance != null) TurnManager.Instance.Register(this);
+    }
+
+    void OnDisable()
+    {
+        // Animasyon ortasında yok edilirse, TurnManager'ın sayacını düzelt.
+        if (isAnimating && TurnManager.Instance != null)
+        {
+            TurnManager.Instance.ReportAnimationEnd();
+        }
+        
+        if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this);
+    }
+
+    public void Init(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    /// <summary>
+    /// Bir mermi oluşturur, kurar ve görselini ayarlar.
+    /// </summary>
     public static Projectile Spawn(GameObject prefabToSpawn, int x, int y, Vector2Int direction)
     {
         var ll = LevelLoader.instance;
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
         GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, ll.transform);
         Projectile proj = projectileGO.GetComponent<Projectile>();
-        
-        proj.Init(x, y);
-        proj.direction = direction;
-        
-        // GÖRSELİ, ONU YARATAN KİŞİ AYARLAMALI. BURASI DEĞİL.
-        
+
+        if (proj != null)
+        {
+            proj.Init(x, y);
+            proj.direction = direction;
+
+            // Görselini ayarla
+            Sprite projectileSprite = ll.spriteDatabase.GetSprite(TileType.Projectile);
+            proj.GetComponent<TileBase>()?.SetVisual(projectileSprite);
+        }
         return proj;
     }
-    
-    public int CurrentHealth { get; private set; }
-    public int MaxHealth { get; private set; }
-    public event Action OnHealthChanged;
 
-    public void TakeDamage(int damageAmount)
+    // Start metodu, nesne oluşturulduktan sonra SADECE rotasyonu ayarlar.
+     void Start()
     {
-        CurrentHealth -= damageAmount;
-        OnHealthChanged?.Invoke();
-    }
-    void Start()
-    {
+        // 1. Görselin transform'una olan referansı bul ve sakla.
+        visualTransform = transform.Find("Visual");
+        if (visualTransform == null)
+        {
+            Debug.LogError("Prefabda 'Visual' adında bir alt nesne bulunamadı!", gameObject);
+            return;
+        }
 
+        // 2. Rotasyonu, konteynere değil, SADECE görsele uygula.
         float angle = 0f;
-
-        // PlayerController'daki mantığın aynısını kullanalım:
-        // Vector2Int.down -> Görsel olarak YUKARI
-        // Vector2Int.up   -> Görsel olarak AŞAĞI
-
-        if (direction == Vector2Int.right) // Görsel olarak SAĞ
-        {
-            angle = 0f;
-        }
-        else if (direction == Vector2Int.left) // Görsel olarak SOL
-        {
-            angle = 180f;
-        }
-        else if (direction == Vector2Int.down) // Görsel olarak YUKARI
-        {
-            angle = 90f;
-        }
-        else if (direction == Vector2Int.up) // Görsel olarak AŞAĞI
-        {
-            angle = 270f;
-        }
-
-        transform.rotation = Quaternion.Euler(0, 0, angle);
+        if (direction == Vector2Int.right) angle = 0f;
+        else if (direction == Vector2Int.left) angle = 180f;
+        else if (direction == Vector2Int.down) angle = 90f;
+        else if (direction == Vector2Int.up) angle = -90f;
+        
+        visualTransform.rotation = Quaternion.Euler(0, 0, angle);
     }
 
-    //=========================================================================
-    // TUR TABANLI EYLEMLER (ITurnBased)
-    //=========================================================================
+    #endregion
+
+    #region Tur Tabanlı Eylemler (ITurnBased)
+
     public void ResetTurn() => HasActedThisTurn = false;
 
     public void ExecuteTurn()
@@ -97,33 +106,66 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
             return;
         }
 
-        // --- YENİ HAREKET MANTIĞI ---
-        // 1. MovementHelper'a mantıksal bir hareket denemesi yaptır.
-        if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos))
+        // Bir sonraki karenin koordinatlarını ve hedefini al.
+        int targetX = X + direction.x;
+        int targetY = Y + direction.y;
+        var ll = LevelLoader.instance;
+
+        // Sınır kontrolü
+        if (targetX < 0 || targetX >= ll.width || targetY < 0 || targetY >= ll.height)
         {
-            // 2. Eğer hareket mantıksal olarak başarılıysa, GÖRSEL animasyonu başlat.
-            StartCoroutine(SmoothMove(targetPos));
+            Die();
+            return;
         }
-        else
+        
+        GameObject targetObject = ll.tileObjects[targetX, targetY];
+        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]);
+
+        // Hedefte bir birim varsa, ona hasar ver ve yok ol.
+        if (MovementHelper.IsUnit(targetType))
         {
-            // 3. Eğer hareket mantıksal olarak başarısızsa (bir engele çarptı), kendini yok et.
+            targetObject?.GetComponent<IDamageable>()?.TakeDamage(1);
             Die();
         }
-        // -----------------------------
+        // Hedef geçilebilir bir yerse, hareket et.
+        else if (MovementHelper.IsTilePassable(targetType))
+        {
+            // MovementHelper'ı çağırmaya gerek yok, çünkü tüm kontrolleri zaten yaptık.
+            // Hareketi doğrudan uygulayalım.
+            Vector3 targetPos = new Vector3(targetX * ll.tileSize, (ll.height - targetY - 1) * ll.tileSize, 0);
+            StartCoroutine(SmoothMove(targetPos));
+            
+            // Mantıksal haritaları güncelle
+            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            ll.levelMap[targetX, targetY] = TileSymbols.TypeToDataSymbol(this.TileType);
+            ll.tileObjects[targetX, targetY] = this.gameObject;
+            ll.tileObjects[X, Y] = null;
+            OnMoved(targetX, targetY);
+        }
+        // Hedef duvar gibi geçilemez bir engelse, sadece yok ol.
+        else
+        {
+            Die();
+        }
 
         HasActedThisTurn = true;
     }
 
+    #endregion
 
-    //=========================================================================
-    // HAREKET VE YOK OLMA MANTIĞI
-    //=========================================================================
-    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+    #region Hareket ve Yok Olma
+
+    public void OnMoved(int newX, int newY)
+    {
+        this.X = newX;
+        this.Y = newY;
+    }
 
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
         isAnimating = true;
         TurnManager.Instance.ReportAnimationStart();
+        
         Vector3 startPosition = transform.position;
         float elapsedTime = 0f;
         float moveDuration = 0.15f;
@@ -135,18 +177,27 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable, IDamag
             yield return null;
         }
         transform.position = targetPosition;
+        
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
     }
 
-    private void Die()
+        private void Die()
     {
-        // Mantıksal haritadaki izini temizle.
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        // Nesne haritasındaki referansını temizle.
-        LevelLoader.instance.tileObjects[X, Y] = null;
-        // GameObject'i yok et.
+        var ll = LevelLoader.instance;
+
+        // --- YENİ GÜVENLİK KİLİDİ ---
+        // Haritadaki izini silmeden önce, kendi koordinatlarının geçerli olduğundan emin ol.
+        if (X >= 0 && X < ll.width && Y >= 0 && Y < ll.height)
+        {
+            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            ll.tileObjects[X, Y] = null;
+        }
+        // -----------------------------
+        
+        // GameObject'i her halükarda yok et.
         Destroy(gameObject);
     }
-    
+
+    #endregion
 }

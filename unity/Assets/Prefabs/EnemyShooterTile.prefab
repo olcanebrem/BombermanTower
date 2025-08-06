@@ -134,4 +134,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualImage: {fileID: 357941866834193410}
+  startingHealth: 1
   projectilePrefab: {fileID: 9048555102869179715, guid: 05d6850a10409e04cb82f069f7d5e45b, type: 3}
+  turnsToShoot: 4

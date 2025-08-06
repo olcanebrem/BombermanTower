@@ -38,7 +38,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         this.MaxHealth = 3;
         this.CurrentHealth = MaxHealth;
     }
-
+    
     public void TakeDamage(int damageAmount)
     {
         CurrentHealth -= damageAmount;

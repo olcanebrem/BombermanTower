@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System;
+
 public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
     // --- Arayüzler ve Değişkenler ---
@@ -10,31 +11,39 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
     public bool HasActedThisTurn { get; set; }
     public GameObject projectilePrefab;
     private int turnCounter = 0;
-    private int turnsToShoot = 4;
+    [SerializeField] private int turnsToShoot = 4;
+    private bool isAnimating = false;
+
+    // --- YENİ "HAFIZA" DEĞİŞKENİ ---
+    private Vector2Int lastFacingDirection;
+    // --------------------------------
+
+    // --- Can Sistemi ---
+    [SerializeField] private int startingHealth = 1;
     public int CurrentHealth { get; private set; }
     public int MaxHealth { get; private set; }
-    private bool isAnimating = false;
     public event Action OnHealthChanged;
-    
-    //=========================================================================
-    // KAYIT VE KURULUM
-    //=========================================================================
-    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() 
-    {
-    if (isAnimating)
-        {
-            // ...TurnManager'a animasyonun bittiğini bildir ki sayaç takılı kalmasın.
-            if (TurnManager.Instance != null) TurnManager.Instance.ReportAnimationEnd();
-            TurnManager.Instance.Unregister(this);
-        }
-    }
-    public void Init(int x, int y) { this.X = x; this.Y = y; this.MaxHealth = 1; this.CurrentHealth = MaxHealth; }
-    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
 
-    //=========================================================================
-    // TUR TABANLI EYLEMLER (ITurnBased)
-    //=========================================================================
+    #region Kayıt ve Kurulum
+
+    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
+    void OnDisable() { /* ... önceki gibi ... */ }
+
+    public void Init(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+        MaxHealth = startingHealth;
+        CurrentHealth = MaxHealth;
+        // Başlangıçta rastgele bir yöne baksın.
+        Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        lastFacingDirection = directions[UnityEngine.Random.Range(0, directions.Length)];
+    }
+
+    #endregion
+
+    #region Tur Tabanlı Eylemler (ITurnBased)
+
     public void ResetTurn() => HasActedThisTurn = false;
 
     public void ExecuteTurn()
@@ -44,20 +53,25 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         turnCounter++;
         if (turnCounter >= turnsToShoot)
         {
-            ShootRandomDirection();
+            // Ateş etme zamanı geldi. "Hafızadaki" yöne doğru ateş et.
+            Shoot(lastFacingDirection);
             turnCounter = 0;
-            HasActedThisTurn = true;
         }
         else
         {
+            // %50 ihtimalle hareket etmeyi dene.
             if (UnityEngine.Random.value > 0.5f)
             {
-                Vector2Int moveDirection = new Vector2Int(UnityEngine.Random.Range(-1, 2), UnityEngine.Random.Range(-1, 2));
+                Vector2Int[] cardinalDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+                Vector2Int moveDirection = cardinalDirections[UnityEngine.Random.Range(0, cardinalDirections.Length)];
                 
                 if (MovementHelper.TryMove(this, moveDirection, out Vector3 targetPos))
                 {
+                    // --- YENİ HAFIZA GÜNCELLEMESİ ---
+                    // Başarıyla hareket ettiyse, yeni baktığı yön bu olur.
+                    lastFacingDirection = moveDirection;
+                    // ---------------------------------
                     StartCoroutine(SmoothMove(targetPos));
-                    HasActedThisTurn = true;
                 }
             }
         }
@@ -65,13 +79,77 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         HasActedThisTurn = true;
     }
 
-    //=========================================================================
-    // HAREKET VE DİĞER EYLEMLER
-    //=========================================================================
+    #endregion
+
+    #region Hasar ve Yok Olma (IDamageable)
+    public void TakeDamage(int damageAmount)
+    {
+        CurrentHealth -= damageAmount;
+        OnHealthChanged?.Invoke();
+
+        StartCoroutine(FlashColor(Color.red));
+
+        if (CurrentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    public void Heal(int healAmount)
+    {
+        CurrentHealth += healAmount;
+        if (CurrentHealth > MaxHealth) CurrentHealth = MaxHealth;
+        OnHealthChanged?.Invoke();
+        StartCoroutine(FlashColor(Color.green));
+    }
+
+    private void Die()
+    {
+        // Mantıksal ve nesne haritalarındaki izini temizle.
+        var ll = LevelLoader.instance;
+        ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        ll.tileObjects[X, Y] = null;
+        
+        // GameObject'i yok et.
+        Destroy(gameObject);
+    }
+    #endregion
+
+    #region Hareket ve Diğer Eylemler
+
+    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+
+    // Metodun adını ve imzasını daha spesifik hale getirelim.
+    void Shoot(Vector2Int direction)
+    {
+        if (projectilePrefab == null) return;
+        
+        int startX = X + direction.x;
+        int startY = Y + direction.y;
+        var ll = LevelLoader.instance;
+
+        // Güvenlik kontrolleri (harita dışı, geçilemezlik)
+        if (startX < 0 || startX >= ll.width || startY < 0 || startY >= ll.height) return;
+        if (!MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[startX, startY])))
+        {
+            // Eğer hedefte duvar gibi bir şey varsa, ona hasar ver ama mermi oluşturma.
+            ll.tileObjects[startX, startY]?.GetComponent<IDamageable>()?.TakeDamage(1);
+            return;
+        }
+
+        // Mermiyi oluştur ve kur.
+        Projectile.Spawn(this.projectilePrefab, startX, startY, direction);
+    }
+
+    #endregion
+
+    #region Görsel Efektler
+
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
-        isAnimating = true; // Animasyon başladı
+        isAnimating = true;
         TurnManager.Instance.ReportAnimationStart();
+        
         Vector3 startPosition = transform.position;
         float elapsedTime = 0f;
         float moveDuration = 0.15f;
@@ -83,48 +161,25 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
             yield return null;
         }
         transform.position = targetPosition;
+        
         TurnManager.Instance.ReportAnimationEnd();
-        isAnimating = false; // Animasyon bitti
+        isAnimating = false;
     }
 
-        void ShootRandomDirection()
+    private IEnumerator FlashColor(Color flashColor)
     {
-        if (projectilePrefab == null) return;
-        
-        // ... Yön belirleme kodları ...
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-        Vector2Int dir = directions[UnityEngine.Random.Range(0, directions.Length)];
-        
-        int startX = X + dir.x;
-        int startY = Y + dir.y;
+        var visualImage = GetComponent<TileBase>()?.GetVisualImage();
+        if (visualImage == null) yield break;
 
-        // 1. Mermiyi oluştur.
-        Projectile newProjectile = Projectile.Spawn(this.projectilePrefab, startX, startY, dir);
+        Color originalColor = visualImage.color;
+        visualImage.color = flashColor;
 
-        // 2. EĞER MERMİ BAŞARIYLA OLUŞTURULDUYSA...
-        if (newProjectile != null)
+        yield return new WaitForSeconds(TurnManager.Instance.turnInterval * 0.8f);
+
+        if (visualImage != null)
         {
-            // a) Gerekli Sprite'ı veritabanından al.
-            Sprite projectileSprite = LevelLoader.instance.spriteDatabase.GetSprite(TileType.Projectile);
-            
-            // b) Merminin görselini ayarla.
-            newProjectile.GetComponent<TileBase>()?.SetVisual(projectileSprite);
+            visualImage.color = originalColor;
         }
     }
-
-    public void TakeDamage(int damageAmount)
-    {
-        CurrentHealth -= damageAmount;
-        OnHealthChanged?.Invoke();
-        if (CurrentHealth <= 0) Die();
-    }
-    private void Die()
-    {
-        // Mantıksal haritadaki izini temizle.
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        // Nesne haritasındaki referansını temizle.
-        LevelLoader.instance.tileObjects[X, Y] = null;
-        // GameObject'i yok et.
-        Destroy(gameObject);
-    }
+    #endregion
 }
