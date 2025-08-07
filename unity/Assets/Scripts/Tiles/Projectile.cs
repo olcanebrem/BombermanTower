@@ -128,7 +128,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         }
 
         // Hareketi, tüm kontrolleri ve güncellemeleri yapan merkezi metoda bırakalım.
-        if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos))
+        if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos, out ICollectible collectibleToGet))
         {
             StartCoroutine(SmoothMove(targetPos));
         }
@@ -197,7 +197,6 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
-        // -------------------------
     }
 
     #endregion

@@ -147,7 +147,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     //=========================================================================
     public void ResetTurn() => HasActedThisTurn = false;
 
-        public void ExecuteTurn()
+    public void ExecuteTurn()
     {
         if (HasActedThisTurn) return;
 
@@ -163,22 +163,30 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         }
 
         // Hareket niyetini kontrol et.
-        if (moveIntent != Vector2Int.zero)
+       if (moveIntent != Vector2Int.zero)
         {
-            if (MovementHelper.TryMove(this, moveIntent, out Vector3 targetPos))
+            // TryMove'u yeni imzasıyla çağır.
+            if (MovementHelper.TryMove(this, moveIntent, out Vector3 targetPos, out ICollectible collectibleToGet))
             {
-                // --- EN ÖNEMLİ DEĞİŞİKLİK ---
-                // Artık hareketin çapraz olup olmadığını kontrol etmiyoruz.
-                // Yapılan her başarılı hareket, yeni "son yön" olur.
                 lastMoveDirection = moveIntent;
-                // ---------------------------------
+
+                // --- YENİ "VARIŞ GÖREVİ" MANTIĞI ---
+                // Animasyon bittiğinde ne olacağını tanımlayan bir 'Action' oluştur.
+                System.Action onArrivalAction = null;
+                if (collectibleToGet != null)
+                {
+                    // Eğer bir toplanabilir nesne bulunduysa, varış görevi "OnCollect'i çağır" olur.
+                    onArrivalAction = () => collectibleToGet.OnCollect(this.gameObject);
+                }
+                // ------------------------------------
                 
-                StartCoroutine(SmoothMove(targetPos));
+                // Animasyonu, bu yeni "varış görevi" ile birlikte başlat.
+                StartCoroutine(SmoothMove(targetPos, onArrivalAction));
                 HasActedThisTurn = true;
             }
         }
     }
-    private IEnumerator SmoothMove(Vector3 targetPosition)
+    private IEnumerator SmoothMove(Vector3 targetPosition, System.Action onArrivalAction)
     {
         // --- BAYRAKLARI AYARLA ---
         isAnimating = true;
@@ -197,7 +205,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
-        // -------------------------
+        onArrivalAction?.Invoke();
     }
 
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }

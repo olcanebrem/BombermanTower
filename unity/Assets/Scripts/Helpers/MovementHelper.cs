@@ -10,11 +10,12 @@ public static class MovementHelper
     /// <param name="direction">Hareketin yönü.</param>
     /// <param name="targetWorldPos">Eğer hareket başarılı olursa, animasyonun hedefleyeceği dünya pozisyonu.</param>
     /// <returns>Hareketin mantıksal olarak yapılıp yapılamadığı.</returns>
-    public static bool TryMove(IMovable mover, Vector2Int direction, out Vector3 targetWorldPos)
+    public static bool TryMove(IMovable mover, Vector2Int direction, out Vector3 targetWorldPos, out ICollectible foundCollectible)
     {
         {
         var ll = LevelLoader.instance;
         targetWorldPos = Vector3.zero;
+        foundCollectible = null;
 
         // --- 1. GÜVENLİK KİLİDİ: "Ben Kimim ve Neredeyim?" ---
         // Birimin kendi bildiği pozisyon ile haritadaki pozisyonun tutarlı olduğundan emin ol.
@@ -40,16 +41,22 @@ public static class MovementHelper
 
         if (targetObject != null)
         {
-            // a) Hedef "toplanabilir" bir şey mi?
             var collectible = targetObject.GetComponent<ICollectible>();
-            if (collectible != null)
+            if (collectible != null && mover is PlayerController)
             {
-                if (mover is PlayerController)
+                // 1. Önce toplanabilir nesneye "toplandın" de.
+                bool shouldBeDestroyed = collectible.OnCollect(mover.gameObject);
+
+                // 2. Eğer "evet, yok edilmeliyim" derse, ONU YOK ET.
+                if (shouldBeDestroyed)
                 {
-                    collectible.OnCollect(mover.gameObject);
+                    // Bu, Coin'in GameObject'ini sahneden ve haritalardan SİLER.
+                    Object.Destroy(targetObject);
+                    ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+                    ll.tileObjects[newX, newY] = null;
                 }
-                else { return false; } // Sadece oyuncu toplayabilir.
             }
+            
             // b) Hedef "saldırılabilir bir BİRİM" mi?
             else if (IsUnit(targetType))
             {
@@ -116,6 +123,9 @@ public static class MovementHelper
         {
             case TileType.Empty:
             case TileType.Stairs:
+            case TileType.Coin:
+            case TileType.Health:
+            case TileType.Explosion:
                 return true;
             default:
                 return false;

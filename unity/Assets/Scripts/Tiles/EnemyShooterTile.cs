@@ -83,7 +83,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
                 Vector2Int[] cardinalDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
                 Vector2Int moveDirection = cardinalDirections[UnityEngine.Random.Range(0, cardinalDirections.Length)];
                 
-                if (MovementHelper.TryMove(this, moveDirection, out Vector3 targetPos))
+                if (MovementHelper.TryMove(this, moveDirection, out Vector3 targetPos, out ICollectible collectibleToGet))
                 {
                     // --- YENİ HAFIZA GÜNCELLEMESİ ---
                     // Başarıyla hareket ettiyse, yeni baktığı yön bu olur.
@@ -187,7 +187,6 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
-        // -------------------------
     }
     private IEnumerator FlashColor(Color flashColor)
     {
