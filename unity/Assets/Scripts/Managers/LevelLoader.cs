@@ -21,8 +21,8 @@ public class LevelLoader : MonoBehaviour
     // Inspector'dan sürükleyeceğimiz .txt dosyası
     public TextAsset levelFile; 
     
-    public int width { get; private set; }
-    public int height { get; private set; }
+    public int Width { get; private set; }
+    public int Height { get; private set; }
     
     public char[,] levelMap;
     public GameObject[,] tileObjects;
@@ -37,9 +37,9 @@ public class LevelLoader : MonoBehaviour
         string mapOutput = $"--- MANTIKSAL HARİTA DURUMU: TUR {currentTurn} ---\n"; // '\n' yeni bir satır başlatır.
 
         // Haritayı satır satır dolaşarak string'i oluşturalım.
-        for (int y = 0; y < height; y++)
+        for (int y = 0; y < Height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < Width; x++)
             {
                 // Her bir karakteri string'e ekle.
                 mapOutput += levelMap[x, y];
@@ -93,25 +93,25 @@ public class LevelLoader : MonoBehaviour
         string[] lines = levelFile.text.Split('\n');
 
         // 2. Boyutları belirle
-        height = lines.Length;
-        width = 0;
+        Height = lines.Length;
+        Width = 0;
         foreach (string line in lines)
         {
             // En uzun satırı genişlik olarak kabul et (düzgün format için)
-            if (line.Length > width)
+            if (line.Length > Width)
             {
-                width = line.Length;
+                Width = line.Length;
             }
         }
 
         // 3. levelMap dizisini oluştur
-        levelMap = new char[width, height];
+        levelMap = new char[Width, Height];
 
         // 4. levelMap'i doldur ve oyuncu pozisyonunu bul
-        for (int y = 0; y < height; y++)
+        for (int y = 0; y < Height; y++)
         {
             string line = lines[y].TrimEnd(); // Satır sonundaki olası boşlukları temizle
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < Width; x++)
             {
                 if (x < line.Length)
                 {
@@ -141,13 +141,13 @@ public class LevelLoader : MonoBehaviour
     void CreateMapVisual()
     {
         // 1. Referans haritalarımızı oluştur.
-        tileObjects = new GameObject[width, height];
+        tileObjects = new GameObject[Width, Height];
 
         // 2. JENERİK TILE'LARI OLUŞTURMA DÖNGÜSÜ
         // Bu döngü, oyuncu DIŞINDAKİ her şeyi oluşturur.
-        for (int y = 0; y < height; y++)
+        for (int y = 0; y < Height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < Width; x++)
             {
                 char symbolChar = levelMap[x, y];
                 TileType type = TileSymbols.DataSymbolToType(symbolChar);
@@ -162,7 +162,7 @@ public class LevelLoader : MonoBehaviour
                 // Prefab sözlüğünde bu tip için bir girdi var mı diye bak.
                 if (prefabMap.TryGetValue(type, out var tileBasePrefab))
                 {
-                    Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+                    Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
                     TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
                     
                     // Yeni oluşturulan tile'ı kur.
@@ -184,7 +184,7 @@ public class LevelLoader : MonoBehaviour
 
         // a) Oyuncunun başlangıç pozisyonunu hesapla.
         // Bu 'playerStartX' ve 'playerStartY' değişkenleri LoadLevelFromFile'da doldurulmuştu.
-        Vector3 playerPos = new Vector3(playerStartX * tileSize, (height - playerStartY - 1) * tileSize, 0);
+        Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
         
         // b) Oyuncuyu, hesaplanan bu pozisyonda oluştur.
         playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
@@ -225,7 +225,7 @@ public class LevelLoader : MonoBehaviour
         // Sözlükten Bomb prefabını al
         if (prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab))
         {
-            Vector3 pos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+            Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
             TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, transform);
 
             // Bombayı kur

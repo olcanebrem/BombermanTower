@@ -46,7 +46,7 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
     private static void DealDamageAt(int x, int y)
     {
         var ll = LevelLoader.instance;
-        if (x < 0 || x >= ll.width || y < 0 || y >= ll.height) return;
+        if (x < 0 || x >= ll.Width || y < 0 || y >= ll.Height) return;
         
         GameObject targetObject = ll.tileObjects[x, y];
         if (targetObject != null)
@@ -61,13 +61,13 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
 
         var ll = LevelLoader.instance; 
 
-        if (x < 0 || x >= ll.width || y < 0 || y >= ll.height || !MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[x, y])))
+        if (x < 0 || x >= ll.Width || y < 0 || y >= ll.Height || !MovementHelper.IsTilePassable(null, TileSymbols.DataSymbolToType(ll.levelMap[x, y])))
         {
             DealDamageAt(x, y);
             return;
         }
 
-        Vector3 pos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
+        Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
         GameObject waveGO = Instantiate(prefab, pos, Quaternion.identity, ll.transform);
         ExplosionWave wave = waveGO.GetComponent<ExplosionWave>();
         
@@ -84,7 +84,7 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
     private void Die()
     {
         var ll = LevelLoader.instance;
-        if (ll != null && X >= 0 && X < ll.width && Y >= 0 && Y < ll.height)
+        if (ll != null && X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height)
         {
             ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
             ll.tileObjects[X, Y] = null;

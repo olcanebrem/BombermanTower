@@ -3,111 +3,112 @@ using UnityEngine;
 public static class MovementHelper
 {
     /// <summary>
-    /// Bir hareketin mantıksal olarak mümkün olup olmadığını kontrol eder.
-    /// Etkileşimleri tetikler ve başarılı olursa mantıksal haritaları günceller.
+    /// Bir hareketin mantıksal olarak mümkün olup olmadığını kontrol eder,
+    /// gerekli etkileşimleri (saldırı, toplama) tetikler ve haritaları günceller.
     /// </summary>
-    /// <param name="mover">Hareket etmeye çalışan nesne.</param>
-    /// <param name="direction">Hareketin yönü.</param>
-    /// <param name="targetWorldPos">Eğer hareket başarılı olursa, animasyonun hedefleyeceği dünya pozisyonu.</param>
-    /// <returns>Hareketin mantıksal olarak yapılıp yapılamadığı.</returns>
+    /// <returns>Hareket başarılı olduysa ve bir animasyon gerekiyorsa true döndürür.</returns>
     public static bool TryMove(IMovable mover, Vector2Int direction, out Vector3 targetWorldPos)
     {
-        {
         var ll = LevelLoader.instance;
         targetWorldPos = Vector3.zero;
 
         // --- 1. GÜVENLİK KİLİDİ: "Ben Kimim ve Neredeyim?" ---
-        // Önce mover'ın hala geçerli bir referans olup olmadığını kontrol et
-        if (mover == null || mover.gameObject == null)
+        if (mover == null || mover.gameObject == null) return false; // Ölü birim hareket edemez.
+        if (ll.tileObjects[mover.X, mover.Y] != mover.gameObject)
         {
-            Debug.LogWarning("Hareket etmeye çalışan nesne artık mevcut değil!");
+            Debug.LogError($"VERİ TUTARSIZLIĞI: {mover.GetType().Name} kendini ({mover.X},{mover.Y}) sanıyor ama nesne haritasında orada değil! Hareket engellendi.", mover.gameObject);
             return false;
-        }
-        
-        // Birimin kendi bildiği pozisyon ile haritadaki pozisyonun tutarlı olduğundan emin ol.
-        // Bu, "GPS Bozuldu" (veri tutarsızlığı) hatalarını en başından yakalar.
-        if (ll.levelMap[mover.X, mover.Y] != TileSymbols.TypeToDataSymbol(mover.TileType))
-        {
-            Debug.LogError($"VERİ TUTARSIZLIĞI: {mover.TileType} kendini ({mover.X},{mover.Y}) sanıyor ama haritada orada değil! Hareket engellendi.", mover.gameObject);
         }
 
         // --- 2. HEDEF HESAPLAMA VE SINIR KONTROLÜ ---
         int newX = mover.X + direction.x;
         int newY = mover.Y + direction.y;
 
-        if (newX < 0 || newX >= ll.width || newY < 0 || newY >= ll.height)
-        {
-            return false; // Harita dışına çıkamazsın.
-        }
-
-        // --- 3. HEDEF ANALİZİ VE ETKİLEŞİM ---
-        GameObject targetObject = ll.tileObjects[newX, newY];
-        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
-
-        if (targetObject != null)
-        {
-            var collectible = targetObject.GetComponent<ICollectible>();
-            if (collectible != null && mover is PlayerController)
-            {
-                // 1. Önce toplanabilir nesneye "toplandın" de.
-                bool shouldBeDestroyed = collectible.OnCollect(mover.gameObject);
-
-                // 2. Eğer "evet, yok edilmeliyim" derse, ONU YOK ET.
-                if (shouldBeDestroyed)
-                {
-                    // Bu, Coin'in GameObject'ini sahneden ve haritalardan SİLER.
-                    Object.Destroy(targetObject);
-                    ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-                    ll.tileObjects[newX, newY] = null;
-                }
-            }
-            
-            // b) Hedef "saldırılabilir bir BİRİM" mi?
-            else if (IsUnit(targetType))
-            {
-                bool moverIsPlayer = mover is PlayerController;
-                bool targetIsPlayer = targetType == TileType.Player;
-
-                if (moverIsPlayer != targetIsPlayer) // Sadece farklı taraflar birbirine hasar verebilir.
-                {
-                    targetObject.GetComponent<IDamageable>()?.TakeDamage(1);
-                }
-                return false; // Çarpışma olduğu için hareket her zaman BAŞARISIZ olur.
-            }
-        }
-        
-        // --- 4. GEÇİLEBİLİRLİK KONTROLÜ ---
-        // Etkileşimlerden sonra (örn: coin toplandıktan sonra) hedefin son durumunu kontrol et.
-        targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
-        if (!IsTilePassable(targetType, mover))
+        if (newX < 0 || newX >= ll.Width || newY < 0 || newY >= ll.Height)
         {
             return false;
         }
 
-        // --- 5. UYGULAMA (Tüm kontrollerden geçti) ---
+        // --- 3. ETKİLEŞİM VE KARAR VERME ---
+        GameObject targetObject = ll.tileObjects[newX, newY];
+        TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
+
+        // a) Hedefte bir BİRİM var mı?
+        if (IsUnit(targetType))
+        {
+            // Evet, bu bir saldırı durumu.
+            if (targetObject != null)
+            {
+                bool moverIsPlayer = mover is PlayerController;
+                bool targetIsPlayer = targetType == TileType.Player;
+
+                if (moverIsPlayer != targetIsPlayer) // Sadece düşmanlar ve oyuncu birbirine vurabilir.
+                {
+                    var damageable = targetObject.GetComponent<IDamageable>();
+                    if (damageable != null && damageable.CurrentHealth > 0)
+                    {
+                        damageable.TakeDamage(1);
+                        // Eğer hedef bu saldırıyla öldüyse, üzerine yürü.
+                        if (damageable.CurrentHealth <= 0)
+                        {
+                            // Hedef öldü, hareket başarılı sayılır ve devam eder.
+                        }
+                        else
+                        {
+                            return false; // Hedef ölmedi, hareket etme.
+                        }
+                    }
+                }
+                else
+                {
+                    return false; // Dost ateşi yok, hareket etme.
+                }
+            }
+        }
+        // b) Eğer hedef bir birim değilse, GEÇİLEBİLİR Mİ?
+        else if (!IsTilePassable(mover, targetType))
+        {
+            return false;
+        }
         
-        // a) Animasyon için hedef dünya pozisyonunu hesapla.
-        targetWorldPos = new Vector3(newX * ll.tileSize, (ll.height - newY - 1) * ll.tileSize, 0);
+        // --- 4. UYGULAMA (Tüm kontrollerden geçti, hareket başarılı) ---
+
+        // a) Eğer hedefte toplanabilir bir şey varsa, topla.
+        var collectible = targetObject?.GetComponent<ICollectible>();
+        bool wasCollected = collectible?.OnCollect(mover.gameObject) ?? false;
+
+        // b) Görsel ve mantıksal güncellemeleri yap.
+        targetWorldPos = new Vector3(newX * ll.tileSize, (ll.Height - newY - 1) * ll.tileSize, 0);
         
-        // b) "Akıllı Temizlik": Sadece kendi yerini temizle.
+        // Eğer bir şey toplandıysa, onu haritadan kaldır
+        if (wasCollected && targetObject != null)
+        {
+            // Hedef nesneyi yok et
+            Object.Destroy(targetObject);
+            // Harita güncellemelerini yap
+            ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            ll.tileObjects[newX, newY] = null;
+        }
+        
+        // Eğer hareket eden nesne hala haritadaysa, eski konumunu temizle
         if (ll.tileObjects[mover.X, mover.Y] == mover.gameObject)
         {
             ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
             ll.tileObjects[mover.X, mover.Y] = null;
         }
 
-        // c) Yeni pozisyonu, hareket eden birimin kimliğiyle güncelle.
         ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(mover.TileType);
         ll.tileObjects[newX, newY] = mover.gameObject;
         
-        // d) Nesnenin kendi iç koordinatlarını güncelle ("GPS'i Tamir Et").
         mover.OnMoved(newX, newY);
         
         return true;
     }
-    }
-    // IsUnit metodu aynı kalır.
-    public static bool IsUnit(TileType type)
+
+    /// <summary>
+    /// Bir TileType'ın "birim" (Player, Enemy vb.) olup olmadığını belirler.
+    /// </summary>
+    private static bool IsUnit(TileType type)
     {
         switch (type)
         {
@@ -120,44 +121,21 @@ public static class MovementHelper
         }
     }
 
-    // IsTilePassable metodu, artık toplanabilirleri içermemeli.
-    // Çünkü toplanma mantığı yukarıda özel olarak ele alınıyor.
-    // Note: This method only checks if a tile type is passable in general.
-    // The actual collection logic is handled in the TryMove method.
-    // The mover parameter is optional for backward compatibility
-    public static bool IsTilePassable(TileType type, IMovable mover = null)
+    /// <summary>
+    /// Bir tile tipinin, hareket eden belirli bir birim için geçilebilir olup olmadığını belirler.
+    /// </summary>
+    public static bool IsTilePassable(IMovable mover, TileType targetType)
     {
-        // Projectiles can pass over certain tiles without affecting them
-        if (mover is Projectile)
-        {
-            switch (type)
-            {
-                case TileType.Empty:
-                case TileType.Stairs:
-                case TileType.Coin:
-                case TileType.Health:
-                case TileType.Explosion:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-        
-        // For non-projectiles
-        switch (type)
+        switch (targetType)
         {
             case TileType.Empty:
             case TileType.Stairs:
-            case TileType.Explosion:
                 return true;
             case TileType.Coin:
             case TileType.Health:
-                // These are only passable for the player
-                // If mover is null (for backward compatibility), treat as passable
-                return mover is PlayerController;
+                return (mover is PlayerController);
             default:
                 return false;
         }
     }
-    
 }

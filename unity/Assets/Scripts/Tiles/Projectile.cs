@@ -59,7 +59,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
     public static Projectile Spawn(GameObject prefabToSpawn, int x, int y, Vector2Int direction, TileType owner)
     {
         var ll = LevelLoader.instance;
-        Vector3 pos = new Vector3(x * ll.tileSize, (ll.height - y - 1) * ll.tileSize, 0);
+        Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
         
         // 1. Fiziksel nesneyi oluştur.
         GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, ll.transform);
@@ -162,7 +162,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         // --- GÜVENLİK KİLİDİ ---
         // Haritadaki izimizi silmeden önce, o izin gerçekten bize ait olduğunu doğrula.
         // Bu, başka bir merminin yerini yanlışlıkla silmemizi engeller.
-        if (X >= 0 && X < ll.width && Y >= 0 && Y < ll.height && ll.tileObjects[X, Y] == this.gameObject)
+        if (X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height && ll.tileObjects[X, Y] == this.gameObject)
         {
             ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
             ll.tileObjects[X, Y] = null;

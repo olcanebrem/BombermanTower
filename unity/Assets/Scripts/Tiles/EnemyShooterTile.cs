@@ -151,8 +151,8 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
         var ll = LevelLoader.instance;
 
         // Güvenlik kontrolleri (harita dışı, geçilemezlik)
-        if (startX < 0 || startX >= ll.width || startY < 0 || startY >= ll.height) return;
-        if (!MovementHelper.IsTilePassable(TileSymbols.DataSymbolToType(ll.levelMap[startX, startY])))
+        if (startX < 0 || startX >= ll.Width || startY < 0 || startY >= ll.Height) return;
+        if (!MovementHelper.IsTilePassable(this, TileSymbols.DataSymbolToType(ll.levelMap[startX, startY])))
         {
             // Eğer hedefte duvar gibi bir şey varsa, ona hasar ver ama mermi oluşturma.
             ll.tileObjects[startX, startY]?.GetComponent<IDamageable>()?.TakeDamage(1);

@@ -213,7 +213,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             int targetY = Y + lastMoveDirection.y;
 
             // Hedefin harita içinde ve BOŞ olup olmadığını kontrol et.
-            if (targetX >= 0 && targetX < ll.width && targetY >= 0 && targetY < ll.height &&
+            if (targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height &&
                 TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
             {
                 // 3. İlk bulunan uygun yere bombayı koy ve işlemi bitir.

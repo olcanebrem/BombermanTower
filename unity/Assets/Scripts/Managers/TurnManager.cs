@@ -62,17 +62,17 @@ public class TurnManager : MonoBehaviour
 
         
         // Create a grid to represent the map
-        string[,] debugGrid = new string[ll.width, ll.height];
+        string[,] debugGrid = new string[ll.Width, ll.Height];
         
         // Initialize with empty spaces
-        for (int y = 0; y < ll.height; y++)
-            for (int x = 0; x < ll.width; x++)
+        for (int y = 0; y < ll.Height; y++)
+            for (int x = 0; x < ll.Width; x++)
                 debugGrid[x, y] = GetDebugSymbol(TileSymbols.DataSymbolToType(ll.levelMap[x, y]));
         
         // Add objects from tileObjects
-        for (int y = 0; y < ll.height; y++)
+        for (int y = 0; y < ll.Height; y++)
         {
-            for (int x = 0; x < ll.width; x++)
+            for (int x = 0; x < ll.Width; x++)
             {
                 var obj = ll.tileObjects[x, y];
                 if (obj != null)
@@ -88,10 +88,10 @@ public class TurnManager : MonoBehaviour
         sb.AppendLine($"\n=== TURN {TurnCount} DEBUG MAP ===");
         
         // Add each row to the string builder
-        for (int y = 0; y < ll.height; y++)
+        for (int y = 0; y < ll.Height; y++)
         {
             string row = "";
-            for (int x = 0; x < ll.width; x++)
+            for (int x = 0; x < ll.Width; x++)
             {
                 row += debugGrid[x, y] + " ";
             }

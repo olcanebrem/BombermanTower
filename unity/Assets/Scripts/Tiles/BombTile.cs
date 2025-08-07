@@ -82,7 +82,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IMovable
         var ll = LevelLoader.instance;
 
         // Koordinatların geçerli olduğundan emin ol.
-        if (x < 0 || x >= ll.width || y < 0 || y >= ll.height) return;
+        if (x < 0 || x >= ll.Width || y < 0 || y >= ll.Height) return;
 
         // O koordinattaki GameObject'i bul.
         GameObject targetObject = ll.tileObjects[x, y];
