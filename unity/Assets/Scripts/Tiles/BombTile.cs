@@ -1,37 +1,42 @@
 using UnityEngine;
 using System.Collections;
 
-public class BombTile : TileBase, ITurnBased, IInitializable
+public class BombTile : TileBase, ITurnBased, IInitializable, IMovable
 {
-    public int X { get; private set; }
-    public int Y { get; private set; }
+    public int X { get; set; }
+    public int Y { get; set; }
     public TileType TileType => TileType.Bomb;
+    public new GameObject gameObject => base.gameObject;
     public bool HasActedThisTurn { get; set; }
-
+    private int turnCounter = 0;
+    private int turnsToExplode = 3;
     public int explosionRange = 4;
-    public int turnsToExplode = 3;
     public GameObject explosionPrefab;          
-    private bool exploded = false;
-    private int turnsElapsed = 0;
-
+    private Vector2Int lastFacingDirection;
+    
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
     public void Init(int x, int y) { this.X = x; this.Y = y; }
+    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
+    public void StartMoveAnimation(Vector3 targetPosition) { /* Bombs don't animate movement */ }
     public void ResetTurn() => HasActedThisTurn = false;
 
-    public void ExecuteTurn()
+    public IGameAction GetAction()
     {
-        if (HasActedThisTurn || exploded) return;
+        if (HasActedThisTurn) return null;
+        
+        HasActedThisTurn = true; // Düşman her tur bir şey yapmaya çalışır.
 
-        turnsElapsed++;
-        if (turnsElapsed >= turnsToExplode)
+        turnCounter++;
+        if (turnCounter >= turnsToExplode)
         {
+            turnCounter = 0;
             Explode();
-            exploded = true;
         }
-        HasActedThisTurn = true;
+        return null; // Pas geçti.
     }
-        void Explode()
+
+    void Explode()
     {
         // Güvenlik için, menzilin pozitif olduğundan emin ol.
         if (explosionRange <= 0)

@@ -11,11 +11,13 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
     public TileType TileType => TileType.Enemy;
     public bool HasActedThisTurn { get; set; }
     private bool isAnimating = false;
-
+    private int turnCounter = 0;
     [SerializeField] private int startingHealth = 1;
     public int CurrentHealth { get; private set; }
     public int MaxHealth { get; private set; }
     public event Action OnHealthChanged;
+    private Vector2Int lastFacingDirection;
+    private int turnsToShoot;
 
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable()
@@ -40,22 +42,34 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
     public void ResetTurn() => HasActedThisTurn = false;
 
-    public void ExecuteTurn()
+    public IGameAction GetAction()
     {
-        if (HasActedThisTurn) return;
+        if (HasActedThisTurn) return null;
         
-        if (UnityEngine.Random.value > 0.5f)
+        HasActedThisTurn = true; // Düşman her tur bir şey yapmaya çalışır.
+
+        turnCounter++;
+        if (turnCounter >= turnsToShoot)
         {
-            Vector2Int[] cardinalDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-            Vector2Int moveDirection = cardinalDirections[UnityEngine.Random.Range(0, cardinalDirections.Length)];
-            
-            if (MovementHelper.TryMove(this, moveDirection, out Vector3 targetPos, out ICollectible collectibleToGet))
+            turnCounter = 0;
+            // return new ShootAction(this, ...); // ShootAction sınıfı yaratıldığında
+        }
+        else
+        {
+            if (UnityEngine.Random.value > 0.5f)
             {
-                 StartCoroutine(SmoothMove(targetPos));
+                Vector2Int moveDirection = lastFacingDirection;
+                return new MoveAction(this, moveDirection);
             }
         }
         
-        HasActedThisTurn = true;
+        return null; // Pas geçti.
+    }
+
+    // IMovable'ın yeni metodu
+    public void StartMoveAnimation(Vector3 targetPosition)
+    {
+        StartCoroutine(SmoothMove(targetPosition));
     }
 
     public void TakeDamage(int damageAmount)

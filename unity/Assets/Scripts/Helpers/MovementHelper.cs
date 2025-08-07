@@ -10,20 +10,25 @@ public static class MovementHelper
     /// <param name="direction">Hareketin yönü.</param>
     /// <param name="targetWorldPos">Eğer hareket başarılı olursa, animasyonun hedefleyeceği dünya pozisyonu.</param>
     /// <returns>Hareketin mantıksal olarak yapılıp yapılamadığı.</returns>
-    public static bool TryMove(IMovable mover, Vector2Int direction, out Vector3 targetWorldPos, out ICollectible foundCollectible)
+    public static bool TryMove(IMovable mover, Vector2Int direction, out Vector3 targetWorldPos)
     {
         {
         var ll = LevelLoader.instance;
         targetWorldPos = Vector3.zero;
-        foundCollectible = null;
 
         // --- 1. GÜVENLİK KİLİDİ: "Ben Kimim ve Neredeyim?" ---
+        // Önce mover'ın hala geçerli bir referans olup olmadığını kontrol et
+        if (mover == null || mover.gameObject == null)
+        {
+            Debug.LogWarning("Hareket etmeye çalışan nesne artık mevcut değil!");
+            return false;
+        }
+        
         // Birimin kendi bildiği pozisyon ile haritadaki pozisyonun tutarlı olduğundan emin ol.
         // Bu, "GPS Bozuldu" (veri tutarsızlığı) hatalarını en başından yakalar.
         if (ll.levelMap[mover.X, mover.Y] != TileSymbols.TypeToDataSymbol(mover.TileType))
         {
             Debug.LogError($"VERİ TUTARSIZLIĞI: {mover.TileType} kendini ({mover.X},{mover.Y}) sanıyor ama haritada orada değil! Hareket engellendi.", mover.gameObject);
-            return false;
         }
 
         // --- 2. HEDEF HESAPLAMA VE SINIR KONTROLÜ ---
@@ -122,6 +127,23 @@ public static class MovementHelper
     // The mover parameter is optional for backward compatibility
     public static bool IsTilePassable(TileType type, IMovable mover = null)
     {
+        // Projectiles can pass over certain tiles without affecting them
+        if (mover is Projectile)
+        {
+            switch (type)
+            {
+                case TileType.Empty:
+                case TileType.Stairs:
+                case TileType.Coin:
+                case TileType.Health:
+                case TileType.Explosion:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        
+        // For non-projectiles
         switch (type)
         {
             case TileType.Empty:

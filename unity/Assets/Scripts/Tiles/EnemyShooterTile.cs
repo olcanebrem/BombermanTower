@@ -14,10 +14,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
     private int turnCounter = 0;
     [SerializeField] private int turnsToShoot = 4;
     private bool isAnimating = false;
-
-    // --- YENİ "HAFIZA" DEĞİŞKENİ ---
     private Vector2Int lastFacingDirection;
-    // --------------------------------
 
     // --- Can Sistemi ---
     [SerializeField] private int startingHealth = 1;
@@ -64,39 +61,41 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
 
     public void ResetTurn() => HasActedThisTurn = false;
 
-    public void ExecuteTurn()
+    // ITurnBased'in yeni metodu
+    public IGameAction GetAction()
     {
-        if (HasActedThisTurn) return;
+        if (HasActedThisTurn) return null;
+        
+        HasActedThisTurn = true; // Düşman her tur bir şey yapmaya çalışır.
 
         turnCounter++;
         if (turnCounter >= turnsToShoot)
         {
-            // Ateş etme zamanı geldi. "Hafızadaki" yöne doğru ateş et.
-            Shoot(lastFacingDirection);
             turnCounter = 0;
+            // Shoot in the current facing direction
+            Shoot(lastFacingDirection);
+            return null;
         }
         else
         {
-            // %50 ihtimalle hareket etmeyi dene.
+            // 50% chance to change direction
             if (UnityEngine.Random.value > 0.5f)
             {
-                Vector2Int[] cardinalDirections = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-                Vector2Int moveDirection = cardinalDirections[UnityEngine.Random.Range(0, cardinalDirections.Length)];
-                
-                if (MovementHelper.TryMove(this, moveDirection, out Vector3 targetPos, out ICollectible collectibleToGet))
-                {
-                    // --- YENİ HAFIZA GÜNCELLEMESİ ---
-                    // Başarıyla hareket ettiyse, yeni baktığı yön bu olur.
-                    lastFacingDirection = moveDirection;
-                    // ---------------------------------
-                    StartCoroutine(SmoothMove(targetPos));
-                }
+                // 25% chance for each direction
+                Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+                lastFacingDirection = directions[UnityEngine.Random.Range(0, directions.Length)];
             }
+            
+            // Try to move in the current facing direction
+            return new MoveAction(this, lastFacingDirection);
         }
-        
-        HasActedThisTurn = true;
     }
 
+    // IMovable'ın yeni metodu
+    public void StartMoveAnimation(Vector3 targetPosition)
+    {
+        StartCoroutine(SmoothMove(targetPosition));
+    }
     #endregion
 
     #region Hasar ve Yok Olma (IDamageable)
@@ -143,7 +142,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
 
     // Metodun adını ve imzasını daha spesifik hale getirelim.
-    void Shoot(Vector2Int direction)
+    public void Shoot(Vector2Int direction)
     {
         if (projectilePrefab == null) return;
         

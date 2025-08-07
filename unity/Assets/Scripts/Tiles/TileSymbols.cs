@@ -31,7 +31,7 @@ public static class TileSymbols
             case TileType.Breakable:    return "<sprite name=breakable>";
             case TileType.Gate:         return "<sprite name=gate>";
             case TileType.Stairs:       return "<sprite name=stairs>";
-            case TileType.PlayerSpawn:  return "<sprite name=player>";
+            case TileType.PlayerSpawn:  return "<sprite name=playerspawn>";
             case TileType.Player:       return "<sprite name=player>";
             case TileType.Enemy:        return "<sprite name=enemy>";
             case TileType.EnemyShooter: return "<sprite name=enemyshooter>";
@@ -55,7 +55,7 @@ public static class TileSymbols
             case TileType.Breakable:    return 'B';
             case TileType.Gate:         return 'G';
             case TileType.Stairs:       return 'S';
-            case TileType.PlayerSpawn:  return 'P';
+            case TileType.PlayerSpawn:  return 'p';
             case TileType.Player:       return 'P';
             case TileType.Enemy:        return 'E';
             case TileType.EnemyShooter: return 'F';
@@ -78,7 +78,8 @@ public static class TileSymbols
             case 'B': return TileType.Breakable;
             case 'G': return TileType.Gate;
             case 'S': return TileType.Stairs;
-            case 'P': return TileType.PlayerSpawn;
+            case 'p': return TileType.PlayerSpawn;
+            case 'P': return TileType.Player;
             case 'E': return TileType.Enemy;
             case 'F': return TileType.EnemyShooter;
             case 'x': return TileType.Bomb;

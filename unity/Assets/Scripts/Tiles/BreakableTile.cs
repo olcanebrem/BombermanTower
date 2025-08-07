@@ -1,79 +1,47 @@
 using UnityEngine;
-using System.Collections;
-
+using System;
 public class BreakableTile : TileBase, ITurnBased, IInitializable, IDamageable
 {
-    // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
     public int Y { get; private set; }
     public TileType TileType => TileType.Breakable;
     public bool HasActedThisTurn { get; set; }
-
+    
     // --- Can Sistemi ---
     public int CurrentHealth { get; private set; }
-    public int MaxHealth { get; private set; }
-    public event System.Action OnHealthChanged;
-
-    //=========================================================================
-    // KAYIT VE KURULUM
-    //=========================================================================
+    public int MaxHealth { get; private set; } = 1;
+    // ------------------
+    public event Action OnHealthChanged;
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
-
-    public void Init(int x, int y)
-    {
-        this.X = x;
-        this.Y = y;
-        // Kırılabilir kutulara 1 can verelim.
-        MaxHealth = 1;
-        CurrentHealth = MaxHealth;
-    }
-
-    //=========================================================================
-    // TUR VE HASAR MANTIĞI
-    //=========================================================================
+    public void Init(int x, int y) { this.X = x; this.Y = y; CurrentHealth = MaxHealth; }
     public void ResetTurn() => HasActedThisTurn = false;
 
-    // Kırılabilir kutular, sıraları geldiğinde hiçbir şey yapmazlar.
-    public void ExecuteTurn()
+    public IGameAction GetAction()
     {
-        if (HasActedThisTurn) return;
-        HasActedThisTurn = true; // Pas geçmek de bir eylemdir.
+        if (HasActedThisTurn) return null;
+        HasActedThisTurn = true;
+        return null; // Breakable tiles don't take actions
     }
 
     public void TakeDamage(int damageAmount)
     {
         CurrentHealth -= damageAmount;
-        OnHealthChanged?.Invoke(); // Belki bir "çatlama" efekti için
-
-        // Hasar aldığında anlık olarak renk değiştirsin.
-
+        OnHealthChanged?.Invoke();
         if (CurrentHealth <= 0)
         {
             Die();
         }
     }
 
-    //=========================================================================
-    // YOK OLMA VE GÖRSEL EFEKTLER
-    //=========================================================================
-    private void Die()
+    public void Die()
     {
-        Debug.Log($"Breakable tile at ({X},{Y}) destroyed.");
         var ll = LevelLoader.instance;
-
-        // --- EN ÖNEMLİ KISIM: MANTIĞI TEMİZLEME ---
-        // 1. Mantıksal haritadaki ('levelMap') izini sil.
-        ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-
-        // 2. Nesne haritasındaki ('tileObjects') referansını sil.
-        ll.tileObjects[X, Y] = null;
-        // -----------------------------------------
-
-        // 3. Görsel GameObject'i yok et.
+        if (ll != null)
+        {
+            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            ll.tileObjects[X, Y] = null;
+        }
         Destroy(gameObject);
     }
-
-    // PlayerController'dan kopyalanan standart hasar efekti.
-    
 }

@@ -355,8 +355,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   turnInterval: 0.2
-  isTurnInProgress: 0
-  debugPrintMapOnTurn: 1
 --- !u!4 &778810547
 Transform:
   m_ObjectHideFlags: 0
@@ -723,8 +721,8 @@ MonoBehaviour:
     prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
   - type: 4
     prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
-  - type: 4
-    prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
+  - type: 6
+    prefab: {fileID: -4926589044178424912, guid: 8e6845d74f27c0a429f00664c0e89c70, type: 3}
   - type: 4
     prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
   playerPrefab: {fileID: 9048555102869179715, guid: 8e6845d74f27c0a429f00664c0e89c70, type: 3}
@@ -967,7 +965,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2052628526}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ef459e0d12d39d4c8868b15d93f5a7a, type: 3}
+  m_Script: {fileID: 11500000, guid: ca8666a263abd8b409de3b9e7b644da9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   turnText: {fileID: 2052628528}

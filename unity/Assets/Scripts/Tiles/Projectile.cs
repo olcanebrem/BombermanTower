@@ -10,13 +10,12 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
     public int X { get; private set; }
     public int Y { get; private set; }
     public TileType TileType => TileType.Projectile;
-
     // --- ITurnBased ---
     public bool HasActedThisTurn { get; set; }
     private bool isAnimating = false;
     // --- Sınıfa Özgü ---
-    private Vector2Int direction;
-    private bool isFirstTurn = true;
+    public Vector2Int direction;
+    public bool isFirstTurn = true;
     private Transform visualTransform;
     private TileType ownerType;
     private Vector3 targetPos;
@@ -112,7 +111,20 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
     }
 
     #endregion
+    public IGameAction GetAction()
+    {
+        if (HasActedThisTurn) return null;
+        
+        HasActedThisTurn = true;
+        // Her tur, benim görevim hareket etmektir. İşte eylem planım:
+        return new ProjectileMoveAction(this);
+    }
 
+    // IMovable'ın yeni metodu
+    public void StartMoveAnimation(Vector3 targetPosition)
+    {
+        StartCoroutine(SmoothMove(targetPosition));
+    }
     #region Tur Tabanlı Eylemler (ITurnBased)
 
     public void ResetTurn() => HasActedThisTurn = false;
@@ -128,7 +140,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         }
 
         // Hareketi, tüm kontrolleri ve güncellemeleri yapan merkezi metoda bırakalım.
-        if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos, out ICollectible collectibleToGet))
+        if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos))
         {
             StartCoroutine(SmoothMove(targetPos));
         }
@@ -143,7 +155,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         HasActedThisTurn = true;
     }
 
-    private void Die()
+    public void Die()
     {
         var ll = LevelLoader.instance;
 

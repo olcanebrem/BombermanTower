@@ -50,6 +50,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             TurnManager.Instance.Unregister(this);
         }
     }
+    
     public void Init(int x, int y)
     {
         this.X = x;
@@ -147,46 +148,36 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     //=========================================================================
     public void ResetTurn() => HasActedThisTurn = false;
 
-    public void ExecuteTurn()
+    public IGameAction GetAction()
     {
-        if (HasActedThisTurn) return;
+        if (HasActedThisTurn) return null;
 
-        // ... bomba niyetini kontrol etme kısmı aynı ...
+        // Bomba niyetinin önceliği var.
         if (bombIntent)
         {
-            if (PlaceBomb())
-            {
-                HasActedThisTurn = true;
-            }
+            HasActedThisTurn = true;
             bombIntent = false;
-            return;
-        }
+            // Yeni bir "Bomba Koy" eylemi oluştur ve döndür.
+            return new PlaceBombAction(this);
 
-        // Hareket niyetini kontrol et.
-       if (moveIntent != Vector2Int.zero)
+        }
+        
+        if (moveIntent != Vector2Int.zero)
         {
-            // TryMove'u yeni imzasıyla çağır.
-            if (MovementHelper.TryMove(this, moveIntent, out Vector3 targetPos, out ICollectible collectibleToGet))
-            {
-                lastMoveDirection = moveIntent;
-
-                // --- YENİ "VARIŞ GÖREVİ" MANTIĞI ---
-                // Animasyon bittiğinde ne olacağını tanımlayan bir 'Action' oluştur.
-                System.Action onArrivalAction = null;
-                if (collectibleToGet != null)
-                {
-                    // Eğer bir toplanabilir nesne bulunduysa, varış görevi "OnCollect'i çağır" olur.
-                    onArrivalAction = () => collectibleToGet.OnCollect(this.gameObject);
-                }
-                // ------------------------------------
-                
-                // Animasyonu, bu yeni "varış görevi" ile birlikte başlat.
-                StartCoroutine(SmoothMove(targetPos, onArrivalAction));
-                HasActedThisTurn = true;
-            }
+            HasActedThisTurn = true;
+            // Yeni bir "Hareket Et" eylemi oluştur ve döndür.
+            return new MoveAction(this, moveIntent);
         }
+        
+        return null; // Bu tur yapacak bir eylem yok.
     }
-    private IEnumerator SmoothMove(Vector3 targetPosition, System.Action onArrivalAction)
+
+    // Animasyonu başlatmak için yeni bir public metod.
+    public void StartMoveAnimation(Vector3 targetPos)
+    {
+        StartCoroutine(SmoothMove(targetPos));
+    }
+    private IEnumerator SmoothMove(Vector3 targetPosition)
     {
         // --- BAYRAKLARI AYARLA ---
         isAnimating = true;
@@ -205,11 +196,10 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
-        onArrivalAction?.Invoke();
     }
 
     public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
-    bool PlaceBomb()
+    public bool PlaceBomb()
     {
         if (bombPrefab == null) return false;
 
