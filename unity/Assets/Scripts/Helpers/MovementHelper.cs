@@ -74,7 +74,7 @@ public static class MovementHelper
         // --- 4. GEÇİLEBİLİRLİK KONTROLÜ ---
         // Etkileşimlerden sonra (örn: coin toplandıktan sonra) hedefin son durumunu kontrol et.
         targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
-        if (!IsTilePassable(targetType))
+        if (!IsTilePassable(targetType, mover))
         {
             return false;
         }
@@ -117,18 +117,25 @@ public static class MovementHelper
 
     // IsTilePassable metodu, artık toplanabilirleri içermemeli.
     // Çünkü toplanma mantığı yukarıda özel olarak ele alınıyor.
-    public static bool IsTilePassable(TileType type)
+    // Note: This method only checks if a tile type is passable in general.
+    // The actual collection logic is handled in the TryMove method.
+    // The mover parameter is optional for backward compatibility
+    public static bool IsTilePassable(TileType type, IMovable mover = null)
     {
         switch (type)
         {
             case TileType.Empty:
             case TileType.Stairs:
-            case TileType.Coin:
-            case TileType.Health:
             case TileType.Explosion:
                 return true;
+            case TileType.Coin:
+            case TileType.Health:
+                // These are only passable for the player
+                // If mover is null (for backward compatibility), treat as passable
+                return mover is PlayerController;
             default:
                 return false;
         }
     }
+    
 }
