@@ -8,6 +8,9 @@ public class TurnManager : MonoBehaviour
     public static TurnManager Instance { get; private set; }
 
     public float turnInterval = 0.2f;
+    [Header("Animasyonlar için ek süre")]
+    public float animationInterval = 0.1f; // turnInterval * 0.5f başlangıçta
+
     private float turnTimer = 0f;
     public bool debugnow = false;
     public int TurnCount { get; private set; } = 0;
