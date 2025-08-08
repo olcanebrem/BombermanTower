@@ -354,8 +354,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ceb4cc56becd63548bff2f4c2c45cc5c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  turnInterval: 0.1
-  animationInterval: 0.05
+  turnInterval: 0.2
+  animationInterval: 0.1
   debugnow: 1
 --- !u!4 &778810547
 Transform:

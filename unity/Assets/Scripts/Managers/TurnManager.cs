@@ -23,6 +23,9 @@ public class TurnManager : MonoBehaviour
     // --- TUR HIZI TAKİBİ ---
     private float prevBatchTime = 0f;
     private int prevBatchTurnCount = 0;
+    private float prevTurnStartTime = 0f; // Her tur için
+    private List<float> turnDurations = new List<float>(); // Her turun süresini tutacak liste
+
 
     void Awake()
     {
@@ -39,15 +42,7 @@ public class TurnManager : MonoBehaviour
             StartCoroutine(ProcessTurn());
         }
         
-        // Her 50 turda bir, geçen süreyi debugla
-        if (TurnCount > 0 && TurnCount % 50 == 0 && prevBatchTurnCount != TurnCount)
-        {
-            float now = Time.realtimeSinceStartup;
-            float elapsed = now - prevBatchTime;
-            Debug.Log($"[TurnManager] 50 tur ({TurnCount - 50 + 1}-{TurnCount}) toplamda {elapsed:F2} saniyede tamamlandı.");
-            prevBatchTime = now;
-            prevBatchTurnCount = TurnCount;
-        }
+        if (debugnow) PrintDebugTurn(5);
     }
 
      // --- ANİMASYON KONTROL METODLARI ---
@@ -74,10 +69,31 @@ public class TurnManager : MonoBehaviour
             default: return "?";
         }
     }
-
+    private void PrintDebugTurn(int interval)
+    {
+        // Her interval turda bir, geçen süreyi debugla
+        if (TurnCount > 0 && TurnCount % interval == 0 && prevBatchTurnCount != TurnCount && debugnow)
+        {
+            float now = Time.realtimeSinceStartup;
+            float elapsed = now - prevBatchTime;
+            
+            // Toplam ve ortalama süreleri hesapla
+            float totalDuration = turnDurations.Sum();
+            float avgDuration = turnDurations.Average();
+            
+            Debug.Log($"[TurnManager] {interval} tur ({TurnCount - interval}-{TurnCount}) " +
+                     $"Toplam: {totalDuration:F4} sn | " +
+                     $"Ortalama: {avgDuration:F4} sn/tur | " +
+                     $"Gerçek Zaman: {elapsed:F2} sn");
+            
+            // Sıfırla
+            turnDurations.Clear();
+            prevBatchTime = now;
+            prevBatchTurnCount = TurnCount;
+        }
+    }
     private void PrintDebugMap()
     {
-        if ( debugnow == true) return;
         var ll = LevelLoader.instance;
         if (ll == null) return;
 
@@ -126,8 +142,20 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator ProcessTurn()
     {
+        if (debugnow){
+        // Her tur başlangıcında geçen süreyi hesapla ve logla
+        float now = Time.realtimeSinceStartup;
+        if (prevTurnStartTime > 0f)
+        {
+            float elapsed = now - prevTurnStartTime;
+            Debug.Log($"[TurnManager] TUR {TurnCount + 1} süresi: {elapsed:F4} sn");
+            turnDurations.Add(elapsed); // Her tur süresini listeye ekle
+        }
+        prevTurnStartTime = now;
+
         TurnCount++;
         PrintDebugMap();
+        }
 
         // Reset turns for all valid objects
         foreach (var obj in turnBasedObjects.ToList())
