@@ -193,7 +193,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         
         Vector3 startPosition = transform.position;
         float elapsedTime = 0f;
-        float moveDuration = 0.15f;
+        float moveDuration = TurnManager.Instance != null ? TurnManager.Instance.turnInterval * 0.7f : 0.1f;
         while (elapsedTime < moveDuration)
         {
             transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / moveDuration);

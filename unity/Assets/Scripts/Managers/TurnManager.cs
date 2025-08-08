@@ -13,8 +13,14 @@ public class TurnManager : MonoBehaviour
     public int TurnCount { get; private set; } = 0;
     private List<ITurnBased> turnBasedObjects = new List<ITurnBased>();
 
-    private bool isProcessingActions = false;
+    // Animasyon bekleme ve işlemde olma bayrakları kaldırıldı
+    // private bool isProcessingActions = false;
     private int activeAnimations = 0;
+
+    // --- TUR HIZI TAKİBİ ---
+    private float prevBatchTime = 0f;
+    private int prevBatchTurnCount = 0;
+
     void Awake()
     {
         if (Instance == null) Instance = this;
@@ -23,14 +29,24 @@ public class TurnManager : MonoBehaviour
 
     void Update()
     {
-        if (isProcessingActions) return;
         turnTimer += Time.deltaTime;
         if (turnTimer >= turnInterval)
         {
             turnTimer -= turnInterval;
             StartCoroutine(ProcessTurn());
         }
+        
+        // Her 50 turda bir, geçen süreyi debugla
+        if (TurnCount > 0 && TurnCount % 50 == 0 && prevBatchTurnCount != TurnCount)
+        {
+            float now = Time.realtimeSinceStartup;
+            float elapsed = now - prevBatchTime;
+            Debug.Log($"[TurnManager] 50 tur ({TurnCount - 50 + 1}-{TurnCount}) toplamda {elapsed:F2} saniyede tamamlandı.");
+            prevBatchTime = now;
+            prevBatchTurnCount = TurnCount;
+        }
     }
+
      // --- ANİMASYON KONTROL METODLARI ---
     public void ReportAnimationStart() => activeAnimations++;
     public void ReportAnimationEnd() => activeAnimations--;
@@ -107,10 +123,7 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator ProcessTurn()
     {
-        isProcessingActions = true;
         TurnCount++;
-        
-        // Print debug map at the start of each turn
         PrintDebugMap();
 
         // Reset turns for all valid objects
@@ -125,7 +138,6 @@ public class TurnManager : MonoBehaviour
                 catch (System.Exception e)
                 {
                     Debug.LogError($"Error resetting turn for {obj}: {e.Message}");
-                    // Remove the object if it causes an error during reset
                     turnBasedObjects.Remove(obj);
                 }
             }
@@ -151,17 +163,13 @@ public class TurnManager : MonoBehaviour
             catch (System.Exception e)
             {
                 Debug.LogError($"Error getting action from {unit}: {e.Message}");
-                // Continue with other units even if one fails
             }
         }
-
-        // --- AŞAMA 2: EYLEMLERİ SIRAYLA UYGULA ---
         while (actionQueue.Count > 0)
         {
             IGameAction currentAction = actionQueue.Dequeue();
             if (currentAction.Actor == null)
             {
-                // Eğer sahip yok edilmişse, bu eylemi atla ve bir sonrakine geç.
                 continue;
             }
             try
@@ -171,14 +179,12 @@ public class TurnManager : MonoBehaviour
             catch (System.Exception e)
             {
                 Debug.LogError($"Error executing action {currentAction}: {e.Message}");
-                // Continue with the next action even if one fails
             }
-
-            // Her eylem arasında, animasyonların bitmesini bekle.
-            yield return new WaitUntil(() => activeAnimations == 0);
+            // Her action arası sabit bekleme
+            yield return new WaitForSeconds(turnInterval);
         }
-
-        isProcessingActions = false;
+        // Tur sonunda da sabit bekleme (opsiyonel, istersen kaldırabilirsin)
+        // yield return new WaitForSeconds(turnInterval);
     }
 
     public void Register(ITurnBased obj)
