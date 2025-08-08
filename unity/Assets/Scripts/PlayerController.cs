@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using Debug = UnityEngine.Debug;
 
 public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
@@ -131,14 +133,15 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     }
         void Update()
     {
-        // --- GİRDİ OKUMA (Her Zaman Çalışır) ---
-        // O anki klavye durumunu geçici değişkenlere oku.
         int horizontal = 0;
         int vertical = 0;
         if (Input.GetKey(KeyCode.W)) vertical = -1;
         if (Input.GetKey(KeyCode.S)) vertical = 1;
         if (Input.GetKey(KeyCode.A)) horizontal = -1;
         if (Input.GetKey(KeyCode.D)) horizontal = 1;
+
+
+
         if (Input.GetKeyDown(KeyCode.Space)) bombIntent = true;
         moveIntent = new Vector2Int(horizontal, vertical);
     }
@@ -147,31 +150,36 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     // TUR TABANLI EYLEMLER (ITurnBased) - Değişiklik Yok
     //=========================================================================
     public void ResetTurn() => HasActedThisTurn = false;
-
-    public IGameAction GetAction()
+    
+        public IGameAction GetAction()
     {
         if (HasActedThisTurn) return null;
 
-        // Bomba niyetinin önceliği var.
+        // 1. O anki en mantıklı yönü belirle:
+        //    Eğer bir hareket tuşuna basılıyorsa, o yöndür.
+        //    Değilse, en son hareket edilen yöndür.
+        Vector2Int actionDirection = moveIntent != Vector2Int.zero ? moveIntent : lastMoveDirection;
+
+        // 3. Hareket niyetini kontrol et.
+        if (moveIntent != Vector2Int.zero)
+        {
+            HasActedThisTurn = true;
+            return new MoveAction(this, moveIntent);
+        }
+        // 2. Bomba niyetini kontrol et.
         if (bombIntent)
         {
             HasActedThisTurn = true;
             bombIntent = false;
-            // Yeni bir "Bomba Koy" eylemi oluştur ve döndür.
-            return new PlaceBombAction(this);
-
+            
+            // PlaceBombAction'ı, az önce belirlediğimiz en mantıklı yönle oluştur.
+            return new PlaceBombAction(this, actionDirection);
         }
         
-        if (moveIntent != Vector2Int.zero)
-        {
-            HasActedThisTurn = true;
-            // Yeni bir "Hareket Et" eylemi oluştur ve döndür.
-            return new MoveAction(this, moveIntent);
-        }
         
-        return null; // Bu tur yapacak bir eylem yok.
+        return null;
     }
-
+    
     // Animasyonu başlatmak için yeni bir public metod.
     public void StartMoveAnimation(Vector3 targetPos)
     {
@@ -198,32 +206,35 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         isAnimating = false;
     }
 
-    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
-    public bool PlaceBomb()
+    public void OnMoved(int newX, int newY)
+    {
+        // Hareket yönünü güncelle
+        Vector2Int moveDelta = new Vector2Int(newX - X, newY - Y);
+        if (moveDelta != Vector2Int.zero)
+            lastMoveDirection = moveDelta;
+        this.X = newX;
+        this.Y = newY;
+        Debug.Log($"Son hareket yönü: {lastMoveDirection} (Yeni pozisyon: {X},{Y})");
+    }
+        // Metod artık bir yön parametresi alıyor.
+    public bool PlaceBomb(Vector2Int direction)
     {
         if (bombPrefab == null) return false;
 
         var ll = LevelLoader.instance;
 
-        // 1. Kontrol edilecek yönler için bir öncelik listesi oluştur.
-        // Önce en son bakılan yönü, sonra diğerlerini dene.
-        
-        
-            int targetX = X + lastMoveDirection.x;
-            int targetY = Y + lastMoveDirection.y;
+        // Sadece verilen direction yönüne bomba koymayı dene.
+        int targetX = X + direction.x;
+        int targetY = Y + direction.y;
 
-            // Hedefin harita içinde ve BOŞ olup olmadığını kontrol et.
-            if (targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height &&
-                TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
-            {
-                // 3. İlk bulunan uygun yere bombayı koy ve işlemi bitir.
-                ll.PlaceBombAt(targetX, targetY);
-                return true; 
-            }
-        
+        if (targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height &&
+            TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
+        {
+            ll.PlaceBombAt(targetX, targetY);
+            return true;
+        }
 
-        // 4. Eğer tüm komşu kareler doluysa, başarısızlık bildir.
-        Debug.Log("Bomba koymak için etrafta boş yer yok!");
+        Debug.Log("Bomba koyulacak yer dolu veya geçersiz!");
         return false;
     }
     

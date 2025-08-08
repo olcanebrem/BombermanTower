@@ -1,25 +1,25 @@
-// Dosya Adı: PlaceBombAction.cs
 using UnityEngine;
 
 public class PlaceBombAction : IGameAction
 {
-    private readonly PlayerController placer; // Sadece oyuncu bomba koyabilir
+    private readonly PlayerController placer;
+    private readonly Vector2Int targetDirection; // YENİ: Hedef yön
 
-    public GameObject Actor => placer.gameObject;
+    public GameObject Actor => (placer as MonoBehaviour)?.gameObject;
 
-    public PlaceBombAction(PlayerController placer)
+    // Constructor artık bir yön de alıyor.
+    public PlaceBombAction(PlayerController placer, Vector2Int targetDirection)
     {
         this.placer = placer;
+        this.targetDirection = targetDirection;
     }
 
     public void Execute()
     {
-        // Bu eylemin tek görevi, PlayerController'ın PlaceBomb metodunu çağırmaktır.
-        // PlaceBomb metodu, en uygun boş kareyi bulma ve LevelLoader'ı tetikleme
-        // mantığını zaten içeriyor.
         if (placer != null)
         {
-            placer.PlaceBomb();
+            // PlaceBomb metoduna artık yönü de gönderiyoruz.
+            placer.PlaceBomb(targetDirection);
         }
     }
 }

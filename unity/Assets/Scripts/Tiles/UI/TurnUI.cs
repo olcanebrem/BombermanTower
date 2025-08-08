@@ -4,8 +4,18 @@ using TMPro;
 public class TurnUI : MonoBehaviour
 {
     public TextMeshProUGUI turnText;
-    void Update()
+    private TurnManager turnManager;
+    void Start()
     {
-        turnText.text = "TURN: " + TurnManager.Instance.TurnCount;
+        turnManager = TurnManager.Instance;
     }
+    void Update()
+{
+    if (turnText == null)
+        Debug.LogError("TurnUI: turnText atanmadı!");
+    if (turnManager == null)
+        Debug.LogError("TurnUI: turnManager atanmadı!");
+    if (turnText != null && turnManager != null)
+        turnText.text = "TURN: " + turnManager.TurnCount;
+}
 }

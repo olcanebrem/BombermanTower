@@ -9,6 +9,7 @@ public class TurnManager : MonoBehaviour
 
     public float turnInterval = 0.2f;
     private float turnTimer = 0f;
+    public bool debugnow = false;
     public int TurnCount { get; private set; } = 0;
     private List<ITurnBased> turnBasedObjects = new List<ITurnBased>();
 
@@ -57,6 +58,7 @@ public class TurnManager : MonoBehaviour
 
     private void PrintDebugMap()
     {
+        if ( debugnow == true) return;
         var ll = LevelLoader.instance;
         if (ll == null) return;
 

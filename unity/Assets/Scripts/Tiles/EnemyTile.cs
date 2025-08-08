@@ -11,13 +11,11 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
     public TileType TileType => TileType.Enemy;
     public bool HasActedThisTurn { get; set; }
     private bool isAnimating = false;
-    private int turnCounter = 0;
     [SerializeField] private int startingHealth = 1;
     public int CurrentHealth { get; private set; }
     public int MaxHealth { get; private set; }
     public event Action OnHealthChanged;
     private Vector2Int lastFacingDirection;
-    private int turnsToShoot;
 
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable()
@@ -48,22 +46,16 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
         
         HasActedThisTurn = true; // Düşman her tur bir şey yapmaya çalışır.
 
-        turnCounter++;
-        if (turnCounter >= turnsToShoot)
+        // 4 ana yön arasından rastgele birini seç
+        Vector2Int[] directions = new Vector2Int[]
         {
-            turnCounter = 0;
-            // return new ShootAction(this, ...); // ShootAction sınıfı yaratıldığında
-        }
-        else
-        {
-            if (UnityEngine.Random.value > 0.5f)
-            {
-                Vector2Int moveDirection = lastFacingDirection;
-                return new MoveAction(this, moveDirection);
-            }
-        }
-        
-        return null; // Pas geçti.
+            Vector2Int.up,
+            Vector2Int.down,
+            Vector2Int.left,
+            Vector2Int.right
+        };
+        Vector2Int moveDirection = directions[UnityEngine.Random.Range(0, directions.Length)];
+        return new MoveAction(this, moveDirection);
     }
 
     // IMovable'ın yeni metodu
