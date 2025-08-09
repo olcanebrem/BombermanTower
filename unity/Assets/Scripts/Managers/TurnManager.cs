@@ -143,18 +143,22 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ProcessTurn()
     {
         if (debugnow){
-        // Her tur başlangıcında geçen süreyi hesapla ve logla
-        float now = Time.realtimeSinceStartup;
-        if (prevTurnStartTime > 0f)
-        {
-            float elapsed = now - prevTurnStartTime;
-            Debug.Log($"[TurnManager] TUR {TurnCount + 1} süresi: {elapsed:F4} sn");
-            turnDurations.Add(elapsed); // Her tur süresini listeye ekle
-        }
-        prevTurnStartTime = now;
+            // Her tur başlangıcında geçen süreyi hesapla ve logla
+            float now = Time.realtimeSinceStartup;
+            if (prevTurnStartTime > 0f)
+            {
+                float elapsed = now - prevTurnStartTime;
+                Debug.Log($"[TurnManager] TUR {TurnCount + 1} süresi: {elapsed:F4} sn");
+                turnDurations.Add(elapsed); // Her tur süresini listeye ekle
+            }
+            prevTurnStartTime = now;
 
-        TurnCount++;
-        PrintDebugMap();
+            TurnCount++;
+            PrintDebugMap();
+        }
+        else
+        {
+            TurnCount++;
         }
 
         // Reset turns for all valid objects
@@ -181,6 +185,7 @@ public class TurnManager : MonoBehaviour
             .OrderBy(u => GetExecutionOrder(u))
             .ToList();
 
+        // First, collect all actions without executing them
         foreach (var unit in unitsToPlay)
         {
             try
@@ -196,6 +201,8 @@ public class TurnManager : MonoBehaviour
                 Debug.LogError($"Error getting action from {unit}: {e.Message}");
             }
         }
+
+        // Then execute all actions without waiting between them
         while (actionQueue.Count > 0)
         {
             IGameAction currentAction = actionQueue.Dequeue();
@@ -211,11 +218,16 @@ public class TurnManager : MonoBehaviour
             {
                 Debug.LogError($"Error executing action {currentAction}: {e.Message}");
             }
-            // Her action arası sabit bekleme
-            yield return new WaitForSeconds(turnInterval);
         }
-        // Tur sonunda da sabit bekleme (opsiyonel, istersen kaldırabilirsin)
-        // yield return new WaitForSeconds(turnInterval);
+
+        // Wait for all animations to complete
+        while (activeAnimations > 0)
+        {
+            yield return null;
+        }
+
+        // Wait for the turn interval before starting the next turn
+        yield return new WaitForSeconds(turnInterval);
     }
 
     public void Register(ITurnBased obj)

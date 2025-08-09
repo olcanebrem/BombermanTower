@@ -129,30 +129,18 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
 
     public void ResetTurn() => HasActedThisTurn = false;
 
-        public void ExecuteTurn()
+    public void ExecuteTurn()
     {
-        if (HasActedThisTurn) return;
-        if (isFirstTurn)
+        // This method is now a simple wrapper around GetAction()
+        // The actual movement will be handled by ProjectileMoveAction
+        if (!HasActedThisTurn)
         {
-            isFirstTurn = false;
-            HasActedThisTurn = true;
-            return;
+            var action = GetAction();
+            if (action != null)
+            {
+                action.Execute();
+            }
         }
-
-        // Hareketi, tüm kontrolleri ve güncellemeleri yapan merkezi metoda bırakalım.
-        if (MovementHelper.TryMove(this, this.direction, out Vector3 targetPos))
-        {
-            StartCoroutine(SmoothMove(targetPos));
-        }
-        else
-        {
-            // Eğer hareket başarısız olduysa (bir engele çarptı),
-            // MovementHelper zaten hasar verme işini halletti.
-            // Bizim tek yapmamız gereken, kendimizi yok etmek.
-            Die();
-        }
-
-        HasActedThisTurn = true;
     }
 
     public void Die()
