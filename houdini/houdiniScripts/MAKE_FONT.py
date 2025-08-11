@@ -54,8 +54,7 @@ for prim in input_geo.prims():
 
     # Oluşturulan harfin her bir noktasını gez ve pozisyonunu ayarla
     for p in copied_geo.points():
-        rotated_pos = rotate_x(p.position())
-        final_pos = rotated_pos + pos
+        final_pos = p.position() + pos
         
         # --- YENİ EKLENEN SATIR ---
         # Hesaplanan son pozisyonun X değerine 0.1 ekle.
