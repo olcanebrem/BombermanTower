@@ -3,6 +3,7 @@ import hou
 
 node = hou.pwd()
 geo = node.geometry()
+geo.addAttrib(hou.attribType.Point, "tile_char", "")
 
 # ANSI renk kodları sadece konsol çıktısı için burada
 ANSI_RESET = "\033[0m"
