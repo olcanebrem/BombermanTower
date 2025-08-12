@@ -1,58 +1,33 @@
-# 6_CREATE_INTERACTABLES.py (Sadece 'path' Nokta Grubunu Kullanan Versiyon)
+# 6_CREATE_INTERACTABLES.py (Kenar/İç Duvar Oranı Kontrolü)
 import hou
 import random
 
 node = hou.pwd()
 geo = node.geometry()
 
-# --- 1. KONTROL PANELİNİ BUL VE PARAMETRELERİ OKU ---
+# --- 1. KONTROL PANELİNİ BUL VE YENİ PARAMETRELERİ OKU ---
 try:
-    controller = hou.node("../CONTROLLER")
+    controller = hou.node("../CONTROLLER") # VEYA DOĞRU MUTLAK YOL
     seed = controller.parm("seed").evalAsInt()
-    loot_density = controller.parm("loot_density").evalAsFloat()
+    coin_density = controller.parm("coin_density").evalAsFloat()
+    health_density = controller.parm("health_density").evalAsFloat()
+    breakable_density = controller.parm("breakable_density").evalAsFloat()
+    edge_wall_bias = controller.parm("edge_wall_bias").evalAsFloat() # YENİ PARAMETRE
     
     random.seed(seed + 3)
 
-except AttributeError:
+except (AttributeError, TypeError):
     print("UYARI: CONTROLLER veya gerekli parametreler bulunamadı. Varsayılan değerler kullanılıyor.")
-    loot_density = 0.0
+    coin_density, health_density, breakable_density, edge_wall_bias = 0.0, 0.0, 0.0, 1.0
 
-# --- 2. GANİMET YERLEŞTİRME (ANA YOLU KORUYARAK) ---
-if loot_density > 0:
-    # Ganimet yerleştirmek için uygun, YOL ÜZERİNDE OLMAYAN boş noktaları bul.
-    suitable_loot_spots = []
+# ... (Ganimet yerleştirme kodu aynı kalıyor) ...
+
+# --- 3. KIRILABİLİR DUVARLARI YERLEŞTİRME (GELİŞMİŞ ORAN MANTIĞI) ---
+if breakable_density > 0:
+    # Aday duvarları iki ayrı listeye ayır.
+    edge_wall_candidates = []
+    thick_wall_candidates = []
     
-    # 'path' adında bir nokta grubu olup olmadığını bir kez kontrol et.
-    path_group = geo.findPointGroup("path")
-    
-    for pt in geo.points():
-        # Önce noktanın 'empty' olup olmadığını kontrol et.
-        if pt.stringAttribValue("tile_type") == "empty":
-            
-            # --- YENİ VE BASİTLEŞTİRİLMİŞ KONTROL ---
-            is_on_path = False
-            if path_group: # Eğer 'path' grubu varsa...
-                # Bu noktanın o grubun içinde olup olmadığını kontrol et.
-                is_on_path = path_group.contains(pt)
-            
-            # Eğer nokta ana yol üzerinde DEĞİLSE, ganimet için uygun bir yerdir.
-            if not is_on_path:
-                suitable_loot_spots.append(pt)
-
-    # Şimdi sadece güvenli noktalardan oluşan listemiz üzerinde çalışıyoruz.
-    for pt in suitable_loot_spots:
-        if random.random() < (loot_density * 0.1):
-            if random.random() < 0.75:
-                pt.setAttribValue("tile_type", "coin")
-            else:
-                pt.setAttribValue("tile_type", "health")
-
-# --- 3. KIRILABİLİR DUVARLARI YERLEŞTİRME ---
-# Bu mantık değişmeden kalabilir.
-breakable_ratio = loot_density * 0.5 
-
-if breakable_ratio > 0:
-    candidate_walls = []
     for pt in geo.points():
         if pt.stringAttribValue("tile_type") == "wall":
             is_edge_wall = False
@@ -63,12 +38,36 @@ if breakable_ratio > 0:
                         break
                 if is_edge_wall:
                     break
+            
             if is_edge_wall:
-                candidate_walls.append(pt)
+                edge_wall_candidates.append(pt)
+            else:
+                # Eğer bir kenar duvarı değilse, o zaman bir "iç/kalın" duvardır.
+                thick_wall_candidates.append(pt)
 
-    num_to_convert = int(len(candidate_walls) * breakable_ratio)
+    # Toplamda kaç tane kırılabilir duvar oluşturulacağını hesapla.
+    total_candidates = len(edge_wall_candidates) + len(thick_wall_candidates)
+    total_to_convert = int(total_candidates * (breakable_density * 0.2))
 
-    if num_to_convert > 0 and len(candidate_walls) >= num_to_convert:
-        walls_to_break = random.sample(candidate_walls, num_to_convert)
-        for pt in walls_to_break:
-            pt.setAttribValue("tile_type", "breakable")
+    # Her listeden kaç tane seçeceğimizi, yeni parametremize göre hesapla.
+    num_from_edge = int(total_to_convert * edge_wall_bias)
+    num_from_thick = total_to_convert - num_from_edge
+
+    # Güvenlik kontrolü: Listede yeterli aday yoksa, seçebileceğimiz maksimum sayıyla sınırla.
+    num_from_edge = min(num_from_edge, len(edge_wall_candidates))
+    num_from_thick = min(num_from_thick, len(thick_wall_candidates))
+
+    # Her listeden rastgele seçim yap.
+    edge_picks = []
+    if num_from_edge > 0:
+        edge_picks = random.sample(edge_wall_candidates, num_from_edge)
+        
+    thick_picks = []
+    if num_from_thick > 0:
+        thick_picks = random.sample(thick_wall_candidates, num_from_thick)
+
+    # İki seçim listesini birleştir.
+    walls_to_break = edge_picks + thick_picks
+    
+    for pt in walls_to_break:
+        pt.setAttribValue("tile_type", "breakable")

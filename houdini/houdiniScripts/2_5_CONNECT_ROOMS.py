@@ -1,70 +1,100 @@
 import hou
-from collections import defaultdict
+from collections import deque
 
 node = hou.pwd()
 geo = node.geometry()
 
-# --- 1. class attribute kontrolü ---
-class_attrib = geo.findPointAttrib("class")
-if not class_attrib:
-    raise ValueError("Point attribute 'class' bulunamadı. Önce carve rooms scriptini çalıştırmalısınız.")
+# Öncelikle odaları class attribute'una göre gruplayalım (class point attrib olsun)
+def find_rooms_by_class(geometry, class_attr_name="class"):
+    rooms = {}
+    for pt in geometry.points():
+        room_id = pt.intAttribValue(class_attr_name)
+        if room_id >= 0:
+            rooms.setdefault(room_id, []).append(pt)
+    return rooms
 
-# --- 2. Odaları grupla ---
-rooms = defaultdict(list)
-for pt in geo.points():
-    cid = pt.attribValue("class")
-    if cid != -1:  # -1 oda dışı demek
-        rooms[cid].append(pt)
+# Tile grid'de komşu noktaları (4 yönlü) bul
+def get_neighbors(point, geo):
+    neighbors = []
+    pos = point.position()
+    x, y, z = pos[0], pos[1], pos[2]
+    offsets = [(1,0,0), (-1,0,0), (0,0,1), (0,0,-1)]  # X,Z ekseninde 4 komşu
 
-if len(rooms) < 2:
-    raise ValueError("Bağlanacak en az iki oda bulunamadı.")
+    # Kaba komşu arama için küçük optimize: point lookup için dict yapabiliriz
+    # Ama basitçe brute force deneyelim
+    for ox, oy, oz in offsets:
+        nx, ny, nz = x+ox, y+oy, z+oz
+        # Yaklaşık pozisyon karşılaştırması (toleranslı)
+        for npt in geo.points():
+            np = npt.position()
+            if abs(np[0]-nx)<0.1 and abs(np[2]-nz)<0.1 and abs(np[1]-ny)<0.1:
+                neighbors.append(npt)
+                break
+    return neighbors
 
-print(f"{len(rooms)} oda bulundu. Bağlantı oluşturuluyor...")
+# İki oda arasında yol bul (BFS) ve yol üzerindeki duvarları kır (tile_type="wall" ise "empty" yap)
+def connect_two_rooms(geo, room_a_pts, room_b_pts):
+    # Oda noktalarının merkezlerini ortalama hesapla
+    def avg_pos(points):
+        x = sum(p.position()[0] for p in points) / len(points)
+        y = sum(p.position()[1] for p in points) / len(points)
+        z = sum(p.position()[2] for p in points) / len(points)
+        return hou.Vector3(x,y,z)
+    center_a = avg_pos(room_a_pts)
+    center_b = avg_pos(room_b_pts)
 
-# --- 3. Odaların merkez noktalarını bul ---
-room_centers = {}
-for cid, pts in rooms.items():
-    avg_x = sum(p.position()[0] for p in pts) / len(pts)
-    avg_z = sum(p.position()[2] for p in pts) / len(pts)
-    room_centers[cid] = (avg_x, avg_z)
+    # En yakın oda noktası çiftini bul (oda merkezlerine en yakın noktalar)
+    def closest_point_pair(pts1, pts2):
+        min_dist = float("inf")
+        pair = (None,None)
+        for p1 in pts1:
+            for p2 in pts2:
+                dist = (p1.position() - p2.position()).length()
+                if dist < min_dist:
+                    min_dist = dist
+                    pair = (p1, p2)
+        return pair
+    start_pt, end_pt = closest_point_pair(room_a_pts, room_b_pts)
 
-# --- 4. Odaları birbirine bağla (basit MST yaklaşımı) ---
-connected = set()
-edges = []
+    # BFS ile yol ara
+    queue = deque([start_pt])
+    came_from = {start_pt: None}
 
-# En yakın odaları sırayla bağla
-unconnected_rooms = list(room_centers.keys())
-connected.add(unconnected_rooms.pop(0))
+    while queue:
+        current = queue.popleft()
+        if current == end_pt:
+            break
+        for neighbor in get_neighbors(current, geo):
+            if neighbor not in came_from:
+                came_from[neighbor] = current
+                queue.append(neighbor)
 
-while unconnected_rooms:
-    shortest_dist = None
-    closest_pair = None
-    for r1 in connected:
-        for r2 in unconnected_rooms:
-            dx = room_centers[r1][0] - room_centers[r2][0]
-            dz = room_centers[r1][1] - room_centers[r2][1]
-            dist = dx * dx + dz * dz
-            if shortest_dist is None or dist < shortest_dist:
-                shortest_dist = dist
-                closest_pair = (r1, r2)
+    # Yol yoksa çık
+    if end_pt not in came_from:
+        print("Yol bulunamadı!")
+        return
 
-    if closest_pair:
-        r1, r2 = closest_pair
-        edges.append((r1, r2))
-        connected.add(r2)
-        unconnected_rooms.remove(r2)
+    # Yol üzerindeki tile_type "wall" ise "empty" yap (yolu aç)
+    path = []
+    cur = end_pt
+    while cur is not None:
+        path.append(cur)
+        cur = came_from[cur]
+    path.reverse()
 
-# --- 5. Yolları işaretle ---
-for r1, r2 in edges:
-    x1, z1 = room_centers[r1]
-    x2, z2 = room_centers[r2]
+    for pt in path:
+        tile_type = pt.stringAttribValue("tile_type")
+        if tile_type == "wall":
+            pt.setAttribValue("tile_type", "empty")
 
-    # Basit L şeklinde koridor
-    for pt in geo.points():
-        px, py, pz = pt.position()
-        if (min(x1, x2) <= px <= max(x1, x2) and abs(pz - z1) < 0.5) or \
-           (min(z1, z2) <= pz <= max(z1, z2) and abs(px - x2) < 0.5):
-            if pt.attribValue("class") == -1:  # sadece boş alan olmayanlara
-                pt.setAttribValue("tile_type", "empty")
+# Ana script başlıyor
 
-print("Oda bağlantıları tamamlandı.")
+# Önce odaları bul
+rooms = find_rooms_by_class(geo, "class")
+room_ids = sorted(rooms.keys())
+
+# Sıralı olarak odaları birbirine bağla
+for i in range(len(room_ids)-1):
+    connect_two_rooms(geo, rooms[room_ids[i]], rooms[room_ids[i+1]])
+
+print(f"{len(room_ids)} oda birbirine bağlandı.")
