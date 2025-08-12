@@ -1,0 +1,7 @@
+Load warnings for E:/UNITY/BombermanTower/houdini/main_leveldesign.hip
+
+Warning:     Python error: The attempted operation failed.
+Traceback (most recent call last):
+  File "hou.session", line 1, in <module>
+NameError: name 'level_utils' is not defined
+
