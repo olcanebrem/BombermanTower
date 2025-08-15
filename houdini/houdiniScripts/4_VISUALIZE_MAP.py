@@ -21,8 +21,6 @@ tile_properties = {
     "health":       {"color": (0.0, 1.0, 0.0), "char": "H"},
     "breakable":    {"color": (0.5, 0.3, 0.1), "char": "B"},
     "1":            {"color": (0.4, 0.4, 0.0), "char": "1"},
-    
-    # --- EKSİK OLAN SATIR BURADAYDI ---
     "empty":        {"color": (0.1, 0.1, 0.1), "char": "."}, 
 }
 default_tile = "empty"
