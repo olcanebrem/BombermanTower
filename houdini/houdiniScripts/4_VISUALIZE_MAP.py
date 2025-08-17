@@ -16,7 +16,7 @@ tile_properties = {
     "player":       {"color": (0.0, 0.8, 1.0), "char": "P"},
     "enemy":        {"color": (1.0, 0.2, 0.2), "char": "E"},
     "enemy_shooter":{"color": (1.0, 0.5, 0.0), "char": "F"},
-    "stairs":       {"color": (0.8, 0.8, 0.8), "char": "S"},
+    "stairs":       {"color": (0.8, 0.5, 1.0), "char": "S"},
     "coin":         {"color": (1.0, 0.8, 0.0), "char": "C"},
     "health":       {"color": (0.0, 1.0, 0.0), "char": "H"},
     "breakable":    {"color": (0.5, 0.3, 0.1), "char": "B"},
