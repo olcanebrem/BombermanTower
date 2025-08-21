@@ -1,5 +1,5 @@
 using UnityEngine;
-using Unity.MLAgents;
+using System.Collections.Generic;
 
 public enum CollectibleType
 {
@@ -341,4 +341,6 @@ public class RewardSystem : MonoBehaviour
     public void ResetRewards()
     {
         ResetDistanceTracking();
+
     }
+}

@@ -2,7 +2,8 @@ using UnityEngine;
 using Unity.MLAgents;
 using System.Collections.Generic;
 using System.Collections;
-
+using Unity.MLAgents.Actuators;
+using Unity.MLAgents.Sensors;
 public class EnvManager : MonoBehaviour
 {
     [Header("Environment Settings")]
