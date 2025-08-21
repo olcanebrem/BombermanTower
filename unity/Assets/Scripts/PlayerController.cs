@@ -8,6 +8,10 @@ using Debug = UnityEngine.Debug;
 
 public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
+    // --- ML-Agent ---
+    public bool useMLAgent { get; set; }
+    [Header("ML-Agent Support")]
+    public PlayerAgent mlAgent;
     // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
     public int Y { get; private set; }
@@ -33,6 +37,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     //=========================================================================
     // KAYIT VE KURULUM
     //=========================================================================
+    public void ResetTurn() => HasActedThisTurn = false;
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable()
     {
@@ -62,77 +67,12 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         this.CurrentHealth = MaxHealth;
     }
     
-    public void TakeDamage(int damageAmount)
+    void Update()
     {
-        CurrentHealth -= damageAmount;
-        if (CurrentHealth < 0) CurrentHealth = 0;
 
-        Debug.Log($"Oyuncu {damageAmount} hasar aldı! Kalan can: {CurrentHealth}");
-
-        // --- YENİ HASAR EFEKTİ ---
-        // Kendi "hasar aldım" animasyonunu başlat.
-        StartCoroutine(FlashColor(Color.red));
-        // -------------------------
-
-        OnHealthChanged?.Invoke();
-
-        if (CurrentHealth <= 0)
-        {
-            Die();
-        }
-    }
-
-    private IEnumerator FlashColor(Color flashColor)
-{
-    // 1. Görseli sağlayan Image bileşenini al.
-    Image visualImage = GetComponent<TileBase>()?.GetVisualImage();
-    if (visualImage == null) yield break;
-
-    // 2. Orijinal rengi sakla.
-    Color originalColor = visualImage.color;
-
-    // 3. Rengi doğrudan değiştir.
-    visualImage.color = flashColor;
-
-    // 4. Kısa bir süre bekle.
-    yield return new WaitForSeconds(TurnManager.Instance.turnInterval * 0.8f);
-
-    // 5. Rengi eski haline döndür.
-    if (visualImage != null)
-    {
-        visualImage.color = originalColor;
-    }
-}
-
-    public void Heal(int healAmount)
-    {
-        CurrentHealth += healAmount;
-
-        // Canın, maksimum canı aşmasını engelle.
-        if (CurrentHealth > MaxHealth)
-        {
-            CurrentHealth = MaxHealth;
-        }
-
-        Debug.Log($"Oyuncu {healAmount} can kazandı! Mevcut can: {CurrentHealth}");
-
-        // Canımız değiştiği için, can barını güncelleyecek olan olayı tetikle.
-        OnHealthChanged?.Invoke();
-    }
-    // --- ITurnBased Metodları ---
-
-    private void Die()
-    {
-        Debug.LogError("OYUNCU ÖLDÜ!");
-        // Oyuncuyu haritadan kaldır
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        LevelLoader.instance.tileObjects[X, Y] = null;
-        // Oyunu durdur veya yeniden başlatma ekranını göster
-        // Time.timeScale = 0; 
-        Destroy(gameObject);
-    }
-        void Update()
-    {
+        // ML-Agent check
+          if (mlAgent != null && mlAgent.useMLAgent) return;
+          
         int horizontal = 0;
         int vertical = 0;
         if (Input.GetKey(KeyCode.W)) vertical = -1;
@@ -147,11 +87,10 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     }
 
     //=========================================================================
-    // TUR TABANLI EYLEMLER (ITurnBased) - Değişiklik Yok
+    // TUR TABANLI EYLEMLER (ITurnBased)
     //=========================================================================
-    public void ResetTurn() => HasActedThisTurn = false;
     
-        public IGameAction GetAction()
+    public IGameAction GetAction()
     {
         if (HasActedThisTurn) return null;
 
@@ -185,6 +124,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     {
         StartCoroutine(SmoothMove(targetPos));
     }
+
     private IEnumerator SmoothMove(Vector3 targetPosition)
     {
         // --- BAYRAKLARI AYARLA ---
@@ -205,6 +145,45 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         TurnManager.Instance.ReportAnimationEnd();
         isAnimating = false;
     }
+
+    public void TakeDamage(int damageAmount)
+    {
+        CurrentHealth -= damageAmount;
+        if (CurrentHealth < 0) CurrentHealth = 0;
+
+        Debug.Log($"Oyuncu {damageAmount} hasar aldı! Kalan can: {CurrentHealth}");
+
+        // --- YENİ HASAR EFEKTİ ---
+        // Kendi "hasar aldım" animasyonunu başlat.
+        StartCoroutine(FlashColor(Color.red));
+        // -------------------------
+
+        OnHealthChanged?.Invoke();
+
+        if (CurrentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+
+    public void Heal(int healAmount)
+    {
+        CurrentHealth += healAmount;
+
+        // Canın, maksimum canı aşmasını engelle.
+        if (CurrentHealth > MaxHealth)
+        {
+            CurrentHealth = MaxHealth;
+        }
+
+        Debug.Log($"Oyuncu {healAmount} can kazandı! Mevcut can: {CurrentHealth}");
+
+        // Canımız değiştiği için, can barını güncelleyecek olan olayı tetikle.
+        OnHealthChanged?.Invoke();
+    }
+    // --- ITurnBased Metodları ---
+
 
     public void OnMoved(int newX, int newY)
     {
@@ -239,5 +218,60 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     }
     
     
+    private IEnumerator FlashColor(Color flashColor)
+    {
+    // 1. Görseli sağlayan Image bileşenini al.
+    Image visualImage = GetComponent<TileBase>()?.GetVisualImage();
+    if (visualImage == null) yield break;
 
+    // 2. Orijinal rengi sakla.
+    Color originalColor = visualImage.color;
+
+    // 3. Rengi doğrudan değiştir.
+    visualImage.color = flashColor;
+
+    // 4. Kısa bir süre bekle.
+    yield return new WaitForSeconds(TurnManager.Instance.turnInterval * 0.8f);
+
+    // 5. Rengi eski haline döndür.
+    if (visualImage != null)
+    {
+        visualImage.color = originalColor;
+    }
+    }
+
+    private void Die()
+    {
+        Debug.LogError("OYUNCU ÖLDÜ!");
+        // Oyuncuyu haritadan kaldır
+        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        LevelLoader.instance.tileObjects[X, Y] = null;
+        // Oyunu durdur veya yeniden başlatma ekranını göster
+        // Time.timeScale = 0; 
+        Destroy(gameObject);
+    }
+    
+    //=========================================================================
+    // ML-AGENT INTERFACE METODLARI
+    //=========================================================================
+    
+    /// <summary>
+    /// ML-Agent tarafından moveIntent ayarlamak için kullanılır
+    /// </summary>
+    public void SetMLMoveIntent(Vector2Int move) => moveIntent = move;
+    
+    /// <summary>
+    /// ML-Agent tarafından bombIntent ayarlamak için kullanılır
+    /// </summary>
+    public void SetMLBombIntent(bool bomb) => bombIntent = bomb;
+    
+    /// <summary>
+    /// ML-Agent için mevcut moveIntent'i döndürür (debug için)
+    /// </summary>
+    public Vector2Int GetMoveIntent() => moveIntent;
+    
+    /// <summary>
+    /// ML-Agent için mevcut bombIntent'i döndürür (debug için)
+    /// </summary>
+    public bool GetBombIntent() => bombIntent;
 }

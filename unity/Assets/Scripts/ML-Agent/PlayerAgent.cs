@@ -2,298 +2,547 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
-using System.Collections.Generic;
 
+/// <summary>
+/// ML-Agent implementation that controls PlayerController through composition pattern.
+/// Uses minimal interface to inject actions into existing turn-based system.
+/// </summary>
 public class PlayerAgent : Agent
 {
-    [Header("Movement Settings")]
+    [Header("ML-Agent Settings")]
+    public bool useMLAgent = true;
+    [Range(1, 20)]
     public float moveSpeed = 5f;
-    public LayerMask obstacleLayerMask;
     
-    [Header("Bomb Settings")]
-    public GameObject bombPrefab;
-    public int maxBombs = 3;
-    public float bombCooldown = 0.5f;
+    [Header("Observation Settings")]
+    [Range(1, 5)]
+    public int observationRadius = 2; // Grid radius around player for observations
+    public bool useDistanceObservations = true;
+    public bool useGridObservations = true;
     
-    [Header("Health Settings")]
-    public int maxHealth = 3;
-    public int currentHealth;
+    [Header("Debug")]
+    public bool debugActions = false;
+    public bool debugObservations = false;
     
-    [Header("Components")]
-    private Rigidbody2D rb;
-    private EnvManager envManager;
+    // Component references
+    private PlayerController playerController;
     private RewardSystem rewardSystem;
+    private EnvManager envManager;
     
-    private int activeBombs = 0;
-    private float lastBombTime;
-    private Vector2 lastPosition;
-    private int steps;
+    // ML-Agent state tracking
+    private int episodeSteps = 0;
+    private Vector2Int lastPlayerPosition;
+    private int lastHealth;
+    private int lastEnemyCount;
+    private float episodeStartTime;
     
-    // 8-directional movement vectors
-    private Vector2[] moveDirections = new Vector2[]
+    // Action mapping arrays
+    private readonly Vector2Int[] moveDirections = new Vector2Int[]
     {
-        Vector2.up,           // 0: Up
-        Vector2.right,        // 1: Right  
-        Vector2.down,         // 2: Down
-        Vector2.left,         // 3: Left
-        new Vector2(1, 1).normalized,    // 4: Up-Right
-        new Vector2(1, -1).normalized,   // 5: Down-Right
-        new Vector2(-1, -1).normalized,  // 6: Down-Left
-        new Vector2(-1, 1).normalized    // 7: Up-Left
+        Vector2Int.zero,        // 0: No movement
+        new Vector2Int(0, -1),  // 1: Up (W) - Y negative because Unity grid
+        new Vector2Int(1, 0),   // 2: Right (D)
+        new Vector2Int(0, 1),   // 3: Down (S) - Y positive because Unity grid  
+        new Vector2Int(-1, 0),  // 4: Left (A)
+        // Optional diagonal movements:
+        new Vector2Int(1, -1),  // 5: Up-Right
+        new Vector2Int(1, 1),   // 6: Down-Right
+        new Vector2Int(-1, 1),  // 7: Down-Left
+        new Vector2Int(-1, -1)  // 8: Up-Left
     };
 
+    //=========================================================================
+    // UNITY ML-AGENTS LIFECYCLE
+    //=========================================================================
+    
     public override void Initialize()
     {
-        rb = GetComponent<Rigidbody2D>();
-        envManager = FindObjectOfType<EnvManager>();
+        // Get required components
+        playerController = GetComponent<PlayerController>();
         rewardSystem = GetComponent<RewardSystem>();
+        envManager = FindObjectOfType<EnvManager>();
         
-        currentHealth = maxHealth;
-        lastPosition = transform.position;
+        // Validate setup
+        if (playerController == null)
+        {
+            Debug.LogError("[PlayerAgent] PlayerController component required!");
+            useMLAgent = false;
+            return;
+        }
+        
+        if (rewardSystem == null)
+        {
+            Debug.LogWarning("[PlayerAgent] RewardSystem not found. Rewards will not be applied.");
+        }
+        
+        if (envManager == null)
+        {
+            Debug.LogWarning("[PlayerAgent] EnvManager not found. Some observations may not work.");
+        }
+        
+        // Setup cross-references
+        if (useMLAgent)
+        {
+            playerController.mlAgent = this;
+            playerController.useMLAgent = useMLAgent;
+            Debug.Log("[PlayerAgent] ML-Agent mode activated!");
+        }
     }
-
+    
     public override void OnEpisodeBegin()
     {
-        // Reset player state
-        currentHealth = maxHealth;
-        activeBombs = 0;
-        steps = 0;
-        lastBombTime = 0f;
+        if (debugActions) Debug.Log("[PlayerAgent] Episode starting...");
         
-        // Reset position to spawn point
-        transform.position = envManager.GetPlayerSpawnPosition();
-        lastPosition = transform.position;
+        // Reset episode tracking
+        episodeSteps = 0;
+        episodeStartTime = Time.time;
         
-        // Reset velocity
-        rb.velocity = Vector2.zero;
-    }
-
-    public override void CollectObservations(VectorSensor sensor)
-    {
-        // Player position (normalized)
-        Vector2 normalizedPos = new Vector2(
-            transform.position.x / envManager.MapWidth,
-            transform.position.y / envManager.MapHeight
-        );
-        sensor.AddObservation(normalizedPos);
+        // Initialize tracking variables
+        if (playerController != null)
+        {
+            lastPlayerPosition = new Vector2Int(playerController.X, playerController.Y);
+            lastHealth = playerController.CurrentHealth;
+        }
         
-        // Player health (normalized)
-        sensor.AddObservation((float)currentHealth / maxHealth);
+        if (envManager != null)
+        {
+            lastEnemyCount = envManager.GetRemainingEnemyCount();
+        }
         
-        // Bomb status
-        sensor.AddObservation((float)activeBombs / maxBombs);
-        sensor.AddObservation(Time.time - lastBombTime > bombCooldown ? 1f : 0f);
+        // Reset reward system
+        if (rewardSystem != null)
+        {
+            rewardSystem.OnEpisodeBegin();
+        }
         
-        // Player velocity
-        sensor.AddObservation(rb.velocity.normalized);
-        
-        // Grid-based observations around player (9x9 grid)
-        CollectGridObservations(sensor, 4); // 4 cells in each direction
-        
-        // Distance to nearest enemy, collectible, exit
-        CollectDistanceObservations(sensor);
+        if (debugActions) Debug.Log($"[PlayerAgent] Episode began at position ({lastPlayerPosition.x}, {lastPlayerPosition.y})");
     }
     
-    private void CollectGridObservations(VectorSensor sensor, int radius)
-    {
-        Vector2Int playerGridPos = envManager.WorldToGrid(transform.position);
-        
-        for (int y = -radius; y <= radius; y++)
-        {
-            for (int x = -radius; x <= radius; x++)
-            {
-                Vector2Int checkPos = playerGridPos + new Vector2Int(x, y);
-                
-                // Wall detection (0 = empty, 1 = breakable, 2 = unbreakable)
-                int wallType = envManager.GetWallType(checkPos);
-                sensor.AddObservation(wallType == 0 ? 0f : wallType == 1 ? 0.5f : 1f);
-                
-                // Enemy detection
-                bool hasEnemy = envManager.HasEnemyAt(checkPos);
-                sensor.AddObservation(hasEnemy ? 1f : 0f);
-                
-                // Collectible detection
-                bool hasCollectible = envManager.HasCollectibleAt(checkPos);
-                sensor.AddObservation(hasCollectible ? 1f : 0f);
-                
-                // Bomb/explosion detection
-                bool hasBomb = envManager.HasBombAt(checkPos);
-                bool hasExplosion = envManager.HasExplosionAt(checkPos);
-                sensor.AddObservation(hasBomb ? 1f : 0f);
-                sensor.AddObservation(hasExplosion ? 1f : 0f);
-            }
-        }
-    }
-    
-    private void CollectDistanceObservations(VectorSensor sensor)
-    {
-        // Nearest enemy distance and direction
-        Vector2 nearestEnemy = envManager.GetNearestEnemyPosition(transform.position);
-        if (nearestEnemy != Vector2.zero)
-        {
-            Vector2 enemyDirection = (nearestEnemy - (Vector2)transform.position).normalized;
-            float enemyDistance = Vector2.Distance(transform.position, nearestEnemy) / envManager.MapWidth;
-            sensor.AddObservation(enemyDirection);
-            sensor.AddObservation(enemyDistance);
-        }
-        else
-        {
-            sensor.AddObservation(Vector2.zero);
-            sensor.AddObservation(1f);
-        }
-        
-        // Nearest collectible distance and direction
-        Vector2 nearestCollectible = envManager.GetNearestCollectiblePosition(transform.position);
-        if (nearestCollectible != Vector2.zero)
-        {
-            Vector2 collectibleDirection = (nearestCollectible - (Vector2)transform.position).normalized;
-            float collectibleDistance = Vector2.Distance(transform.position, nearestCollectible) / envManager.MapWidth;
-            sensor.AddObservation(collectibleDirection);
-            sensor.AddObservation(collectibleDistance);
-        }
-        else
-        {
-            sensor.AddObservation(Vector2.zero);
-            sensor.AddObservation(1f);
-        }
-        
-        // Exit distance and direction
-        Vector2 exitPos = envManager.GetExitPosition();
-        Vector2 exitDirection = (exitPos - (Vector2)transform.position).normalized;
-        float exitDistance = Vector2.Distance(transform.position, exitPos) / envManager.MapWidth;
-        sensor.AddObservation(exitDirection);
-        sensor.AddObservation(exitDistance);
-    }
-
     public override void OnActionReceived(ActionBuffers actions)
     {
-        steps++;
+        if (!useMLAgent || playerController == null) return;
         
-        // Get discrete actions
-        int moveAction = actions.DiscreteActions[0]; // 0-8 (8 directions + no movement)
-        int bombAction = actions.DiscreteActions[1]; // 0-1 (no bomb, place bomb)
+        episodeSteps++;
         
-        // Apply movement
-        if (moveAction > 0 && moveAction <= 8)
+        // Parse discrete actions
+        int moveActionIndex = actions.DiscreteActions[0]; // 0-8: movement directions
+        int bombActionIndex = actions.DiscreteActions[1]; // 0-1: bomb placement
+        
+        // Convert to game actions
+        Vector2Int moveAction = ConvertMoveAction(moveActionIndex);
+        bool bombAction = bombActionIndex == 1;
+        
+        // Inject actions into PlayerController
+        playerController.SetMLMoveIntent(moveAction);
+        playerController.SetMLBombIntent(bombAction);
+        
+        // Debug logging
+        if (debugActions)
         {
-            Vector2 moveDirection = moveDirections[moveAction - 1];
-            MovePlayer(moveDirection);
+            Debug.Log($"[PlayerAgent] Step {episodeSteps}: Move={moveAction}, Bomb={bombAction}");
         }
         
-        // Apply bomb action
-        if (bombAction == 1)
-        {
-            TryPlaceBomb();
-        }
+        // Apply step-based penalties and rewards
+        ApplyStepRewards();
         
-        // Apply penalties for time and inactivity
-        rewardSystem.ApplyStepPenalty();
-        
-        // Check if player moved (encourage exploration)
-        float distanceMoved = Vector2.Distance(transform.position, lastPosition);
-        if (distanceMoved < 0.1f)
-        {
-            rewardSystem.ApplyInactivityPenalty();
-        }
-        
-        lastPosition = transform.position;
-        
-        // End episode if too many steps
-        if (steps >= envManager.MaxStepsPerEpisode)
-        {
-            rewardSystem.ApplyTimeoutPenalty();
-            EndEpisode();
-        }
+        // Check for episode termination conditions
+        CheckEpisodeTermination();
     }
     
-    private void MovePlayer(Vector2 direction)
+    public override void CollectObservations(VectorSensor sensor)
     {
-        Vector2 targetPosition = (Vector2)transform.position + direction * moveSpeed * Time.fixedDeltaTime;
+        if (playerController == null) return;
         
-        // Check for obstacles
-        if (!Physics2D.OverlapCircle(targetPosition, 0.4f, obstacleLayerMask))
+        int observationCount = 0;
+        
+        // === PLAYER STATE OBSERVATIONS ===
+        // Player position (normalized)
+        var ll = LevelLoader.instance;
+        if (ll != null)
         {
-            rb.velocity = direction * moveSpeed;
+            sensor.AddObservation((float)playerController.X / ll.Width);
+            sensor.AddObservation((float)playerController.Y / ll.Height);
+            observationCount += 2;
         }
         else
         {
-            rb.velocity = Vector2.zero;
-            rewardSystem.ApplyWallCollisionPenalty();
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f);
+            observationCount += 2;
         }
-    }
-    
-    private void TryPlaceBomb()
-    {
-        if (activeBombs < maxBombs && Time.time - lastBombTime > bombCooldown)
-        {
-            Vector2Int gridPos = envManager.WorldToGrid(transform.position);
-            Vector3 bombPosition = envManager.GridToWorld(gridPos);
-            
-            if (!envManager.HasBombAt(gridPos))
-            {
-                GameObject bomb = Instantiate(bombPrefab, bombPosition, Quaternion.identity);
-                BombController bombController = bomb.GetComponent<BombController>();
-                bombController.SetOwner(this);
-                
-                activeBombs++;
-                lastBombTime = Time.time;
-                
-                rewardSystem.ApplyBombPlacedReward();
-            }
-        }
-    }
-    
-    public void OnBombExploded()
-    {
-        activeBombs = Mathf.Max(0, activeBombs - 1);
-    }
-    
-    public void TakeDamage(int damage)
-    {
-        currentHealth -= damage;
-        rewardSystem.ApplyDamageReward(damage);
         
-        if (currentHealth <= 0)
+        // Player health (normalized)
+        float healthRatio = playerController.MaxHealth > 0 ? 
+            (float)playerController.CurrentHealth / playerController.MaxHealth : 0f;
+        sensor.AddObservation(healthRatio);
+        observationCount += 1;
+        
+        // Player velocity/last move direction
+        Vector2Int lastMove = GetLastMoveDirection();
+        sensor.AddObservation((float)lastMove.x);
+        sensor.AddObservation((float)lastMove.y);
+        observationCount += 2;
+        
+        // === GAME STATE OBSERVATIONS ===
+        if (envManager != null)
         {
-            rewardSystem.ApplyDeathPenalty();
-            EndEpisode();
+            // Remaining enemies (normalized)
+            float enemyRatio = envManager.enemyCount > 0 ? 
+                (float)envManager.GetRemainingEnemyCount() / envManager.enemyCount : 0f;
+            sensor.AddObservation(enemyRatio);
+            
+            // Remaining collectibles (normalized)  
+            float collectibleRatio = envManager.collectibleCount > 0 ?
+                (float)envManager.GetRemainingCollectibleCount() / envManager.collectibleCount : 0f;
+            sensor.AddObservation(collectibleRatio);
+            observationCount += 2;
         }
-    }
-    
-    public void OnCollectibleCollected(CollectibleType type)
-    {
-        rewardSystem.ApplyCollectibleReward(type);
-    }
-    
-    public void OnEnemyKilled()
-    {
-        rewardSystem.ApplyEnemyKillReward();
-    }
-    
-    public void OnExitReached()
-    {
-        rewardSystem.ApplyLevelCompleteReward();
-        EndEpisode();
+        else
+        {
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f);
+            observationCount += 2;
+        }
+        
+        // === GRID-BASED OBSERVATIONS ===
+        if (useGridObservations)
+        {
+            observationCount += CollectGridObservations(sensor);
+        }
+        
+        // === DISTANCE-BASED OBSERVATIONS ===
+        if (useDistanceObservations)
+        {
+            observationCount += CollectDistanceObservations(sensor);
+        }
+        
+        if (debugObservations)
+        {
+            Debug.Log($"[PlayerAgent] Collected {observationCount} observations");
+        }
     }
     
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        // Manual control for testing
+        // Manual control for testing and debugging
         var discreteActions = actionsOut.DiscreteActions;
         
-        // Movement
+        // Movement (WASD keys)
         discreteActions[0] = 0; // Default: no movement
         
-        if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.D)) discreteActions[0] = 4; // Up-Right
-        else if (Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.D)) discreteActions[0] = 5; // Down-Right
-        else if (Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.A)) discreteActions[0] = 6; // Down-Left
-        else if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.A)) discreteActions[0] = 7; // Up-Left
-        else if (Input.GetKey(KeyCode.W)) discreteActions[0] = 1; // Up
-        else if (Input.GetKey(KeyCode.D)) discreteActions[0] = 2; // Right
-        else if (Input.GetKey(KeyCode.S)) discreteActions[0] = 3; // Down
-        else if (Input.GetKey(KeyCode.A)) discreteActions[0] = 4; // Left
+        if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.D)) 
+            discreteActions[0] = 5; // Up-Right
+        else if (Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.D)) 
+            discreteActions[0] = 6; // Down-Right
+        else if (Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.A)) 
+            discreteActions[0] = 7; // Down-Left
+        else if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.A)) 
+            discreteActions[0] = 8; // Up-Left
+        else if (Input.GetKey(KeyCode.W)) 
+            discreteActions[0] = 1; // Up
+        else if (Input.GetKey(KeyCode.D)) 
+            discreteActions[0] = 2; // Right
+        else if (Input.GetKey(KeyCode.S)) 
+            discreteActions[0] = 3; // Down
+        else if (Input.GetKey(KeyCode.A)) 
+            discreteActions[0] = 4; // Left
         
-        // Bomb
+        // Bomb placement (Space key)
         discreteActions[1] = Input.GetKey(KeyCode.Space) ? 1 : 0;
+    }
+    
+    //=========================================================================
+    // OBSERVATION COLLECTION HELPERS
+    //=========================================================================
+    
+    private int CollectGridObservations(VectorSensor sensor)
+    {
+        var ll = LevelLoader.instance;
+        if (ll == null) return 0;
+        
+        int observationCount = 0;
+        Vector2Int playerPos = new Vector2Int(playerController.X, playerController.Y);
+        
+        // Collect observations in a grid around the player
+        for (int y = -observationRadius; y <= observationRadius; y++)
+        {
+            for (int x = -observationRadius; x <= observationRadius; x++)
+            {
+                Vector2Int checkPos = playerPos + new Vector2Int(x, y);
+                
+                // Bounds check
+                if (checkPos.x < 0 || checkPos.x >= ll.Width || 
+                    checkPos.y < 0 || checkPos.y >= ll.Height)
+                {
+                    // Out of bounds = solid wall
+                    sensor.AddObservation(1f); // Wall
+                    sensor.AddObservation(0f); // No enemy
+                    sensor.AddObservation(0f); // No collectible
+                    sensor.AddObservation(0f); // No bomb
+                    observationCount += 4;
+                    continue;
+                }
+                
+                // Tile type observation
+                var tileType = TileSymbols.DataSymbolToType(ll.levelMap[checkPos.x, checkPos.y]);
+                sensor.AddObservation(GetTileTypeValue(tileType));
+                observationCount += 1;
+                
+                // Object observations
+                var obj = ll.tileObjects[checkPos.x, checkPos.y];
+                
+                // Enemy detection
+                bool hasEnemy = obj != null && 
+                    (obj.GetComponent<EnemyTile>() != null || obj.GetComponent<EnemyShooterTile>() != null);
+                sensor.AddObservation(hasEnemy ? 1f : 0f);
+                observationCount += 1;
+                
+                // Collectible detection  
+                bool hasCollectible = obj != null && obj.GetComponent<ICollectible>() != null;
+                sensor.AddObservation(hasCollectible ? 1f : 0f);
+                observationCount += 1;
+                
+                // Bomb detection
+                bool hasBomb = obj != null && obj.GetComponent<BombTile>() != null;
+                sensor.AddObservation(hasBomb ? 1f : 0f);
+                observationCount += 1;
+            }
+        }
+        
+        return observationCount;
+    }
+    
+    private int CollectDistanceObservations(VectorSensor sensor)
+    {
+        int observationCount = 0;
+        
+        if (envManager != null)
+        {
+            Vector3 playerPos = transform.position;
+            
+            // Nearest enemy distance and direction
+            Vector2 nearestEnemy = envManager.GetNearestEnemyPosition(playerPos);
+            if (nearestEnemy != Vector2.zero)
+            {
+                Vector2 enemyDirection = (nearestEnemy - (Vector2)playerPos).normalized;
+                float enemyDistance = Vector2.Distance(playerPos, nearestEnemy) / envManager.MapWidth;
+                sensor.AddObservation(enemyDirection.x);
+                sensor.AddObservation(enemyDirection.y);
+                sensor.AddObservation(Mathf.Clamp01(enemyDistance));
+            }
+            else
+            {
+                sensor.AddObservation(0f);
+                sensor.AddObservation(0f);
+                sensor.AddObservation(1f);
+            }
+            observationCount += 3;
+            
+            // Nearest collectible distance and direction
+            Vector2 nearestCollectible = envManager.GetNearestCollectiblePosition(playerPos);
+            if (nearestCollectible != Vector2.zero)
+            {
+                Vector2 collectibleDirection = (nearestCollectible - (Vector2)playerPos).normalized;
+                float collectibleDistance = Vector2.Distance(playerPos, nearestCollectible) / envManager.MapWidth;
+                sensor.AddObservation(collectibleDirection.x);
+                sensor.AddObservation(collectibleDirection.y);
+                sensor.AddObservation(Mathf.Clamp01(collectibleDistance));
+            }
+            else
+            {
+                sensor.AddObservation(0f);
+                sensor.AddObservation(0f);
+                sensor.AddObservation(1f);
+            }
+            observationCount += 3;
+            
+            // Exit distance and direction
+            Vector2 exitPos = envManager.GetExitPosition();
+            Vector2 exitDirection = (exitPos - (Vector2)playerPos).normalized;
+            float exitDistance = Vector2.Distance(playerPos, exitPos) / envManager.MapWidth;
+            sensor.AddObservation(exitDirection.x);
+            sensor.AddObservation(exitDirection.y);
+            sensor.AddObservation(Mathf.Clamp01(exitDistance));
+            observationCount += 3;
+        }
+        else
+        {
+            // Add zeros if no EnvManager
+            for (int i = 0; i < 9; i++)
+            {
+                sensor.AddObservation(0f);
+            }
+            observationCount += 9;
+        }
+        
+        return observationCount;
+    }
+    
+    //=========================================================================
+    // REWARD SYSTEM INTEGRATION
+    //=========================================================================
+    
+    private void ApplyStepRewards()
+    {
+        if (rewardSystem == null) return;
+        
+        // Update distance-based rewards
+        rewardSystem.UpdateRewards();
+        
+        // Check for state changes that warrant rewards
+        Vector2Int currentPos = new Vector2Int(playerController.X, playerController.Y);
+        
+        // Movement reward (exploration)
+        if (currentPos != lastPlayerPosition)
+        {
+            rewardSystem.ApplyExplorationReward();
+            lastPlayerPosition = currentPos;
+        }
+        
+        // Health change detection
+        if (playerController.CurrentHealth != lastHealth)
+        {
+            if (playerController.CurrentHealth < lastHealth)
+            {
+                // Took damage
+                int damage = lastHealth - playerController.CurrentHealth;
+                rewardSystem.ApplyDamageReward(damage);
+            }
+            else
+            {
+                // Healed
+                int healing = playerController.CurrentHealth - lastHealth;
+                rewardSystem.ApplyCollectibleReward(CollectibleType.Health);
+            }
+            lastHealth = playerController.CurrentHealth;
+        }
+        
+        // Enemy count change detection
+        if (envManager != null)
+        {
+            int currentEnemyCount = envManager.GetRemainingEnemyCount();
+            if (currentEnemyCount < lastEnemyCount)
+            {
+                // Enemy killed
+                int enemiesKilled = lastEnemyCount - currentEnemyCount;
+                for (int i = 0; i < enemiesKilled; i++)
+                {
+                    rewardSystem.ApplyEnemyKillReward();
+                }
+                lastEnemyCount = currentEnemyCount;
+            }
+        }
+    }
+    
+    private void CheckEpisodeTermination()
+    {
+        // Death condition
+        if (playerController.CurrentHealth <= 0)
+        {
+            if (rewardSystem != null)
+                rewardSystem.ApplyDeathPenalty();
+            
+            if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Player died");
+            EndEpisode();
+            return;
+        }
+        
+        // Victory condition (all enemies defeated and reached exit)
+        if (envManager != null)
+        {
+            if (envManager.GetRemainingEnemyCount() == 0)
+            {
+                Vector2Int playerPos = new Vector2Int(playerController.X, playerController.Y);
+                Vector2Int exitPos = new Vector2Int(
+                    Mathf.RoundToInt(envManager.GetExitPosition().x),
+                    Mathf.RoundToInt(envManager.GetExitPosition().y)
+                );
+                
+                if (playerPos == exitPos)
+                {
+                    if (rewardSystem != null)
+                        rewardSystem.ApplyLevelCompleteReward();
+                    
+                    if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Level completed!");
+                    EndEpisode();
+                    return;
+                }
+            }
+        }
+        
+        // Timeout condition
+        if (episodeSteps >= 3000) // Max steps from config
+        {
+            if (rewardSystem != null)
+                rewardSystem.ApplyTimeoutPenalty();
+            
+            if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Timeout");
+            EndEpisode();
+            return;
+        }
+    }
+    
+    //=========================================================================
+    // HELPER METHODS
+    //=========================================================================
+    
+    private Vector2Int ConvertMoveAction(int actionIndex)
+    {
+        if (actionIndex >= 0 && actionIndex < moveDirections.Length)
+        {
+            return moveDirections[actionIndex];
+        }
+        return Vector2Int.zero;
+    }
+    
+    private float GetTileTypeValue(TileType tileType)
+    {
+        switch (tileType)
+        {
+            case TileType.Empty: return 0f;
+            case TileType.Breakable: return 0.5f;
+            case TileType.Wall: return 1f;
+            case TileType.Stairs: return 0.2f;
+            default: return 0f;
+        }
+    }
+    
+    private Vector2Int GetLastMoveDirection()
+    {
+        // Access last move direction from PlayerController
+        // This uses reflection as lastMoveDirection is private
+        var field = typeof(PlayerController).GetField("lastMoveDirection", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        
+        if (field != null)
+        {
+            return (Vector2Int)field.GetValue(playerController);
+        }
+        
+        return Vector2Int.zero;
+    }
+    
+    //=========================================================================
+    // PUBLIC INTERFACE FOR DEBUGGING
+    //=========================================================================
+    
+    /// <summary>
+    /// Get current episode statistics for debugging
+    /// </summary>
+    public string GetEpisodeStats()
+    {
+        float episodeTime = Time.time - episodeStartTime;
+        return $"Episode: {episodeSteps} steps, {episodeTime:F1}s, " +
+               $"Health: {playerController.CurrentHealth}/{playerController.MaxHealth}, " +
+               $"Enemies: {(envManager != null ? envManager.GetRemainingEnemyCount() : 0)}";
+    }
+    
+    /// <summary>
+    /// Force episode end (for debugging)
+    /// </summary>
+    public void ForceEndEpisode()
+    {
+        Debug.Log("[PlayerAgent] Episode manually ended");
+        EndEpisode();
     }
 }
