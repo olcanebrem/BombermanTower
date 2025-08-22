@@ -99,17 +99,39 @@ public class LevelManager : MonoBehaviour
         
         try
         {
-            string iniContent = File.ReadAllText(levelPath);
-            currentLevelData = ParseINI(iniContent);
-            currentLevelData.levelName = levelName;
+            // Try Houdini format first (new system)
+            HoudiniLevelData houdiniData = HoudiniLevelImporter.ImportFromFile(levelPath, true);
             
-            if (levelLoader != null)
+            if (houdiniData != null)
             {
-                levelLoader.LoadLevel(currentLevelData);
+                // Convert HoudiniLevelData to LevelData for compatibility
+                currentLevelData = ConvertHoudiniToLevelData(houdiniData);
+                currentLevelData.levelName = levelName;
+                
+                if (levelLoader != null)
+                {
+                    levelLoader.LoadLevel(currentLevelData);
+                }
+                
+                OnLevelLoaded?.Invoke(currentLevelData);
+                Debug.Log($"[LevelManager] Houdini level loaded: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
+                Debug.Log($"[LevelManager] Generation params - Seed: {houdiniData.houdiniSeed}, Rooms: {houdiniData.roomCount}, Enemy Density: {houdiniData.enemyDensity}");
             }
-            
-            OnLevelLoaded?.Invoke(currentLevelData);
-            Debug.Log($"[LevelManager] Level loaded: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
+            else
+            {
+                // Fallback to old parsing system
+                string iniContent = File.ReadAllText(levelPath);
+                currentLevelData = ParseINI(iniContent);
+                currentLevelData.levelName = levelName;
+                
+                if (levelLoader != null)
+                {
+                    levelLoader.LoadLevel(currentLevelData);
+                }
+                
+                OnLevelLoaded?.Invoke(currentLevelData);
+                Debug.Log($"[LevelManager] Legacy level loaded: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
+            }
         }
         catch (System.Exception e)
         {
@@ -304,5 +326,60 @@ public class LevelManager : MonoBehaviour
             return currentLevelData.cellTypes[cell].passable;
         }
         return false; // Unknown cells are impassable
+    }
+    
+    // Convert HoudiniLevelData to legacy LevelData format
+    private LevelData ConvertHoudiniToLevelData(HoudiniLevelData houdiniData)
+    {
+        LevelData levelData = new LevelData();
+        
+        // Basic info
+        levelData.levelName = houdiniData.levelName;
+        levelData.version = houdiniData.version;
+        levelData.width = houdiniData.gridWidth;
+        levelData.height = houdiniData.gridHeight;
+        
+        // Convert cell types
+        levelData.cellTypes = new Dictionary<char, CellType>();
+        foreach (var kvp in houdiniData.cellTypes)
+        {
+            HoudiniCellType houdiniCell = kvp.Value;
+            CellType cellType = new CellType
+            {
+                symbol = houdiniCell.symbol,
+                name = houdiniCell.name,
+                passable = houdiniCell.passable,
+                prefabIndex = houdiniCell.prefabIndex
+            };
+            levelData.cellTypes[houdiniCell.symbol] = cellType;
+        }
+        
+        // Copy grid
+        levelData.grid = new char[houdiniData.gridWidth, houdiniData.gridHeight];
+        for (int x = 0; x < houdiniData.gridWidth; x++)
+        {
+            for (int y = 0; y < houdiniData.gridHeight; y++)
+            {
+                levelData.grid[x, y] = houdiniData.grid[x, y];
+            }
+        }
+        
+        // Set positions
+        levelData.playerSpawn = houdiniData.playerSpawn;
+        levelData.exitPosition = houdiniData.exitPosition;
+        
+        // Combine all enemy types
+        levelData.enemyPositions = new List<Vector2Int>();
+        levelData.enemyPositions.AddRange(houdiniData.enemyPositions);
+        levelData.enemyPositions.AddRange(houdiniData.enemyShooterPositions);
+        
+        // Combine all collectible types
+        levelData.collectiblePositions = new List<Vector2Int>();
+        levelData.collectiblePositions.AddRange(houdiniData.coinPositions);
+        levelData.collectiblePositions.AddRange(houdiniData.healthPositions);
+        
+        Debug.Log($"[LevelManager] Converted Houdini data: {levelData.enemyPositions.Count} enemies, {levelData.collectiblePositions.Count} collectibles");
+        
+        return levelData;
     }
 }

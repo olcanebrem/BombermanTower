@@ -73,20 +73,28 @@ public static class TileSymbols
     {
         switch (symbol)
         {
+            // Original mappings
             case '#': return TileType.Wall;
             case '-': return TileType.Empty;
             case 'B': return TileType.Breakable;
             case 'G': return TileType.Gate;
-            case 'S': return TileType.Stairs;
             case 'p': return TileType.PlayerSpawn;
-            case 'P': return TileType.Player;
-            case 'E': return TileType.Enemy;
-            case 'F': return TileType.EnemyShooter;
             case 'x': return TileType.Bomb;
             case '*': return TileType.Projectile;
-            case 'C': return TileType.Coin;
-            case 'H': return TileType.Health;
-            case 'X': return TileType.Explosion;
+            
+            // Houdini format mappings
+            case '.': return TileType.Empty;        // EMPTY
+            case '1': return TileType.Wall;         // WALL (alternative)
+            case 'o': return TileType.Empty;        // FLOOR (treat as empty)
+            case 'P': return TileType.Player;       // PLAYER
+            case 'E': return TileType.Enemy;        // ENEMY
+            case 'S': return TileType.EnemyShooter; // ENEMY_SHOOTER
+            case 'C': return TileType.Coin;         // COIN
+            case 'H': return TileType.Health;       // HEALTH
+            // case 'B': already mapped to Breakable // BREAKABLE
+            case 'X': return TileType.Stairs;       // STAIRS (exit)
+            case 'F': return TileType.Empty;        // Special floor type
+            
             default:  return TileType.Empty;
         }
     }

@@ -179,11 +179,11 @@ public class LevelLoader : MonoBehaviour
                     {
                         enemies.Add(newTile.gameObject);
                     }
-                    else if (type == TileType.Collectible || type == TileType.Score)
+                    else if (type == TileType.Coin || type == TileType.Health)
                     {
                         collectibles.Add(newTile.gameObject);
                     }
-                    else if (type == TileType.Exit)
+                    else if (type == TileType.Stairs)
                     {
                         exitObject = newTile.gameObject;
                     }
