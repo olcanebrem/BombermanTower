@@ -91,24 +91,42 @@ public class BombController : MonoBehaviour
             {
                 Vector2Int explosionPos = bombGridPos + direction * i;
                 
-                // Check if explosion can continue
-                int wallType = envManager.GetWallType(explosionPos);
+                // Check if explosion can continue using LevelManager
+                LevelManager levelManager = FindObjectOfType<LevelManager>();
+                bool shouldStop = false;
+                bool isBreakable = false;
                 
-                if (wallType == 2) // Unbreakable wall - stop explosion
+                if (levelManager != null)
                 {
-                    break;
+                    char cellChar = levelManager.GetCellAtGrid(explosionPos);
+                    TileType cellType = TileSymbols.DataSymbolToType(cellChar);
+                    
+                    if (cellType == TileType.Wall) // Unbreakable wall - stop explosion
+                    {
+                        shouldStop = true;
+                    }
+                    else if (cellType == TileType.Breakable) // Breakable wall
+                    {
+                        isBreakable = true;
+                        shouldStop = true;
+                    }
+                }
+                
+                if (shouldStop && !isBreakable)
+                {
+                    break; // Hit unbreakable wall
                 }
                 
                 explosionCells.Add(explosionPos);
                 
-                if (wallType == 1) // Breakable wall - destroy and stop explosion
+                if (isBreakable)
                 {
-                    envManager.DestroyBreakableWall(explosionPos);
+                    // Handle breakable wall destruction through level system
                     if (owner != null)
                     {
                         owner.GetComponent<RewardSystem>().ApplyWallDestroyReward();
                     }
-                    break;
+                    break; // Stop explosion after destroying breakable wall
                 }
             }
         }
@@ -172,15 +190,16 @@ public class BombController : MonoBehaviour
     private void ProcessExplosionHit(GameObject hitObject, Vector2Int explosionPos)
     {
         // Check if it's the player
-        PlayerAgent player = hitObject.GetComponent<PlayerAgent>();
+        PlayerController player = hitObject.GetComponent<PlayerController>();
         if (player != null)
         {
             player.TakeDamage(1);
             
-            // Apply self-damage penalty if it's the owner
-            if (player == owner)
+            // Apply self-damage penalty if it's the owner's player
+            PlayerAgent playerAgent = player.GetComponent<PlayerAgent>();
+            if (playerAgent == owner)
             {
-                RewardSystem rewardSystem = player.GetComponent<RewardSystem>();
+                RewardSystem rewardSystem = playerAgent.GetComponent<RewardSystem>();
                 if (rewardSystem != null)
                 {
                     rewardSystem.ApplyBombSelfDamagePenalty();

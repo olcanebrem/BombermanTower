@@ -57,7 +57,45 @@ public class RewardSystem : MonoBehaviour
         agent = GetComponent<PlayerAgent>();
         envManager = FindObjectOfType<EnvManager>();
         
+        // Subscribe to player events for reward triggers
+        PlayerController playerController = GetComponent<PlayerController>();
+        if (playerController != null)
+        {
+            SubscribeToPlayerEvents(playerController);
+        }
+        
         ResetDistanceTracking();
+    }
+    
+    private void SubscribeToPlayerEvents(PlayerController playerController)
+    {
+        // Subscribe to damage/health events
+        playerController.OnHealthChanged += OnPlayerHealthChanged;
+        
+        // Note: Other events like enemy killed, collectible gathered, etc.
+        // will be handled by game systems calling the appropriate reward methods
+    }
+    
+    private void OnPlayerHealthChanged()
+    {
+        PlayerController playerController = GetComponent<PlayerController>();
+        if (playerController != null && lastHealth > 0)
+        {
+            int currentHealth = playerController.CurrentHealth;
+            if (currentHealth < lastHealth)
+            {
+                // Player took damage
+                int damage = lastHealth - currentHealth;
+                ApplyDamageReward(damage);
+                
+                // Check if player died
+                if (currentHealth <= 0)
+                {
+                    ApplyDeathPenalty();
+                }
+            }
+            lastHealth = currentHealth;
+        }
     }
     
     private void ResetDistanceTracking()
@@ -73,6 +111,13 @@ public class RewardSystem : MonoBehaviour
     public void OnEpisodeBegin()
     {
         ResetDistanceTracking();
+        
+        // Initialize health tracking
+        PlayerController playerController = GetComponent<PlayerController>();
+        if (playerController != null)
+        {
+            lastHealth = playerController.CurrentHealth;
+        }
     }
     
     // Positive Reward Methods

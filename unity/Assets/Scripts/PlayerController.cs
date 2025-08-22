@@ -70,8 +70,8 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     void Update()
     {
 
-        // ML-Agent check
-          if (mlAgent != null && mlAgent.useMLAgent) return;
+        // Skip input if ML-Agent is controlling this player through turn-based system
+        if (mlAgent != null && mlAgent.useMLAgent) return;
           
         int horizontal = 0;
         int vertical = 0;
@@ -255,13 +255,15 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     // ML-AGENT INTERFACE METODLARI
     //=========================================================================
     
+    // Note: ML-Agent integration now works through ITurnBased/IGameAction system
+    // These methods are kept for backward compatibility but not used in new system
     /// <summary>
-    /// ML-Agent tarafından moveIntent ayarlamak için kullanılır
+    /// [DEPRECATED] ML-Agent tarafından moveIntent ayarlamak için kullanılır - Use ITurnBased system instead
     /// </summary>
     public void SetMLMoveIntent(Vector2Int move) => moveIntent = move;
     
     /// <summary>
-    /// ML-Agent tarafından bombIntent ayarlamak için kullanılır
+    /// [DEPRECATED] ML-Agent tarafından bombIntent ayarlamak için kullanılır - Use ITurnBased system instead
     /// </summary>
     public void SetMLBombIntent(bool bomb) => bombIntent = bomb;
     

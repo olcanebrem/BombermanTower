@@ -4,10 +4,10 @@ using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 
 /// <summary>
-/// ML-Agent implementation that controls PlayerController through composition pattern.
-/// Uses minimal interface to inject actions into existing turn-based system.
+/// ML-Agent implementation that integrates with turn-based system through ITurnBased interface.
+/// Converts ML-Agent decisions into IGameAction objects for the TurnManager.
 /// </summary>
-public class PlayerAgent : Agent
+public class PlayerAgent : Agent, ITurnBased
 {
     [Header("ML-Agent Settings")]
     public bool useMLAgent = true;
@@ -35,6 +35,15 @@ public class PlayerAgent : Agent
     private int lastHealth;
     private int lastEnemyCount;
     private float episodeStartTime;
+    
+    // ITurnBased implementation
+    public bool HasActedThisTurn { get; set; }
+    private IGameAction pendingAction;
+    private bool needsDecision = false;
+    
+    // Cached values for observations
+    private float cachedMapSize = 15f;
+    private bool mapSizeCached = false;
     
     // Action mapping arrays
     private readonly Vector2Int[] moveDirections = new Vector2Int[]
@@ -80,12 +89,18 @@ public class PlayerAgent : Agent
             Debug.LogWarning("[PlayerAgent] EnvManager not found. Some observations may not work.");
         }
         
-        // Setup cross-references
+        // Setup ML-Agent integration
         if (useMLAgent)
         {
+            // Keep reference for backward compatibility
             playerController.mlAgent = this;
             playerController.useMLAgent = useMLAgent;
-            Debug.Log("[PlayerAgent] ML-Agent mode activated!");
+            
+            // Register with TurnManager for turn-based control
+            // Note: PlayerController will unregister itself when ML-Agent takes over
+            TurnManager.Instance?.Unregister(playerController);
+            TurnManager.Instance?.Register(this);
+            Debug.Log("[PlayerAgent] ML-Agent mode activated and registered with TurnManager!");
         }
     }
     
@@ -115,31 +130,46 @@ public class PlayerAgent : Agent
             rewardSystem.OnEpisodeBegin();
         }
         
+        // Cache map size for observations
+        CacheMapSize();
+        
         if (debugActions) Debug.Log($"[PlayerAgent] Episode began at position ({lastPlayerPosition.x}, {lastPlayerPosition.y})");
+    }
+    
+    private void CacheMapSize()
+    {
+        LevelManager levelManager = FindObjectOfType<LevelManager>();
+        if (levelManager != null && levelManager.GetCurrentLevelData() != null)
+        {
+            var levelData = levelManager.GetCurrentLevelData();
+            cachedMapSize = Mathf.Max(levelData.width, levelData.height);
+            mapSizeCached = true;
+        }
+        else
+        {
+            cachedMapSize = 15f; // Default fallback
+            mapSizeCached = false;
+        }
     }
     
     public override void OnActionReceived(ActionBuffers actions)
     {
-        if (!useMLAgent || playerController == null) return;
+        if (!useMLAgent || playerController == null || !needsDecision) return;
         
         episodeSteps++;
+        needsDecision = false;
         
         // Parse discrete actions
         int moveActionIndex = actions.DiscreteActions[0]; // 0-8: movement directions
         int bombActionIndex = actions.DiscreteActions[1]; // 0-1: bomb placement
         
-        // Convert to game actions
-        Vector2Int moveAction = ConvertMoveAction(moveActionIndex);
-        bool bombAction = bombActionIndex == 1;
-        
-        // Inject actions into PlayerController
-        playerController.SetMLMoveIntent(moveAction);
-        playerController.SetMLBombIntent(bombAction);
+        // Convert to IGameAction
+        pendingAction = CreateGameAction(moveActionIndex, bombActionIndex);
         
         // Debug logging
         if (debugActions)
         {
-            Debug.Log($"[PlayerAgent] Step {episodeSteps}: Move={moveAction}, Bomb={bombAction}");
+            Debug.Log($"[PlayerAgent] Step {episodeSteps}: Action created - {pendingAction?.GetType().Name}");
         }
         
         // Apply step-based penalties and rewards
@@ -147,6 +177,26 @@ public class PlayerAgent : Agent
         
         // Check for episode termination conditions
         CheckEpisodeTermination();
+    }
+    
+    private IGameAction CreateGameAction(int moveActionIndex, int bombActionIndex)
+    {
+        // Priority: Bomb action > Move action > No action
+        if (bombActionIndex == 1)
+        {
+            // Place bomb at current position
+            Vector2Int bombDirection = Vector2Int.zero;
+            return new PlaceBombAction(playerController, bombDirection);
+        }
+        
+        Vector2Int moveDirection = ConvertMoveAction(moveActionIndex);
+        if (moveDirection != Vector2Int.zero)
+        {
+            return new MoveAction(playerController, moveDirection);
+        }
+        
+        // No action
+        return null;
     }
     
     public override void CollectObservations(VectorSensor sensor)
@@ -186,14 +236,28 @@ public class PlayerAgent : Agent
         // === GAME STATE OBSERVATIONS ===
         if (envManager != null)
         {
+            // Get current counts
+            int currentEnemyCount = envManager.GetRemainingEnemyCount();
+            int currentCollectibleCount = envManager.GetRemainingCollectibleCount();
+            
+            // Get initial counts from level data
+            LevelManager levelManager = FindObjectOfType<LevelManager>();
+            int initialEnemyCount = 1; // Default fallback
+            int initialCollectibleCount = 1; // Default fallback
+            
+            if (levelManager != null && levelManager.GetCurrentLevelData() != null)
+            {
+                var levelData = levelManager.GetCurrentLevelData();
+                initialEnemyCount = Mathf.Max(1, levelData.enemyPositions.Count);
+                initialCollectibleCount = Mathf.Max(1, levelData.collectiblePositions.Count);
+            }
+            
             // Remaining enemies (normalized)
-            float enemyRatio = envManager.enemyCount > 0 ? 
-                (float)envManager.GetRemainingEnemyCount() / envManager.enemyCount : 0f;
+            float enemyRatio = (float)currentEnemyCount / initialEnemyCount;
             sensor.AddObservation(enemyRatio);
             
             // Remaining collectibles (normalized)  
-            float collectibleRatio = envManager.collectibleCount > 0 ?
-                (float)envManager.GetRemainingCollectibleCount() / envManager.collectibleCount : 0f;
+            float collectibleRatio = (float)currentCollectibleCount / initialCollectibleCount;
             sensor.AddObservation(collectibleRatio);
             observationCount += 2;
         }
@@ -325,7 +389,7 @@ public class PlayerAgent : Agent
             if (nearestEnemy != Vector2.zero)
             {
                 Vector2 enemyDirection = (nearestEnemy - (Vector2)playerPos).normalized;
-                float enemyDistance = Vector2.Distance(playerPos, nearestEnemy) / envManager.MapWidth;
+                float enemyDistance = Vector2.Distance(playerPos, nearestEnemy) / cachedMapSize;
                 sensor.AddObservation(enemyDirection.x);
                 sensor.AddObservation(enemyDirection.y);
                 sensor.AddObservation(Mathf.Clamp01(enemyDistance));
@@ -343,7 +407,7 @@ public class PlayerAgent : Agent
             if (nearestCollectible != Vector2.zero)
             {
                 Vector2 collectibleDirection = (nearestCollectible - (Vector2)playerPos).normalized;
-                float collectibleDistance = Vector2.Distance(playerPos, nearestCollectible) / envManager.MapWidth;
+                float collectibleDistance = Vector2.Distance(playerPos, nearestCollectible) / cachedMapSize;
                 sensor.AddObservation(collectibleDirection.x);
                 sensor.AddObservation(collectibleDirection.y);
                 sensor.AddObservation(Mathf.Clamp01(collectibleDistance));
@@ -359,7 +423,7 @@ public class PlayerAgent : Agent
             // Exit distance and direction
             Vector2 exitPos = envManager.GetExitPosition();
             Vector2 exitDirection = (exitPos - (Vector2)playerPos).normalized;
-            float exitDistance = Vector2.Distance(playerPos, exitPos) / envManager.MapWidth;
+            float exitDistance = Vector2.Distance(playerPos, exitPos) / cachedMapSize;
             sensor.AddObservation(exitDirection.x);
             sensor.AddObservation(exitDirection.y);
             sensor.AddObservation(Mathf.Clamp01(exitDistance));
@@ -399,23 +463,8 @@ public class PlayerAgent : Agent
             lastPlayerPosition = currentPos;
         }
         
-        // Health change detection
-        if (playerController.CurrentHealth != lastHealth)
-        {
-            if (playerController.CurrentHealth < lastHealth)
-            {
-                // Took damage
-                int damage = lastHealth - playerController.CurrentHealth;
-                rewardSystem.ApplyDamageReward(damage);
-            }
-            else
-            {
-                // Healed
-                int healing = playerController.CurrentHealth - lastHealth;
-                rewardSystem.ApplyCollectibleReward(CollectibleType.Health);
-            }
-            lastHealth = playerController.CurrentHealth;
-        }
+        // Health change detection (now handled by RewardSystem event subscription)
+        lastHealth = playerController.CurrentHealth;
         
         // Enemy count change detection
         if (envManager != null)
@@ -544,5 +593,50 @@ public class PlayerAgent : Agent
     {
         Debug.Log("[PlayerAgent] Episode manually ended");
         EndEpisode();
+    }
+    
+    //=========================================================================
+    // ITURNBASED INTERFACE IMPLEMENTATION
+    //=========================================================================
+    
+    public void ResetTurn()
+    {
+        HasActedThisTurn = false;
+        pendingAction = null;
+        needsDecision = false;
+    }
+    
+    public IGameAction GetAction()
+    {
+        if (!useMLAgent || playerController == null)
+        {
+            // Return null action if ML-Agent is disabled
+            return null;
+        }
+        
+        // Check if we already have a pending action from ML decision
+        if (pendingAction != null)
+        {
+            IGameAction action = pendingAction;
+            pendingAction = null;
+            HasActedThisTurn = true;
+            return action;
+        }
+        
+        // Request decision from ML-Agent
+        needsDecision = true;
+        RequestDecision();
+        
+        // Return null for this turn, action will be available next turn
+        return null;
+    }
+    
+    private void OnDestroy()
+    {
+        // Unregister from TurnManager when destroyed
+        if (useMLAgent && TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
     }
 }
