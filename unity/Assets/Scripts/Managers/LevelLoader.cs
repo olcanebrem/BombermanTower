@@ -28,6 +28,11 @@ public class LevelLoader : MonoBehaviour
     public GameObject[,] tileObjects;
     public GameObject playerObject;
     private int playerStartX, playerStartY;
+    
+    // ML-Agent support - object tracking
+    private List<GameObject> enemies = new List<GameObject>();
+    private List<GameObject> collectibles = new List<GameObject>();
+    private GameObject exitObject;
     public void DebugPrintMap()
     {
         // TurnManager'dan o anki tur sayısını alarak log'u daha bilgilendirici yapalım.
@@ -169,6 +174,20 @@ public class LevelLoader : MonoBehaviour
                     newTile.SetVisual(spriteDatabase.GetSprite(type));
                     (newTile as IInitializable)?.Init(x, y);
                     
+                    // ML-Agent tracking - Add to appropriate lists
+                    if (type == TileType.Enemy || type == TileType.EnemyShooter)
+                    {
+                        enemies.Add(newTile.gameObject);
+                    }
+                    else if (type == TileType.Collectible || type == TileType.Score)
+                    {
+                        collectibles.Add(newTile.gameObject);
+                    }
+                    else if (type == TileType.Exit)
+                    {
+                        exitObject = newTile.gameObject;
+                    }
+                    
                     // Referans haritasına ekle.
                     tileObjects[x, y] = newTile.gameObject;
                 }
@@ -242,6 +261,59 @@ public class LevelLoader : MonoBehaviour
         /// </summary>
         /// <param name="turnNumber">Log'da gösterilecek olan mevcut tur sayısı.</param>
         
+    }
+    
+    // ML-Agent support methods
+    public List<GameObject> GetEnemies() => new List<GameObject>(enemies);
+    public List<GameObject> GetCollectibles() => new List<GameObject>(collectibles);
+    public GameObject GetExitObject() => exitObject;
+    public Vector2Int GetPlayerSpawnPosition() => new Vector2Int(playerStartX, playerStartY);
+    
+    public void RemoveEnemy(GameObject enemy)
+    {
+        if (enemies.Contains(enemy))
+        {
+            enemies.Remove(enemy);
+            // Remove from grid tracking too
+            Vector2Int gridPos = WorldToGrid(enemy.transform.position);
+            if (tileObjects[gridPos.x, gridPos.y] == enemy)
+            {
+                tileObjects[gridPos.x, gridPos.y] = null;
+                levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            }
+        }
+    }
+    
+    public void RemoveCollectible(GameObject collectible)
+    {
+        if (collectibles.Contains(collectible))
+        {
+            collectibles.Remove(collectible);
+            // Remove from grid tracking too
+            Vector2Int gridPos = WorldToGrid(collectible.transform.position);
+            if (tileObjects[gridPos.x, gridPos.y] == collectible)
+            {
+                tileObjects[gridPos.x, gridPos.y] = null;
+                levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            }
+        }
+    }
+    
+    public Vector2Int WorldToGrid(Vector3 worldPosition)
+    {
+        return new Vector2Int(
+            Mathf.FloorToInt(worldPosition.x / tileSize + 0.5f),
+            Height - 1 - Mathf.FloorToInt(worldPosition.y / tileSize + 0.5f)
+        );
+    }
+    
+    public Vector3 GridToWorld(Vector2Int gridPosition)
+    {
+        return new Vector3(
+            gridPosition.x * tileSize,
+            (Height - gridPosition.y - 1) * tileSize,
+            0
+        );
     }
    
 }
