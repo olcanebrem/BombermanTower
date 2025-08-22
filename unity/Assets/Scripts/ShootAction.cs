@@ -18,7 +18,7 @@ public class ShootAction : IGameAction
     {
         // Bu eylemin tek görevi, EnemyShooterTile'ın Shoot metodunu çağırmaktır.
         // Shoot metodu, merminin başlangıç pozisyonunu hesaplama ve
-        // Projectile.SpawnAndSetup'ı çağırma mantığını zaten içeriyor.
+        // Projectile.Spawn'ı çağırma mantığını zaten içeriyor.
         if (shooter != null)
         {
             shooter.Shoot(direction);

@@ -1,4 +1,7 @@
 using UnityEngine;
+using Unity.MLAgents;
+using Unity.MLAgents.Actuators;
+using Unity.MLAgents.Sensors;
 using System.Collections.Generic;
 
 public enum CollectibleType
@@ -269,47 +272,6 @@ public class RewardSystem : MonoBehaviour
         }
     }
     
-    // Shaped rewards for strategic behavior
-    public void ApplyStrategicRewards()
-    {
-        // Reward for being near enemies when bombing (tactical positioning)
-        Vector2 nearestEnemy = envManager.GetNearestEnemyPosition(transform.position);
-        if (nearestEnemy != Vector2.zero)
-        {
-            float enemyDistance = Vector2.Distance(transform.position, nearestEnemy);
-            if (enemyDistance < 3f && enemyDistance > 1f) // Sweet spot for bombing
-            {
-                agent.AddReward(0.05f);
-            }
-        }
-        
-        // Reward for positioning away from explosions
-        Vector2Int playerGridPos = envManager.WorldToGrid(transform.position);
-        bool inDanger = envManager.HasExplosionAt(playerGridPos);
-        
-        if (!inDanger)
-        {
-            // Check surrounding cells for explosions
-            for (int x = -1; x <= 1; x++)
-            {
-                for (int y = -1; y <= 1; y++)
-                {
-                    Vector2Int checkPos = playerGridPos + new Vector2Int(x, y);
-                    if (envManager.HasExplosionAt(checkPos))
-                    {
-                        inDanger = true;
-                        break;
-                    }
-                }
-                if (inDanger) break;
-            }
-        }
-        
-        if (!inDanger)
-        {
-            agent.AddReward(0.01f); // Small reward for staying safe
-        }
-    }
     
     // Curriculum learning support - adjust rewards based on performance
     public void ApplyCurriculumRewards(float episodePerformance)
@@ -334,13 +296,6 @@ public class RewardSystem : MonoBehaviour
     {
         UpdateDistanceRewards();
         ApplyProgressiveRewards();
-        ApplyStrategicRewards();
     }
     
-    // Reset method for episode start
-    public void ResetRewards()
-    {
-        ResetDistanceTracking();
-
-    }
 }

@@ -83,7 +83,7 @@ Thumbs.db
 
 # --- Unity Collaborate (kullanmıyorsan) ---
 .collab/
-
+.claude
 # --- Paket Cache ---
 /Packages/manifest.json
 /Packages/packages-lock.json
