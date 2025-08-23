@@ -1,24 +1,46 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq; // .Max() gibi metodlar için
+using System.Linq;
+using System.IO;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 [System.Serializable]
 public struct TilePrefabEntry
 {
     public TileType type;
     public TileBase prefab;
 }
+
+[System.Serializable]
+public struct LevelFileEntry
+{
+    public string fileName;
+    public string fullPath;
+    public TextAsset textAsset;
+    public int levelNumber;
+    public string version;
+}
+
 public class LevelLoader : MonoBehaviour
 {
     // --- Singleton ve Temel Ayarlar ---
     public static LevelLoader instance;
     public int tileSize = 30;
+    
     // --- Prefab Yönetimi ---
     public TilePrefabEntry[] tilePrefabs;
     private Dictionary<TileType, TileBase> prefabMap;
-    public GameObject playerPrefab; // Oyuncu için özel prefab alanı
+    public GameObject playerPrefab;
     public SpriteDatabase spriteDatabase;
+    
+    // --- Level File Management ---
+    [SerializeField] private List<LevelFileEntry> availableLevels = new List<LevelFileEntry>();
+    [SerializeField] private int selectedLevelIndex = 0;
+    [SerializeField] private string levelsDirectoryPath = "Assets/Levels";
+    
     // --- Seviye Verisi ---
-    // Inspector'dan sürükleyeceğimiz .txt dosyası
     public TextAsset levelFile; 
     
     public int Width { get; private set; }
@@ -74,8 +96,323 @@ public class LevelLoader : MonoBehaviour
 
     void Start()
     {
-        LoadLevelFromFile();
+        ScanForLevelFiles();
+        LoadSelectedLevel();
         CreateMapVisual();
+    }
+    
+    #if UNITY_EDITOR
+    [ContextMenu("Refresh Level Files")]
+    public void RefreshLevelFilesInEditor()
+    {
+        ScanForLevelFiles();
+        EditorUtility.SetDirty(this);
+    }
+    #endif
+    
+    /// <summary>
+    /// Levels dizinini tarar ve .ini dosyalarını bulur
+    /// </summary>
+    public void ScanForLevelFiles()
+    {
+        availableLevels.Clear();
+        
+        #if UNITY_EDITOR
+        // Editor modunda AssetDatabase kullan
+        ScanLevelsWithAssetDatabase();
+        #else
+        // Build'de Resources veya StreamingAssets kullan
+        ScanLevelsFromResources();
+        #endif
+        
+        // Level'ları sırala (level numarasına göre, sonra versiyona göre)
+        availableLevels.Sort((a, b) => {
+            int levelCompare = a.levelNumber.CompareTo(b.levelNumber);
+            return levelCompare != 0 ? levelCompare : string.Compare(a.version, b.version, System.StringComparison.Ordinal);
+        });
+        
+        Debug.Log($"[LevelLoader] Found {availableLevels.Count} level files");
+    }
+    
+    #if UNITY_EDITOR
+    private void ScanLevelsWithAssetDatabase()
+    {
+        // Assets/Levels dizinindeki tüm .ini dosyalarını bul
+        string[] guids = AssetDatabase.FindAssets("*.ini", new[] { levelsDirectoryPath });
+        
+        foreach (string guid in guids)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            string fileName = Path.GetFileNameWithoutExtension(assetPath);
+            
+            // LEVEL_XXXX pattern kontrolü
+            if (IsValidLevelFileName(fileName))
+            {
+                TextAsset textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
+                if (textAsset != null)
+                {
+                    var levelEntry = ParseLevelFileName(fileName, assetPath, textAsset);
+                    availableLevels.Add(levelEntry);
+                }
+            }
+        }
+    }
+    #endif
+    
+    private void ScanLevelsFromResources()
+    {
+        // Runtime için Resources klasöründen yükleme
+        // Bu implementasyon gerekirse daha sonra genişletilebilir
+        TextAsset[] levelAssets = Resources.LoadAll<TextAsset>("Levels");
+        
+        foreach (TextAsset asset in levelAssets)
+        {
+            if (IsValidLevelFileName(asset.name))
+            {
+                string assetPath = "Resources/Levels/" + asset.name;
+                var levelEntry = ParseLevelFileName(asset.name, assetPath, asset);
+                availableLevels.Add(levelEntry);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Dosya adının LEVEL_XXXX formatında olup olmadığını kontrol eder
+    /// </summary>
+    private bool IsValidLevelFileName(string fileName)
+    {
+        // LEVEL_0001_v1.0.0_v4.3 gibi formatları kabul et
+        return fileName.StartsWith("LEVEL_") && fileName.Contains("_v");
+    }
+    
+    /// <summary>
+    /// Level dosya adını parse ederek bilgileri çıkarır
+    /// </summary>
+    private LevelFileEntry ParseLevelFileName(string fileName, string fullPath, TextAsset textAsset)
+    {
+        var entry = new LevelFileEntry
+        {
+            fileName = fileName,
+            fullPath = fullPath,
+            textAsset = textAsset,
+            levelNumber = 1,
+            version = "1.0.0"
+        };
+        
+        try
+        {
+            // LEVEL_0001_v1.0.0_v4.3 formatını parse et
+            string[] parts = fileName.Split('_');
+            
+            if (parts.Length >= 2)
+            {
+                // Level numarasını çıkar (LEVEL_0001 -> 1)
+                string levelNumberStr = parts[1];
+                if (int.TryParse(levelNumberStr, out int levelNumber))
+                {
+                    entry.levelNumber = levelNumber;
+                }
+            }
+            
+            if (parts.Length >= 3)
+            {
+                // Versiyon bilgisini çıkar (v1.0.0 -> 1.0.0)
+                string versionStr = parts[2];
+                if (versionStr.StartsWith("v"))
+                {
+                    entry.version = versionStr.Substring(1);
+                }
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[LevelLoader] Failed to parse level file name '{fileName}': {e.Message}");
+        }
+        
+        return entry;
+    }
+    
+    /// <summary>
+    /// Seçilen level'ı yükler
+    /// </summary>
+    public void LoadSelectedLevel()
+    {
+        if (availableLevels.Count == 0)
+        {
+            Debug.LogError("[LevelLoader] No level files found!");
+            return;
+        }
+        
+        // Index sınırlarını kontrol et
+        selectedLevelIndex = Mathf.Clamp(selectedLevelIndex, 0, availableLevels.Count - 1);
+        
+        var selectedLevel = availableLevels[selectedLevelIndex];
+        levelFile = selectedLevel.textAsset;
+        
+        Debug.Log($"[LevelLoader] Loading level: {selectedLevel.fileName}");
+        LoadLevelFromFile();
+    }
+    
+    /// <summary>
+    /// Level seçimini değiştirir
+    /// </summary>
+    public void SelectLevel(int index)
+    {
+        if (index >= 0 && index < availableLevels.Count)
+        {
+            selectedLevelIndex = index;
+            Debug.Log($"[LevelLoader] Selected level: {availableLevels[index].fileName}");
+        }
+    }
+    
+    /// <summary>
+    /// Mevcut level listesini döndürür
+    /// </summary>
+    public List<LevelFileEntry> GetAvailableLevels()
+    {
+        return new List<LevelFileEntry>(availableLevels);
+    }
+    
+    /// <summary>
+    /// Seçilen level bilgisini döndürür
+    /// </summary>
+    public LevelFileEntry GetSelectedLevel()
+    {
+        if (selectedLevelIndex >= 0 && selectedLevelIndex < availableLevels.Count)
+        {
+            return availableLevels[selectedLevelIndex];
+        }
+        return new LevelFileEntry();
+    }
+    
+    /// <summary>
+    /// Sonraki level'a geçer (progression için)
+    /// </summary>
+    public bool SelectNextLevel()
+    {
+        if (selectedLevelIndex < availableLevels.Count - 1)
+        {
+            SelectLevel(selectedLevelIndex + 1);
+            LoadSelectedLevel();
+            return true;
+        }
+        Debug.Log("[LevelLoader] Already at the last level");
+        return false; // Son level'dayız
+    }
+    
+    /// <summary>
+    /// Önceki level'a geçer
+    /// </summary>
+    public bool SelectPreviousLevel()
+    {
+        if (selectedLevelIndex > 0)
+        {
+            SelectLevel(selectedLevelIndex - 1);
+            LoadSelectedLevel();
+            return true;
+        }
+        Debug.Log("[LevelLoader] Already at the first level");
+        return false; // İlk level'dayız
+    }
+    
+    /// <summary>
+    /// Belirli bir level numarasına göre level seçer
+    /// </summary>
+    public bool SelectLevelByNumber(int levelNumber)
+    {
+        int index = availableLevels.FindIndex(level => level.levelNumber == levelNumber);
+        if (index >= 0)
+        {
+            SelectLevel(index);
+            LoadSelectedLevel();
+            return true;
+        }
+        Debug.LogWarning($"[LevelLoader] Level {levelNumber} not found!");
+        return false;
+    }
+    
+    /// <summary>
+    /// Belirli level numarası ve versiyona göre level seçer
+    /// </summary>
+    public bool SelectLevelByNumberAndVersion(int levelNumber, string version)
+    {
+        int index = availableLevels.FindIndex(level => 
+            level.levelNumber == levelNumber && level.version == version);
+        if (index >= 0)
+        {
+            SelectLevel(index);
+            LoadSelectedLevel();
+            return true;
+        }
+        Debug.LogWarning($"[LevelLoader] Level {levelNumber} v{version} not found!");
+        return false;
+    }
+    
+    /// <summary>
+    /// İlk level'a döner
+    /// </summary>
+    public void ResetToFirstLevel()
+    {
+        if (availableLevels.Count > 0)
+        {
+            SelectLevel(0);
+            LoadSelectedLevel();
+            Debug.Log("[LevelLoader] Reset to first level");
+        }
+    }
+    
+    /// <summary>
+    /// Son level'a geçer
+    /// </summary>
+    public void SelectLastLevel()
+    {
+        if (availableLevels.Count > 0)
+        {
+            SelectLevel(availableLevels.Count - 1);
+            LoadSelectedLevel();
+            Debug.Log("[LevelLoader] Selected last level");
+        }
+    }
+    
+    /// <summary>
+    /// Toplam level sayısını döndürür
+    /// </summary>
+    public int GetTotalLevelCount()
+    {
+        return availableLevels.Count;
+    }
+    
+    /// <summary>
+    /// Mevcut level indeksini döndürür (0-based)
+    /// </summary>
+    public int GetCurrentLevelIndex()
+    {
+        return selectedLevelIndex;
+    }
+    
+    /// <summary>
+    /// Mevcut level numarasını döndürür (1-based)
+    /// </summary>
+    public int GetCurrentLevelNumber()
+    {
+        var selectedLevel = GetSelectedLevel();
+        return selectedLevel.levelNumber;
+    }
+    
+    /// <summary>
+    /// Level progression için - sonraki level var mı?
+    /// </summary>
+    public bool HasNextLevel()
+    {
+        return selectedLevelIndex < availableLevels.Count - 1;
+    }
+    
+    /// <summary>
+    /// Level progression için - önceki level var mı?
+    /// </summary>
+    public bool HasPreviousLevel()
+    {
+        return selectedLevelIndex > 0;
     }
 
     /// <summary>
