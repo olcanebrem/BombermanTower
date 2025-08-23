@@ -33,6 +33,10 @@ public class LevelLoader : MonoBehaviour
     private List<GameObject> enemies = new List<GameObject>();
     private List<GameObject> collectibles = new List<GameObject>();
     private GameObject exitObject;
+    
+    // Events for cache invalidation
+    public event System.Action OnEnemyListChanged;
+    public event System.Action OnCollectibleListChanged;
     public void DebugPrintMap()
     {
         // TurnManager'dan o anki tur sayısını alarak log'u daha bilgilendirici yapalım.
@@ -86,7 +90,7 @@ public class LevelLoader : MonoBehaviour
     /// <summary>
     /// TextAsset'ten seviye verisini okur, boyutları belirler ve levelMap'i doldurur.
     /// </summary>
-    void LoadLevelFromFile()
+    public void LoadLevelFromFile()
     {
         if (levelFile == null)
         {
@@ -281,6 +285,9 @@ public class LevelLoader : MonoBehaviour
                 tileObjects[gridPos.x, gridPos.y] = null;
                 levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
             }
+            
+            // Notify listeners that enemy list changed
+            OnEnemyListChanged?.Invoke();
         }
     }
     
@@ -296,6 +303,9 @@ public class LevelLoader : MonoBehaviour
                 tileObjects[gridPos.x, gridPos.y] = null;
                 levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
             }
+            
+            // Notify listeners that collectible list changed
+            OnCollectibleListChanged?.Invoke();
         }
     }
     

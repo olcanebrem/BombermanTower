@@ -44,6 +44,9 @@ public class PlayerAgent : Agent, ITurnBased
     // Cached values for observations
     private float cachedMapSize = 15f;
     private bool mapSizeCached = false;
+    private int cachedInitialEnemyCount = 1;
+    private int cachedInitialCollectibleCount = 1;
+    private bool levelDataCached = false;
     
     // Action mapping arrays
     private readonly Vector2Int[] moveDirections = new Vector2Int[]
@@ -130,26 +133,50 @@ public class PlayerAgent : Agent, ITurnBased
             rewardSystem.OnEpisodeBegin();
         }
         
-        // Cache map size for observations
-        CacheMapSize();
+        // Cache level data for observations
+        CacheLevelData();
+        
+        // Subscribe to level change events
+        if (LevelLoader.instance != null)
+        {
+            LevelLoader.instance.OnEnemyListChanged += InvalidateEnemyCache;
+            LevelLoader.instance.OnCollectibleListChanged += InvalidateCollectibleCache;
+        }
         
         if (debugActions) Debug.Log($"[PlayerAgent] Episode began at position ({lastPlayerPosition.x}, {lastPlayerPosition.y})");
     }
     
-    private void CacheMapSize()
+    private void CacheLevelData()
     {
-        LevelManager levelManager = FindObjectOfType<LevelManager>();
-        if (levelManager != null && levelManager.GetCurrentLevelData() != null)
+        if (LevelManager.Instance != null && LevelManager.Instance.GetCurrentLevelData() != null)
         {
-            var levelData = levelManager.GetCurrentLevelData();
+            var levelData = LevelManager.Instance.GetCurrentLevelData();
             cachedMapSize = Mathf.Max(levelData.width, levelData.height);
+            cachedInitialEnemyCount = Mathf.Max(1, levelData.enemyPositions.Count);
+            cachedInitialCollectibleCount = Mathf.Max(1, levelData.collectiblePositions.Count);
+            levelDataCached = true;
             mapSizeCached = true;
         }
         else
         {
             cachedMapSize = 15f; // Default fallback
+            cachedInitialEnemyCount = 1;
+            cachedInitialCollectibleCount = 1;
+            levelDataCached = false;
             mapSizeCached = false;
         }
+    }
+    
+    private void InvalidateEnemyCache()
+    {
+        // Enemy count changed, but we don't need to invalidate initial count cache
+        if (debugObservations) Debug.Log("[PlayerAgent] Enemy list changed");
+    }
+    
+    private void InvalidateCollectibleCache()
+    {
+        // Collectible count changed, but we don't need to invalidate initial count cache
+        if (debugObservations) Debug.Log("[PlayerAgent] Collectible list changed");
     }
     
     public override void OnActionReceived(ActionBuffers actions)
@@ -240,24 +267,12 @@ public class PlayerAgent : Agent, ITurnBased
             int currentEnemyCount = envManager.GetRemainingEnemyCount();
             int currentCollectibleCount = envManager.GetRemainingCollectibleCount();
             
-            // Get initial counts from level data
-            LevelManager levelManager = FindObjectOfType<LevelManager>();
-            int initialEnemyCount = 1; // Default fallback
-            int initialCollectibleCount = 1; // Default fallback
-            
-            if (levelManager != null && levelManager.GetCurrentLevelData() != null)
-            {
-                var levelData = levelManager.GetCurrentLevelData();
-                initialEnemyCount = Mathf.Max(1, levelData.enemyPositions.Count);
-                initialCollectibleCount = Mathf.Max(1, levelData.collectiblePositions.Count);
-            }
-            
-            // Remaining enemies (normalized)
-            float enemyRatio = (float)currentEnemyCount / initialEnemyCount;
+            // Use cached initial counts for better performance
+            float enemyRatio = (float)currentEnemyCount / cachedInitialEnemyCount;
             sensor.AddObservation(enemyRatio);
             
             // Remaining collectibles (normalized)  
-            float collectibleRatio = (float)currentCollectibleCount / initialCollectibleCount;
+            float collectibleRatio = (float)currentCollectibleCount / cachedInitialCollectibleCount;
             sensor.AddObservation(collectibleRatio);
             observationCount += 2;
         }
@@ -637,6 +652,13 @@ public class PlayerAgent : Agent, ITurnBased
         if (useMLAgent && TurnManager.Instance != null)
         {
             TurnManager.Instance.Unregister(this);
+        }
+        
+        // Unsubscribe from events
+        if (LevelLoader.instance != null)
+        {
+            LevelLoader.instance.OnEnemyListChanged -= InvalidateEnemyCache;
+            LevelLoader.instance.OnCollectibleListChanged -= InvalidateCollectibleCache;
         }
     }
 }

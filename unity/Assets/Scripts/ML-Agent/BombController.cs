@@ -92,13 +92,12 @@ public class BombController : MonoBehaviour
                 Vector2Int explosionPos = bombGridPos + direction * i;
                 
                 // Check if explosion can continue using LevelManager
-                LevelManager levelManager = FindObjectOfType<LevelManager>();
                 bool shouldStop = false;
                 bool isBreakable = false;
                 
-                if (levelManager != null)
+                if (LevelManager.Instance != null)
                 {
-                    char cellChar = levelManager.GetCellAtGrid(explosionPos);
+                    char cellChar = LevelManager.Instance.GetCellAtGrid(explosionPos);
                     TileType cellType = TileSymbols.DataSymbolToType(cellChar);
                     
                     if (cellType == TileType.Wall) // Unbreakable wall - stop explosion
@@ -140,11 +139,7 @@ public class BombController : MonoBehaviour
         // Create visual explosions
         StartCoroutine(CreateExplosionVisuals(explosionCells));
         
-        // Notify owner
-        if (owner != null)
-        {
-            owner.OnBombExploded();
-        }
+        // Note: Owner notification removed - handled through reward system
         
         // Unregister and destroy bomb
         envManager.UnregisterBomb(gameObject);
@@ -208,29 +203,21 @@ public class BombController : MonoBehaviour
             return;
         }
         
-        // Check if it's an enemy
-        EnemyController enemy = hitObject.GetComponent<EnemyController>();
-        if (enemy != null)
+        // Note: Enemy damage not handled here - enemy kills tracked through action system in PlayerAgent
+        
+        // Check if it's a collectible that gets destroyed by bomb - apply penalty to owner
+        if (hitObject.CompareTag("Collectible"))
         {
-            enemy.TakeDamage(1);
-            
-            // Give reward to bomb owner
-            if (owner != null && enemy.IsDead())
+            if (owner != null)
             {
                 RewardSystem rewardSystem = owner.GetComponent<RewardSystem>();
                 if (rewardSystem != null)
                 {
-                    rewardSystem.ApplyEnemyKillReward();
+                    // Apply penalty for destroying collectibles with bomb
+                    rewardSystem.ApplyCollectibleDestroyPenalty();
                 }
             }
-            return;
-        }
-        
-        // Check if it's a collectible (some collectibles might be destroyed)
-        CollectibleController collectible = hitObject.GetComponent<CollectibleController>();
-        if (collectible != null && collectible.CanBeDestroyed())
-        {
-            collectible.DestroyCollectible();
+            Destroy(hitObject);
             return;
         }
     }

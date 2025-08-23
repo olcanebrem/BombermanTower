@@ -29,6 +29,8 @@ public class CellType
 
 public class LevelManager : MonoBehaviour
 {
+    public static LevelManager Instance { get; private set; }
+    
     [Header("Level Settings")]
     public string currentLevelName = "LEVEL_0001_v1.0.0_v4.3";
     public bool randomizeLevel = false;
@@ -45,6 +47,18 @@ public class LevelManager : MonoBehaviour
     
     private void Awake()
     {
+        // Singleton pattern
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        
         levelLoader = GetComponent<LevelLoader>();
         if (levelLoader == null)
         {
@@ -108,10 +122,8 @@ public class LevelManager : MonoBehaviour
                 currentLevelData = ConvertHoudiniToLevelData(houdiniData);
                 currentLevelData.levelName = levelName;
                 
-                if (levelLoader != null)
-                {
-                    levelLoader.LoadLevel(currentLevelData);
-                }
+                // Note: LevelLoader will handle its own level loading
+                // LevelManager just provides query interface for parsed Houdini data
                 
                 OnLevelLoaded?.Invoke(currentLevelData);
                 Debug.Log($"[LevelManager] Houdini level loaded: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
@@ -124,10 +136,7 @@ public class LevelManager : MonoBehaviour
                 currentLevelData = ParseINI(iniContent);
                 currentLevelData.levelName = levelName;
                 
-                if (levelLoader != null)
-                {
-                    levelLoader.LoadLevel(currentLevelData);
-                }
+                // LevelLoader will use its existing system for legacy levels
                 
                 OnLevelLoaded?.Invoke(currentLevelData);
                 Debug.Log($"[LevelManager] Legacy level loaded: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
@@ -262,8 +271,8 @@ public class LevelManager : MonoBehaviour
     {
         if (currentLevelData != null && levelLoader != null)
         {
-            levelLoader.ClearLevel();
-            levelLoader.LoadLevel(currentLevelData);
+            // LevelLoader uses TextAsset from inspector, so just reload from file
+            levelLoader.LoadLevelFromFile();
             OnLevelReset?.Invoke();
             Debug.Log($"[LevelManager] Level reset: {currentLevelData.levelName}");
         }
@@ -382,4 +391,5 @@ public class LevelManager : MonoBehaviour
         
         return levelData;
     }
+    
 }

@@ -35,6 +35,7 @@ public class RewardSystem : MonoBehaviour
     public float stepPenalty = -0.001f;
     public float timeoutPenalty = -2f;
     public float bombSelfDamagePenalty = -0.5f;
+    public float collectibleDestroyPenalty = -0.3f;
     
     [Space]
     [Header("Distance-based Rewards")]
@@ -51,6 +52,7 @@ public class RewardSystem : MonoBehaviour
     private float lastCollectibleDistance;
     private int lastEnemyCount;
     private int lastCollectibleCount;
+    private int lastHealth;
     
     private void Start()
     {
@@ -228,6 +230,12 @@ public class RewardSystem : MonoBehaviour
     {
         agent.AddReward(bombSelfDamagePenalty);
         LogReward("Bomb Self Damage", bombSelfDamagePenalty);
+    }
+    
+    public void ApplyCollectibleDestroyPenalty()
+    {
+        agent.AddReward(collectibleDestroyPenalty);
+        LogReward("Collectible Destroyed", collectibleDestroyPenalty);
     }
     
     // Distance-based rewards (called each frame/step)
