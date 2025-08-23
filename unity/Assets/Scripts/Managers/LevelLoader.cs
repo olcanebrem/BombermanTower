@@ -36,7 +36,7 @@ public class LevelLoader : MonoBehaviour
     public SpriteDatabase spriteDatabase;
     
     // --- Component References ---
-    [SerializeField] private HoudiniLevelImporter levelImporter;
+    private HoudiniLevelImporter levelImporter;
     
     // --- Level File Management ---
     [SerializeField] private List<LevelFileEntry> availableLevels = new List<LevelFileEntry>();
@@ -44,15 +44,14 @@ public class LevelLoader : MonoBehaviour
     [SerializeField] private string levelsDirectoryPath = "Assets/Levels";
     
     // --- Current Level Data ---
-    private HoudiniLevelData currentLevelData;
-    public TextAsset levelFile; // Backward compatibility 
+    private HoudiniLevelData currentLevelData; 
     
     public int Width { get; private set; }
     public int Height { get; private set; }
     
     public char[,] levelMap;
     public GameObject[,] tileObjects;
-    public GameObject playerObject;
+    private GameObject playerObject; // Runtime player instance reference
     private int playerStartX, playerStartY;
     
     // ML-Agent support - object tracking
@@ -95,10 +94,12 @@ public class LevelLoader : MonoBehaviour
         }
         instance = this;
 
-        // Component references
+        // Component references - automatically find or create HoudiniLevelImporter
+        levelImporter = GetComponent<HoudiniLevelImporter>();
         if (levelImporter == null)
         {
-            levelImporter = GetComponent<HoudiniLevelImporter>();
+            levelImporter = gameObject.AddComponent<HoudiniLevelImporter>();
+            Debug.Log("[LevelLoader] HoudiniLevelImporter component automatically added");
         }
 
         // Prefab sözlüğünü doldur
@@ -281,7 +282,6 @@ public class LevelLoader : MonoBehaviour
         selectedLevelIndex = Mathf.Clamp(selectedLevelIndex, 0, availableLevels.Count - 1);
         
         var selectedLevel = availableLevels[selectedLevelIndex];
-        levelFile = selectedLevel.textAsset; // Backward compatibility
         
         Debug.Log($"[LevelLoader] Loading level: {selectedLevel.fileName}");
         
@@ -511,34 +511,6 @@ public class LevelLoader : MonoBehaviour
         Debug.Log($"[LevelLoader] Level: {levelData.levelName} (v{levelData.version}), Enemies: {levelData.enemyPositions.Count}");
     }
     
-    /// <summary>
-    /// Backward compatibility - TextAsset'ten direkt yükleme (Deprecated)
-    /// </summary>
-    [System.Obsolete("Use LoadSelectedLevel() with HoudiniLevelImporter instead")]
-    public void LoadLevelFromFile()
-    {
-        Debug.LogWarning("[LevelLoader] LoadLevelFromFile() is deprecated. Use LoadSelectedLevel() instead.");
-        
-        if (levelFile == null)
-        {
-            Debug.LogError("LevelLoader'a bir levelFile atanmamış!");
-            return;
-        }
-
-        // Fallback to old behavior if no HoudiniLevelImporter
-        if (levelImporter == null)
-        {
-            Debug.LogError("[LevelLoader] No HoudiniLevelImporter found for parsing!");
-            return;
-        }
-        
-        // Parse using HoudiniLevelImporter
-        currentLevelData = levelImporter.LoadLevelData(levelFile);
-        if (currentLevelData != null)
-        {
-            LoadLevelFromHoudiniData(currentLevelData);
-        }
-    }
     
     // CreateMapVisual metodunuz neredeyse hiç değişmeden çalışmaya devam edecek!
     // Sadece oyuncu oluşturma mantığını en sona taşıdık.

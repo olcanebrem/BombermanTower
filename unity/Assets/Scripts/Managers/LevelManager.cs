@@ -77,18 +77,23 @@ public class LevelManager : MonoBehaviour
     {
         availableLevels = new List<string>();
         
-        string fullPath = Path.Combine(Application.dataPath, "Levels");
-        if (Directory.Exists(fullPath))
+        // Use LevelLoader's level scanning system
+        if (levelLoader != null)
         {
-            string[] iniFiles = Directory.GetFiles(fullPath, "*.ini");
-            foreach (string file in iniFiles)
+            levelLoader.ScanForLevelFiles();
+            var levelEntries = levelLoader.GetAvailableLevels();
+            
+            foreach (var entry in levelEntries)
             {
-                string fileName = Path.GetFileNameWithoutExtension(file);
-                availableLevels.Add(fileName);
+                availableLevels.Add(entry.fileName);
             }
+            
+            Debug.Log($"[LevelManager] Found {availableLevels.Count} levels via LevelLoader: {string.Join(", ", availableLevels)}");
         }
-        
-        Debug.Log($"[LevelManager] Found {availableLevels.Count} levels: {string.Join(", ", availableLevels)}");
+        else
+        {
+            Debug.LogWarning("[LevelManager] LevelLoader not available for scanning levels");
+        }
     }
     
     public void LoadCurrentLevel()
@@ -103,43 +108,45 @@ public class LevelManager : MonoBehaviour
     
     public void LoadLevel(string levelName)
     {
-        string levelPath = Path.Combine(Application.dataPath, "Levels", levelName + ".ini");
-        
-        if (!File.Exists(levelPath))
+        if (levelLoader == null)
         {
-            Debug.LogError($"[LevelManager] Level file not found: {levelPath}");
+            Debug.LogError("[LevelManager] LevelLoader not available!");
             return;
         }
         
         try
         {
-            // Try Houdini format first (new system)
-            HoudiniLevelData houdiniData = HoudiniLevelImporter.ImportFromFile(levelPath, true);
+            // Find level by name and select it
+            var levelEntries = levelLoader.GetAvailableLevels();
+            int levelIndex = levelEntries.FindIndex(entry => entry.fileName == levelName);
             
-            if (houdiniData != null)
+            if (levelIndex >= 0)
             {
-                // Convert HoudiniLevelData to LevelData for compatibility
-                currentLevelData = ConvertHoudiniToLevelData(houdiniData);
-                currentLevelData.levelName = levelName;
+                // Select and load via LevelLoader
+                levelLoader.SelectLevel(levelIndex);
+                levelLoader.LoadSelectedLevel();
                 
-                // Note: LevelLoader will handle its own level loading
-                // LevelManager just provides query interface for parsed Houdini data
-                
-                OnLevelLoaded?.Invoke(currentLevelData);
-                Debug.Log($"[LevelManager] Houdini level loaded: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
-                Debug.Log($"[LevelManager] Generation params - Seed: {houdiniData.houdiniSeed}, Rooms: {houdiniData.roomCount}, Enemy Density: {houdiniData.enemyDensity}");
+                // Get the HoudiniLevelData for LevelManager's interface
+                HoudiniLevelData houdiniData = levelLoader.GetCurrentLevelData();
+                if (houdiniData != null)
+                {
+                    // Convert HoudiniLevelData to LevelData for compatibility
+                    currentLevelData = ConvertHoudiniToLevelData(houdiniData);
+                    currentLevelData.levelName = levelName;
+                    
+                    OnLevelLoaded?.Invoke(currentLevelData);
+                    Debug.Log($"[LevelManager] Level loaded via LevelLoader: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
+                    Debug.Log($"[LevelManager] Generation params - Seed: {houdiniData.houdiniSeed}, Rooms: {houdiniData.roomCount}, Enemy Density: {houdiniData.enemyDensity}");
+                }
+                else
+                {
+                    Debug.LogError($"[LevelManager] Failed to get HoudiniLevelData from LevelLoader for {levelName}");
+                }
             }
             else
             {
-                // Fallback to old parsing system
-                string iniContent = File.ReadAllText(levelPath);
-                currentLevelData = ParseINI(iniContent);
-                currentLevelData.levelName = levelName;
-                
-                // LevelLoader will use its existing system for legacy levels
-                
-                OnLevelLoaded?.Invoke(currentLevelData);
-                Debug.Log($"[LevelManager] Legacy level loaded: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
+                Debug.LogError($"[LevelManager] Level not found in LevelLoader: {levelName}");
+                Debug.Log($"[LevelManager] Available levels: {string.Join(", ", levelEntries.Select(e => e.fileName))}");
             }
         }
         catch (System.Exception e)
@@ -148,131 +155,14 @@ public class LevelManager : MonoBehaviour
         }
     }
     
-    private LevelData ParseINI(string iniContent)
-    {
-        LevelData levelData = new LevelData();
-        levelData.cellTypes = new Dictionary<char, CellType>();
-        levelData.enemyPositions = new List<Vector2Int>();
-        levelData.collectiblePositions = new List<Vector2Int>();
-        
-        string[] lines = iniContent.Split('\n');
-        string currentSection = "";
-        List<string> gridLines = new List<string>();
-        
-        foreach (string line in lines)
-        {
-            string trimmedLine = line.Trim();
-            
-            // Skip comments and empty lines
-            if (trimmedLine.StartsWith("#") || string.IsNullOrEmpty(trimmedLine))
-                continue;
-            
-            // Check for section headers
-            if (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]"))
-            {
-                currentSection = trimmedLine.Substring(1, trimmedLine.Length - 2);
-                continue;
-            }
-            
-            // Parse based on current section
-            switch (currentSection)
-            {
-                case "CELL_TYPES":
-                    ParseCellType(trimmedLine, levelData);
-                    break;
-                    
-                case "MAP_DATA":
-                    if (trimmedLine.StartsWith("WIDTH="))
-                    {
-                        levelData.width = int.Parse(trimmedLine.Substring(6));
-                    }
-                    else if (trimmedLine.StartsWith("HEIGHT="))
-                    {
-                        levelData.height = int.Parse(trimmedLine.Substring(7));
-                    }
-                    break;
-                    
-                case "GRID":
-                    gridLines.Add(trimmedLine);
-                    break;
-            }
-        }
-        
-        // Parse grid data
-        if (gridLines.Count > 0)
-        {
-            ParseGrid(gridLines, levelData);
-        }
-        
-        return levelData;
-    }
-    
-    private void ParseCellType(string line, LevelData levelData)
-    {
-        // Format: ID=Symbol,Name,Passable,Prefab_Index
-        string[] parts = line.Split('=');
-        if (parts.Length != 2) return;
-        
-        string[] values = parts[1].Split(',');
-        if (values.Length != 4) return;
-        
-        CellType cellType = new CellType
-        {
-            symbol = values[0][0],
-            name = values[1],
-            passable = bool.Parse(values[2]),
-            prefabIndex = int.Parse(values[3])
-        };
-        
-        levelData.cellTypes[cellType.symbol] = cellType;
-    }
-    
-    private void ParseGrid(List<string> gridLines, LevelData levelData)
-    {
-        if (levelData.width == 0 || levelData.height == 0)
-        {
-            levelData.height = gridLines.Count;
-            levelData.width = gridLines[0].Length;
-        }
-        
-        levelData.grid = new char[levelData.width, levelData.height];
-        
-        for (int y = 0; y < levelData.height && y < gridLines.Count; y++)
-        {
-            string line = gridLines[y];
-            for (int x = 0; x < levelData.width && x < line.Length; x++)
-            {
-                char cell = line[x];
-                levelData.grid[x, levelData.height - 1 - y] = cell; // Flip Y for Unity coordinates
-                
-                Vector2Int pos = new Vector2Int(x, levelData.height - 1 - y);
-                
-                // Track special positions
-                switch (cell)
-                {
-                    case 'P':
-                        levelData.playerSpawn = pos;
-                        break;
-                    case 'E':
-                        levelData.enemyPositions.Add(pos);
-                        break;
-                    case 'C':
-                        levelData.collectiblePositions.Add(pos);
-                        break;
-                    case 'X':
-                        levelData.exitPosition = pos;
-                        break;
-                }
-            }
-        }
-    }
+    // Legacy parsing methods removed - now using LevelLoader/HoudiniLevelImporter system
     
     public void ResetLevel()
     {
         if (currentLevelData != null && levelLoader != null)
         {
-            // LevelLoader uses TextAsset from inspector, so just reload from file
-            levelLoader.LoadLevelFromFile();
+            // Reload current level via LevelLoader
+            levelLoader.LoadSelectedLevel();
             OnLevelReset?.Invoke();
             Debug.Log($"[LevelManager] Level reset: {currentLevelData.levelName}");
         }
