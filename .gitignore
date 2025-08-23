@@ -87,4 +87,7 @@ Thumbs.db
 # --- Paket Cache ---
 /Packages/manifest.json
 /Packages/packages-lock.json
+unity/Packages/manifest.json
+unity/Packages/packages-lock.json
 Unity/ProjectSettings/McpUnitySettings.json
+unity/Packages/manifest.json
