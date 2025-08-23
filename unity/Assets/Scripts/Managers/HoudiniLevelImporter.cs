@@ -76,6 +76,24 @@ public class HoudiniLevelImporter : MonoBehaviour
     [Header("Debug")]
     public bool logParsingDetails = false;
     
+    /// <summary>
+    /// TextAsset'ten HoudiniLevelData oluşturur (Component method)
+    /// </summary>
+    public HoudiniLevelData LoadLevelData(TextAsset levelFile)
+    {
+        if (levelFile == null)
+        {
+            Debug.LogError("[HoudiniLevelImporter] Level file is null!");
+            return null;
+        }
+        
+        Debug.Log($"[HoudiniLevelImporter] Parsing level file: {levelFile.name}");
+        return ImportFromText(levelFile.text, logParsingDetails);
+    }
+    
+    /// <summary>
+    /// INI formatındaki string'i parse ederek HoudiniLevelData'ya dönüştürür
+    /// </summary>
     public static HoudiniLevelData ImportFromText(string iniContent, bool enableLogging = false)
     {
         HoudiniLevelData levelData = new HoudiniLevelData();

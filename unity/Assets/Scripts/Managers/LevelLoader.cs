@@ -35,13 +35,17 @@ public class LevelLoader : MonoBehaviour
     public GameObject playerPrefab;
     public SpriteDatabase spriteDatabase;
     
+    // --- Component References ---
+    [SerializeField] private HoudiniLevelImporter levelImporter;
+    
     // --- Level File Management ---
     [SerializeField] private List<LevelFileEntry> availableLevels = new List<LevelFileEntry>();
     [SerializeField] private int selectedLevelIndex = 0;
     [SerializeField] private string levelsDirectoryPath = "Assets/Levels";
     
-    // --- Seviye Verisi ---
-    public TextAsset levelFile; 
+    // --- Current Level Data ---
+    private HoudiniLevelData currentLevelData;
+    public TextAsset levelFile; // Backward compatibility 
     
     public int Width { get; private set; }
     public int Height { get; private set; }
@@ -90,6 +94,12 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         instance = this;
+
+        // Component references
+        if (levelImporter == null)
+        {
+            levelImporter = GetComponent<HoudiniLevelImporter>();
+        }
 
         // Prefab sözlüğünü doldur
         prefabMap = new Dictionary<TileType, TileBase>();
@@ -146,23 +156,38 @@ public class LevelLoader : MonoBehaviour
     #if UNITY_EDITOR
     private void ScanLevelsWithAssetDatabase()
     {
-        // Assets/Levels dizinindeki tüm .ini dosyalarını bul
-        string[] guids = AssetDatabase.FindAssets("*.ini", new[] { levelsDirectoryPath });
+        // Assets/Levels dizinindeki tüm .txt dosyalarını bul
+        string[] guids = AssetDatabase.FindAssets("LEVEL_ t:TextAsset", new[] { levelsDirectoryPath });
+        
+        Debug.Log($"[LevelLoader] Scanning directory: {levelsDirectoryPath}");
+        Debug.Log($"[LevelLoader] Found {guids.Length} files with 'LEVEL_' in name");
         
         foreach (string guid in guids)
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guid);
             string fileName = Path.GetFileNameWithoutExtension(assetPath);
             
+            Debug.Log($"[LevelLoader] Checking file: {assetPath}");
+            
             // LEVEL_XXXX pattern kontrolü
             if (IsValidLevelFileName(fileName))
             {
+                // .ini dosyalarını TextAsset olarak yükle
                 TextAsset textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
                 if (textAsset != null)
                 {
                     var levelEntry = ParseLevelFileName(fileName, assetPath, textAsset);
                     availableLevels.Add(levelEntry);
+                    Debug.Log($"[LevelLoader] Successfully loaded level: {fileName}");
                 }
+                else
+                {
+                    Debug.LogWarning($"[LevelLoader] Could not load as TextAsset: {assetPath}");
+                }
+            }
+            else
+            {
+                Debug.Log($"[LevelLoader] File name doesn't match pattern: {fileName}");
             }
         }
     }
@@ -242,7 +267,7 @@ public class LevelLoader : MonoBehaviour
     }
     
     /// <summary>
-    /// Seçilen level'ı yükler
+    /// Seçilen level'ı yükler (HoudiniLevelImporter kullanarak)
     /// </summary>
     public void LoadSelectedLevel()
     {
@@ -256,10 +281,26 @@ public class LevelLoader : MonoBehaviour
         selectedLevelIndex = Mathf.Clamp(selectedLevelIndex, 0, availableLevels.Count - 1);
         
         var selectedLevel = availableLevels[selectedLevelIndex];
-        levelFile = selectedLevel.textAsset;
+        levelFile = selectedLevel.textAsset; // Backward compatibility
         
         Debug.Log($"[LevelLoader] Loading level: {selectedLevel.fileName}");
-        LoadLevelFromFile();
+        
+        if (levelImporter == null)
+        {
+            Debug.LogError("[LevelLoader] HoudiniLevelImporter component not found!");
+            return;
+        }
+        
+        // HoudiniLevelImporter'dan level data al
+        currentLevelData = levelImporter.LoadLevelData(selectedLevel.textAsset);
+        if (currentLevelData != null)
+        {
+            LoadLevelFromHoudiniData(currentLevelData);
+        }
+        else
+        {
+            Debug.LogError($"[LevelLoader] Failed to parse level data: {selectedLevel.fileName}");
+        }
     }
     
     /// <summary>
@@ -427,58 +468,75 @@ public class LevelLoader : MonoBehaviour
     /// <summary>
     /// TextAsset'ten seviye verisini okur, boyutları belirler ve levelMap'i doldurur.
     /// </summary>
+    /// <summary>
+    /// HoudiniLevelData'dan level verilerini alır ve sahneyi hazırlar
+    /// </summary>
+    public void LoadLevelFromHoudiniData(HoudiniLevelData levelData)
+    {
+        if (levelData == null)
+        {
+            Debug.LogError("[LevelLoader] HoudiniLevelData is null!");
+            return;
+        }
+
+        // Set dimensions from Houdini data
+        Width = levelData.gridWidth;
+        Height = levelData.gridHeight;
+        
+        // Copy grid data
+        levelMap = new char[Width, Height];
+        if (levelData.grid != null)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (x < levelData.grid.GetLength(0) && y < levelData.grid.GetLength(1))
+                    {
+                        levelMap[x, y] = levelData.grid[x, y];
+                    }
+                    else
+                    {
+                        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+                    }
+                }
+            }
+        }
+        
+        // Set player spawn position
+        playerStartX = levelData.playerSpawn.x;
+        playerStartY = levelData.playerSpawn.y;
+        
+        Debug.Log($"[LevelLoader] Level loaded from HoudiniData: {Width}x{Height}, Player spawn: ({playerStartX}, {playerStartY})");
+        Debug.Log($"[LevelLoader] Level: {levelData.levelName} (v{levelData.version}), Enemies: {levelData.enemyPositions.Count}");
+    }
+    
+    /// <summary>
+    /// Backward compatibility - TextAsset'ten direkt yükleme (Deprecated)
+    /// </summary>
+    [System.Obsolete("Use LoadSelectedLevel() with HoudiniLevelImporter instead")]
     public void LoadLevelFromFile()
     {
+        Debug.LogWarning("[LevelLoader] LoadLevelFromFile() is deprecated. Use LoadSelectedLevel() instead.");
+        
         if (levelFile == null)
         {
             Debug.LogError("LevelLoader'a bir levelFile atanmamış!");
             return;
         }
 
-        // 1. Dosyayı satırlara böl
-        string[] lines = levelFile.text.Split('\n');
-
-        // 2. Boyutları belirle
-        Height = lines.Length;
-        Width = 0;
-        foreach (string line in lines)
+        // Fallback to old behavior if no HoudiniLevelImporter
+        if (levelImporter == null)
         {
-            // En uzun satırı genişlik olarak kabul et (düzgün format için)
-            if (line.Length > Width)
-            {
-                Width = line.Length;
-            }
+            Debug.LogError("[LevelLoader] No HoudiniLevelImporter found for parsing!");
+            return;
         }
-
-        // 3. levelMap dizisini oluştur
-        levelMap = new char[Width, Height];
-
-        // 4. levelMap'i doldur ve oyuncu pozisyonunu bul
-        for (int y = 0; y < Height; y++)
+        
+        // Parse using HoudiniLevelImporter
+        currentLevelData = levelImporter.LoadLevelData(levelFile);
+        if (currentLevelData != null)
         {
-            string line = lines[y].TrimEnd(); // Satır sonundaki olası boşlukları temizle
-            for (int x = 0; x < Width; x++)
-            {
-                if (x < line.Length)
-                {
-                    char symbol = line[x];
-                    levelMap[x, y] = symbol;
-
-                    // Oyuncu başlangıç noktasını bul ve kaydet
-                    if (TileSymbols.DataSymbolToType(symbol) == TileType.PlayerSpawn)
-                    {
-                        playerStartX = x;
-                        playerStartY = y;
-                        // Oyuncunun yerini haritada boşluk olarak bırakalım ki üzerine başka bir şey çizilmesin
-                        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-                    }
-                }
-                else
-                {
-                    // Eğer satır daha kısaysa, geri kalanını boşlukla doldur
-                    levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-                }
-            }
+            LoadLevelFromHoudiniData(currentLevelData);
         }
     }
     
@@ -609,6 +667,12 @@ public class LevelLoader : MonoBehaviour
     public List<GameObject> GetCollectibles() => new List<GameObject>(collectibles);
     public GameObject GetExitObject() => exitObject;
     public Vector2Int GetPlayerSpawnPosition() => new Vector2Int(playerStartX, playerStartY);
+    
+    // HoudiniLevelData access methods
+    public HoudiniLevelData GetCurrentLevelData() => currentLevelData;
+    public int GetEnemyCount() => currentLevelData?.enemyPositions?.Count ?? 0;
+    public int GetCollectibleCount() => (currentLevelData?.coinPositions?.Count ?? 0) + (currentLevelData?.healthPositions?.Count ?? 0);
+    public Vector2Int GetExitPosition() => currentLevelData?.exitPosition ?? Vector2Int.zero;
     
     public void RemoveEnemy(GameObject enemy)
     {
