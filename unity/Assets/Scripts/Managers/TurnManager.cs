@@ -41,8 +41,8 @@ public class TurnManager : MonoBehaviour
             turnTimer -= turnInterval;
             StartCoroutine(ProcessTurn());
         }
-        
-        if (debugnow) PrintDebugTurn(5);
+
+        if (debugnow) PrintDebugMap();
     }
 
      // --- ANİMASYON KONTROL METODLARI ---
@@ -69,29 +69,7 @@ public class TurnManager : MonoBehaviour
             default: return "?";
         }
     }
-    private void PrintDebugTurn(int interval)
-    {
-        // Her interval turda bir, geçen süreyi debugla
-        if (TurnCount > 0 && TurnCount % interval == 0 && prevBatchTurnCount != TurnCount && debugnow)
-        {
-            float now = Time.realtimeSinceStartup;
-            float elapsed = now - prevBatchTime;
-            
-            // Toplam ve ortalama süreleri hesapla
-            float totalDuration = turnDurations.Sum();
-            float avgDuration = turnDurations.Average();
-            
-            Debug.Log($"[TurnManager] {interval} tur ({TurnCount - interval}-{TurnCount}) " +
-                     $"Toplam: {totalDuration:F4} sn | " +
-                     $"Ortalama: {avgDuration:F4} sn/tur | " +
-                     $"Gerçek Zaman: {elapsed:F2} sn");
-            
-            // Sıfırla
-            turnDurations.Clear();
-            prevBatchTime = now;
-            prevBatchTurnCount = TurnCount;
-        }
-    }
+    
     private void PrintDebugMap()
     {
         var ll = LevelLoader.instance;

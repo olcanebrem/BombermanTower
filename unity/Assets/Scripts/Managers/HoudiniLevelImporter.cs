@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Globalization;
+using System;
+using System.Linq;
 
 [System.Serializable]
 public class HoudiniLevelData
@@ -88,7 +90,7 @@ public class HoudiniLevelImporter : MonoBehaviour
         }
         
         Debug.Log($"[HoudiniLevelImporter] Parsing level file: {levelFile.name}");
-        return ImportFromText(levelFile.text, logParsingDetails);
+        return ImportFromText(levelFile.text, true); // Force logging ON for debugging
     }
     
     /// <summary>
@@ -111,8 +113,8 @@ public class HoudiniLevelImporter : MonoBehaviour
             {
                 string trimmedLine = line.Trim().Replace("\r", "");
                 
-                // Skip comments and empty lines
-                if (trimmedLine.StartsWith("#") || string.IsNullOrEmpty(trimmedLine))
+                // Skip empty lines (only outside GRID_ASCII section)
+                if (currentSection != "GRID_ASCII" && string.IsNullOrEmpty(trimmedLine))
                     continue;
                 
                 // Check for section headers
@@ -140,16 +142,25 @@ public class HoudiniLevelImporter : MonoBehaviour
                         break;
                         
                     case "GRID_ASCII":
+                        if (enableLogging)
+                            Debug.Log($"[HoudiniImporter] GRID_ASCII line: '{trimmedLine}' (length: {trimmedLine.Length})");
                         gridLines.Add(trimmedLine);
                         break;
                 }
             }
             
             // Parse grid data and extract positions
+            if (enableLogging)
+                Debug.Log($"[HoudiniImporter] Collected {gridLines.Count} grid lines");
+                
             if (gridLines.Count > 0)
             {
                 ParseGrid(gridLines, levelData, enableLogging);
                 ExtractSpecialPositions(levelData, enableLogging);
+            }
+            else if (enableLogging)
+            {
+                Debug.LogWarning("[HoudiniImporter] No grid lines found!");
             }
             
             if (enableLogging)
@@ -303,26 +314,49 @@ public class HoudiniLevelImporter : MonoBehaviour
     
     private static void ParseGrid(List<string> gridLines, HoudiniLevelData levelData, bool enableLogging)
     {
+        // Use dimensions from LEVEL_CONFIG (GRID_WIDTH, GRID_HEIGHT)
+        // If not specified, fallback to grid content dimensions
         if (levelData.gridWidth == 0 || levelData.gridHeight == 0)
         {
             levelData.gridHeight = gridLines.Count;
             levelData.gridWidth = gridLines.Count > 0 ? gridLines[0].Length : 0;
+            
+            if (enableLogging)
+                Debug.Log($"[HoudiniImporter] Using auto-detected grid size: {levelData.gridWidth}x{levelData.gridHeight}");
+        }
+        else
+        {
+            if (enableLogging)
+                Debug.Log($"[HoudiniImporter] Using configured grid size: {levelData.gridWidth}x{levelData.gridHeight}");
         }
         
+        // Create grid array with specified dimensions
         levelData.grid = new char[levelData.gridWidth, levelData.gridHeight];
         
-        for (int y = 0; y < levelData.gridHeight && y < gridLines.Count; y++)
+        // Initialize entire grid with empty cells first
+        for (int x = 0; x < levelData.gridWidth; x++)
+        {
+            for (int y = 0; y < levelData.gridHeight; y++)
+            {
+                levelData.grid[x, y] = '.'; // Default empty cell
+            }
+        }
+        
+        // Fill grid from ASCII data
+        for (int y = 0; y < Math.Min(levelData.gridHeight, gridLines.Count); y++)
         {
             string line = gridLines[y];
-            for (int x = 0; x < levelData.gridWidth && x < line.Length; x++)
+            for (int x = 0; x < Math.Min(levelData.gridWidth, line.Length); x++)
             {
-                char cell = line[x];
-                levelData.grid[x, y] = cell;
+                levelData.grid[x, y] = line[x];
             }
         }
         
         if (enableLogging)
+        {
             Debug.Log($"[HoudiniImporter] Grid parsed: {levelData.gridWidth}x{levelData.gridHeight}");
+            Debug.Log($"[HoudiniImporter] ASCII data: {gridLines.Count} lines, max line length: {(gridLines.Count > 0 ? gridLines.Max(l => l.Length) : 0)}");
+        }
     }
     
     private static void ExtractSpecialPositions(HoudiniLevelData levelData, bool enableLogging)

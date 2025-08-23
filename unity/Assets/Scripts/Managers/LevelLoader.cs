@@ -483,6 +483,9 @@ public class LevelLoader : MonoBehaviour
         Width = levelData.gridWidth;
         Height = levelData.gridHeight;
         
+        Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
+        Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
+        
         // Copy grid data
         levelMap = new char[Width, Height];
         if (levelData.grid != null)
@@ -498,6 +501,7 @@ public class LevelLoader : MonoBehaviour
                     else
                     {
                         levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+                        Debug.LogWarning($"[LevelLoader] Out of bounds access at ({x},{y}) - grid size is {levelData.grid.GetLength(0)}x{levelData.grid.GetLength(1)}");
                     }
                 }
             }
@@ -509,6 +513,21 @@ public class LevelLoader : MonoBehaviour
         
         Debug.Log($"[LevelLoader] Level loaded from HoudiniData: {Width}x{Height}, Player spawn: ({playerStartX}, {playerStartY})");
         Debug.Log($"[LevelLoader] Level: {levelData.levelName} (v{levelData.version}), Enemies: {levelData.enemyPositions.Count}");
+        
+        // Debug grid content at key positions
+        Debug.Log($"[LevelLoader] Grid samples - Top-left: '{levelMap[0,0]}', Top-right: '{levelMap[Width-1,0]}', Bottom-left: '{levelMap[0,Height-1]}', Bottom-right: '{levelMap[Width-1,Height-1]}'");
+        
+        // Count non-empty cells
+        int nonEmptyCells = 0;
+        for (int x = 0; x < Width; x++)
+        {
+            for (int y = 0; y < Height; y++)
+            {
+                if (levelMap[x, y] != '.' && levelMap[x, y] != ' ')
+                    nonEmptyCells++;
+            }
+        }
+        Debug.Log($"[LevelLoader] Non-empty cells in grid: {nonEmptyCells}/{Width * Height}");
     }
     
     

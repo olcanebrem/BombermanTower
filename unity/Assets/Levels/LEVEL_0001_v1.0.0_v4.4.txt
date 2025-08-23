@@ -1,13 +1,13 @@
-# === LEVEL DATASET v4.2 ===
+# === LEVEL DATASET v4.4 ===
 # Generator: Houdini 20.0.547
-# Export Date: 2025-08-18 02:45:20
+# Export Date: 2025-08-23 23:14:39
 # Encoding: UTF-8
 # Levels: 1
 # Format: Incremental IDs with Suffix
 # ===================================
 
 # ===================================
-# LEVEL 0002 : Generated Level
+# LEVEL 0001 : Generated Level
 # ===================================
 
 [CELL_TYPES]
@@ -29,10 +29,10 @@
 
 [LEVEL_CONFIG]
 VERSION=v1.0.0
-FORMAT_VERSION=v4.2
-LEVEL_NAME=Generated Level 0002
-LEVEL_ID=0002
-GRID_WIDTH=25
+FORMAT_VERSION=v4.4
+LEVEL_NAME=Generated Level 0001
+LEVEL_ID=0001
+GRID_WIDTH=20
 GRID_HEIGHT=25
 
 # ===================================
@@ -40,7 +40,7 @@ GRID_HEIGHT=25
 # ===================================
 
 [GENERATION_PARAMS]
-HOUDINI_SEED=210
+HOUDINI_SEED=212
 ROOM_COUNT=5
 ENEMY_DENSITY=0.511
 LOOT_DENSITY=3.86
@@ -59,32 +59,32 @@ MIN_PLAYER_EXIT_DIST=26.6
 # ===================================
 
 [GRID_ASCII]
-###########BBBBB##BBB####
-#####B#####B..H..C.HB####
-###########B..EE...E#####
-######B####B..111P.HB####
-###########B.11.H..CB####
-###BB#BBBBBB11EHH...BB###
-B#BBE.H.CHC11..H..HC.B##B
-.C.H.CC...11..HH.HHEFB###
-H..C..C..11H.....C.CHB###
-..HE...H11.....CHC...B###
-.C..H..11C....E....H.B###
-CHF.C.11.EC.HC.E....CB###
-C..CC11.H.H.H.H....E.B#B#
-....11C.....EHB..C...B###
-H.H11....F...HB#BBBBB####
-...S..H......HB##########
-BB#B......H.E.B###BB###B#
-###BBBBBBBBBBBB##########
-######################B##
-B########################
-#########################
-######B##################
-##################B##B###
-#########################
-################B########
+####################
+#############B######
+#####B##############
+##################B#
+###BBBBB#BBBBBB#####
+####B...C.....BB####
+##B#B.FCC..C1111PB##
+#B##BH.C.C.11.H..B##
+####B..HH.11.....###
+##BBB....11...H..B##
+##BEHH.H11HE..H.HB##
+##B....11EC..C.H.B##
+##B.H.11.EC.....C###
+##B..11.###BBB.BBB##
+#B#E11.H##BB#B.#####
+##C11C.......H.B####
+#B11..H.BB##BBB#####
+#BS...E.############
+#BH...E.B###########
+#BB.H...B###########
+##B#B#B#BB##########
+####################
+#B##################
+####################
+#B##################
 
 # ===================================
-# END OF LEVEL 0002
+# END OF LEVEL 0001
 # ===================================
