@@ -1,0 +1,141 @@
+# Unity ML-Agents Configuration for Bomberman PPO Training
+# Based on original ppo.yml configuration
+
+behaviors:
+  PlayerAgent:
+    trainer_type: ppo
+    
+    hyperparameters:
+      # Core PPO hyperparameters
+      learning_rate: 3.0e-4
+      learning_rate_schedule: linear
+      
+      # Training batch settings
+      batch_size: 64
+      buffer_size: 10240
+      
+      # PPO-specific parameters
+      beta: 0.01              # Entropy coefficient (was ent_coef)
+      epsilon: 0.2            # PPO clipping parameter (was clip_range)
+      lambd: 0.95             # GAE lambda parameter (was gae_lambda)
+      num_epoch: 10           # Number of epochs per update (was n_epochs)
+      
+      # Normalization
+      normalize_advantage: true
+      
+    # Network architecture
+    network_settings:
+      normalize: false
+      hidden_units: 256
+      num_layers: 2
+      vis_encode_type: simple
+      
+    # Reward signals
+    reward_signals:
+      extrinsic:
+        gamma: 0.99           # Discount factor
+        strength: 1.0         # Reward signal strength
+        
+    # Training behavior
+    behavior_type: default
+    
+    # Training schedule
+    max_steps: 2000000        # Total training timesteps
+    time_horizon: 2048        # Steps per environment per update (was n_steps)
+    summary_freq: 50000       # TensorBoard logging frequency
+    
+    # Checkpointing
+    keep_checkpoints: 5
+    checkpoint_interval: 100000
+    
+    # Threaded training
+    threaded: true
+
+# Environment settings
+environment_parameters:
+  # Curriculum learning parameters
+  curriculum:
+    enabled: true
+    
+    # Level progression thresholds
+    levels:
+      beginner:
+        min_success_rate: 0.0
+        enemy_count: 1
+        map_size: [11, 11]
+        collectible_count: 3
+        breakable_wall_density: 0.2
+        
+      intermediate:
+        min_success_rate: 0.3
+        enemy_count: 2
+        map_size: [13, 13]
+        collectible_count: 4
+        breakable_wall_density: 0.25
+        
+      advanced:
+        min_success_rate: 0.5
+        enemy_count: 3
+        map_size: [15, 15]
+        collectible_count: 5
+        breakable_wall_density: 0.3
+        
+      expert:
+        min_success_rate: 0.7
+        enemy_count: 4
+        map_size: [15, 15]
+        collectible_count: 6
+        breakable_wall_density: 0.35
+    
+    # Curriculum evaluation settings
+    evaluation_window: 100
+    update_frequency: 25000
+
+  # Reward shaping parameters
+  rewards:
+    # Primary rewards
+    level_complete: 10.0
+    enemy_kill: 2.0
+    collectible_base: 1.0
+    health_collectible: 1.5
+    upgrade_collectible: 2.0
+    
+    # Action rewards
+    bomb_placed: 0.1
+    wall_destroyed: 0.2
+    exploration: 0.05
+    
+    # Penalties
+    death: -5.0
+    damage: -1.0
+    wall_collision: -0.1
+    inactivity: -0.02
+    step_penalty: -0.001
+    timeout: -2.0
+    bomb_self_damage: -0.5
+    
+    # Distance-based rewards
+    enemy_proximity: 0.01
+    exit_proximity: 0.02
+    collectible_proximity: 0.01
+    
+    # Strategic rewards
+    tactical_positioning: 0.05
+    safety_bonus: 0.01
+    all_enemies_cleared: 3.0
+
+# Engine settings
+engine_settings:
+  width: 1024
+  height: 768
+  quality_level: 0
+  time_scale: 20.0          # Speed up training
+  target_frame_rate: -1     # Unlimited FPS
+  capture_frame_rate: 60
+
+# Torch settings (for PyTorch backend)
+torch_settings:
+  device: auto              # auto, cpu, cuda
+  
+# Debug settings
+debug: false

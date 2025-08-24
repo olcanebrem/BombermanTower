@@ -14,6 +14,10 @@ public class PlayerAgent : Agent, ITurnBased
     [Range(1, 20)]
     public float moveSpeed = 5f;
     
+    [Header("Training Settings")]
+    [Tooltip("Behavior name must match YAML config - Default: PlayerAgent")]
+    public string behaviorName = "PlayerAgent";
+    
     [Header("Observation Settings")]
     [Range(1, 5)]
     public int observationRadius = 2; // Grid radius around player for observations
@@ -69,6 +73,13 @@ public class PlayerAgent : Agent, ITurnBased
     
     public override void Initialize()
     {
+        // Set behavior name for ML-Agents training
+        if (!string.IsNullOrEmpty(behaviorName))
+        {
+            GetComponent<Unity.MLAgents.Policies.BehaviorParameters>().BehaviorName = behaviorName;
+            Debug.Log($"[PlayerAgent] Behavior name set to: {behaviorName}");
+        }
+        
         // Get required components
         playerController = GetComponent<PlayerController>();
         rewardSystem = GetComponent<RewardSystem>();

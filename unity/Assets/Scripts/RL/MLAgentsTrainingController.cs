@@ -1,0 +1,418 @@
+using UnityEngine;
+using System;
+using System.IO;
+using System.Diagnostics;
+using System.Collections;
+
+/// <summary>
+/// Controller for ML-Agents training from within Unity
+/// Replaces PPOTrainingBridge for native ML-Agents workflow
+/// </summary>
+public class MLAgentsTrainingController : MonoBehaviour
+{
+    public static MLAgentsTrainingController Instance { get; private set; }
+    
+    [Header("ML-Agents Training Configuration")]
+    [SerializeField] private string configPath = "../../Python/config/bomberman_ppo_config.yaml";
+    [SerializeField] private string runId = "bomberman_training";
+    [SerializeField] private bool autoGenerateRunId = true;
+    [SerializeField] private bool generateConfigFromUnity = true;
+    
+    [Header("PPO Hyperparameters")]
+    [SerializeField, Range(0.0001f, 0.01f)] private float learningRate = 0.0003f;
+    [SerializeField, Range(0.8f, 0.999f)] private float gamma = 0.99f;
+    [SerializeField, Range(0.01f, 0.5f)] private float epsilon = 0.2f;
+    [SerializeField, Range(0.8f, 0.99f)] private float gaeLambda = 0.95f;
+    [SerializeField, Range(0.001f, 0.1f)] private float beta = 0.01f;
+    [SerializeField, Range(32, 512)] private int batchSize = 64;
+    [SerializeField, Range(512, 20480)] private int bufferSize = 10240;
+    [SerializeField, Range(3, 20)] private int numEpoch = 10;
+    [SerializeField, Range(1024, 4096)] private int timeHorizon = 2048;
+    [SerializeField, Range(128, 512)] private int hiddenUnits = 256;
+    [SerializeField, Range(1, 4)] private int numLayers = 2;
+    
+    [Header("Training Schedule")]
+    [SerializeField, Range(100000, 10000000)] private int maxSteps = 2000000;
+    [SerializeField, Range(10000, 100000)] private int summaryFreq = 50000;
+    [SerializeField, Range(50000, 500000)] private int checkpointInterval = 100000;
+    [SerializeField] private bool normalizeAdvantage = true;
+    
+    [Header("Training Control")]
+    [SerializeField] private bool startTrainingOnAwake = false;
+    [SerializeField] private bool autoParseResults = true;
+    [SerializeField] private float statusCheckInterval = 10f;
+    
+    [Header("Paths")]
+    [SerializeField] private string pythonExecutable = "python";
+    [SerializeField] private string mlagentsLearnPath = "mlagents-learn";
+    [SerializeField] private string resultsParserPath = "../../Python/mlagents_results_parser.py";
+    
+    [Header("Training Status")]
+    [SerializeField, TextArea(3, 8)] private string trainingStatus = "Ready to start training...";
+    [SerializeField] private bool isTraining = false;
+    [SerializeField] private string currentRunId = "";
+    [SerializeField] private float trainingStartTime = 0f;
+    
+    // Events
+    public event System.Action<string> OnTrainingStarted;
+    public event System.Action<string> OnTrainingCompleted;
+    public event System.Action<string> OnTrainingFailed;
+    public event System.Action<RLTrainingData> OnResultsParsed;
+    
+    // Private fields
+    private Process trainingProcess;
+    private string actualConfigPath;
+    private string actualResultsParserPath;
+    
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            Initialize();
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+        }
+    }
+    
+    private void Initialize()
+    {
+        // Setup paths
+        SetupPaths();
+        
+        // Generate run ID if needed
+        if (autoGenerateRunId)
+        {
+            currentRunId = GenerateRunId();
+        }
+        else
+        {
+            currentRunId = runId;
+        }
+        
+        UpdateStatus($"Initialized. Ready to start training with run ID: {currentRunId}");
+        
+        if (startTrainingOnAwake)
+        {
+            StartCoroutine(DelayedStartTraining());
+        }
+    }
+    
+    private void SetupPaths()
+    {
+        string projectRoot = Path.GetDirectoryName(Path.GetDirectoryName(Application.dataPath));
+        
+        actualConfigPath = Path.GetFullPath(Path.Combine(projectRoot, configPath.Replace("../../", "")));
+        actualResultsParserPath = Path.GetFullPath(Path.Combine(projectRoot, resultsParserPath.Replace("../../", "")));
+        
+        UnityEngine.Debug.Log($"[MLAgentsTrainingController] Config path: {actualConfigPath}");
+        UnityEngine.Debug.Log($"[MLAgentsTrainingController] Results parser: {actualResultsParserPath}");
+    }
+    
+    private string GenerateRunId()
+    {
+        return $"{runId}_{DateTime.Now:yyyyMMdd_HHmmss}";
+    }
+    
+    private IEnumerator DelayedStartTraining()
+    {
+        yield return new WaitForSeconds(2f); // Wait for everything to initialize
+        StartTraining();
+    }
+    
+    public void StartTraining()
+    {
+        if (isTraining)
+        {
+            UnityEngine.Debug.LogWarning("[MLAgentsTrainingController] Training already in progress!");
+            return;
+        }
+        
+        if (!File.Exists(actualConfigPath))
+        {
+            string error = $"Config file not found: {actualConfigPath}";
+            UnityEngine.Debug.LogError($"[MLAgentsTrainingController] {error}");
+            UpdateStatus($"❌ ERROR: {error}");
+            return;
+        }
+        
+        StartTrainingProcess();
+    }
+    
+    public void StopTraining()
+    {
+        if (!isTraining)
+        {
+            UnityEngine.Debug.LogWarning("[MLAgentsTrainingController] No training in progress!");
+            return;
+        }
+        
+        StopTrainingProcess();
+    }
+    
+    private void StartTrainingProcess()
+    {
+        try
+        {
+            // Build mlagents-learn command
+            string arguments = $"{mlagentsLearnPath} \"{actualConfigPath}\" --run-id={currentRunId} --force";
+            
+            ProcessStartInfo startInfo = new ProcessStartInfo()
+            {
+                FileName = pythonExecutable,
+                Arguments = $"-m {arguments}",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(actualConfigPath)
+            };
+            
+            // Add protobuf compatibility environment variable
+            startInfo.EnvironmentVariables["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python";
+            
+            trainingProcess = new Process()
+            {
+                StartInfo = startInfo,
+                EnableRaisingEvents = true
+            };
+            
+            trainingProcess.OutputDataReceived += OnTrainingOutputReceived;
+            trainingProcess.ErrorDataReceived += OnTrainingErrorReceived;
+            trainingProcess.Exited += OnTrainingProcessExited;
+            
+            trainingProcess.Start();
+            trainingProcess.BeginOutputReadLine();
+            trainingProcess.BeginErrorReadLine();
+            
+            isTraining = true;
+            trainingStartTime = Time.time;
+            
+            UpdateStatus($"🚀 Training started with run ID: {currentRunId}\\nProcess ID: {trainingProcess.Id}\\nWaiting for Unity connection...");
+            
+            OnTrainingStarted?.Invoke(currentRunId);
+            
+            // Start status monitoring
+            InvokeRepeating(nameof(UpdateTrainingStatus), statusCheckInterval, statusCheckInterval);
+            
+            UnityEngine.Debug.Log($"[MLAgentsTrainingController] Training started: {currentRunId}");
+            
+        }
+        catch (Exception e)
+        {
+            string error = $"Failed to start training: {e.Message}";
+            UnityEngine.Debug.LogError($"[MLAgentsTrainingController] {error}");
+            UpdateStatus($"❌ ERROR: {error}");
+            isTraining = false;
+        }
+    }
+    
+    private void StopTrainingProcess()
+    {
+        CancelInvoke(nameof(UpdateTrainingStatus));
+        
+        if (trainingProcess != null && !trainingProcess.HasExited)
+        {
+            try
+            {
+                trainingProcess.Kill();
+                trainingProcess.WaitForExit(5000);
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError($"[MLAgentsTrainingController] Error stopping process: {e.Message}");
+            }
+        }
+        
+        isTraining = false;
+        UpdateStatus($"⏹️ Training stopped manually at {DateTime.Now:HH:mm:ss}");
+        
+        UnityEngine.Debug.Log("[MLAgentsTrainingController] Training stopped manually");
+    }
+    
+    private void UpdateTrainingStatus()
+    {
+        if (isTraining && trainingProcess != null && !trainingProcess.HasExited)
+        {
+            float elapsedTime = Time.time - trainingStartTime;
+            int minutes = Mathf.FloorToInt(elapsedTime / 60f);
+            int seconds = Mathf.FloorToInt(elapsedTime % 60f);
+            
+            UpdateStatus($"⏳ Training in progress...\\nRun ID: {currentRunId}\\nElapsed: {minutes:00}:{seconds:00}\\nProcess: Active");
+        }
+    }
+    
+    private void OnTrainingOutputReceived(object sender, DataReceivedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.Data))
+        {
+            UnityEngine.Debug.Log($"[ML-Agents] {e.Data}");
+            
+            // Update status based on key messages
+            if (e.Data.Contains("Connected to Unity environment"))
+            {
+                UpdateStatus($"✅ Connected to Unity\\nTraining active...\\nRun ID: {currentRunId}");
+            }
+            else if (e.Data.Contains("Learning was interrupted"))
+            {
+                UpdateStatus($"⚠️ Training interrupted\\nRun ID: {currentRunId}");
+            }
+        }
+    }
+    
+    private void OnTrainingErrorReceived(object sender, DataReceivedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.Data))
+        {
+            UnityEngine.Debug.LogError($"[ML-Agents Error] {e.Data}");
+        }
+    }
+    
+    private void OnTrainingProcessExited(object sender, EventArgs e)
+    {
+        CancelInvoke(nameof(UpdateTrainingStatus));
+        
+        isTraining = false;
+        
+        if (trainingProcess.ExitCode == 0)
+        {
+            UpdateStatus($"✅ Training completed successfully!\\nRun ID: {currentRunId}\\nCompleted at: {DateTime.Now:HH:mm:ss}");
+            OnTrainingCompleted?.Invoke(currentRunId);
+            
+            // Parse results if enabled
+            if (autoParseResults)
+            {
+                StartCoroutine(ParseTrainingResults());
+            }
+        }
+        else
+        {
+            UpdateStatus($"❌ Training failed\\nRun ID: {currentRunId}\\nExit Code: {trainingProcess.ExitCode}\\nFailed at: {DateTime.Now:HH:mm:ss}");
+            OnTrainingFailed?.Invoke($"Exit code: {trainingProcess.ExitCode}");
+        }
+        
+        UnityEngine.Debug.Log($"[MLAgentsTrainingController] Training process exited with code: {trainingProcess.ExitCode}");
+    }
+    
+    private IEnumerator ParseTrainingResults()
+    {
+        yield return new WaitForSeconds(2f); // Wait for files to be written
+        
+        UpdateStatus($"📊 Parsing training results...\\nRun ID: {currentRunId}");
+        
+        try
+        {
+            // Run results parser
+            string arguments = $"\"{actualResultsParserPath}\" --run-id={currentRunId} --logs-dir=results --unity-levels=\"{Path.Combine(Application.dataPath, "Levels")}\"";
+            
+            ProcessStartInfo parseStartInfo = new ProcessStartInfo()
+            {
+                FileName = pythonExecutable,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(actualResultsParserPath)
+            };
+            
+            // Add protobuf compatibility environment variable
+            parseStartInfo.EnvironmentVariables["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python";
+            
+            using (Process parseProcess = Process.Start(parseStartInfo))
+            {
+                string output = parseProcess.StandardOutput.ReadToEnd();
+                string error = parseProcess.StandardError.ReadToEnd();
+                
+                parseProcess.WaitForExit();
+                
+                if (parseProcess.ExitCode == 0)
+                {
+                    UpdateStatus($"✅ Results parsed successfully!\\nRun ID: {currentRunId}\\nData integrated with level files");
+                    UnityEngine.Debug.Log($"[MLAgentsTrainingController] Results parsing completed:\\n{output}");
+                }
+                else
+                {
+                    UpdateStatus($"⚠️ Results parsing failed\\nError: {error}");
+                    UnityEngine.Debug.LogError($"[MLAgentsTrainingController] Results parsing failed: {error}");
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            UpdateStatus($"❌ Error parsing results: {e.Message}");
+            UnityEngine.Debug.LogError($"[MLAgentsTrainingController] Error parsing results: {e.Message}");
+        }
+    }
+    
+    private void UpdateStatus(string status)
+    {
+        trainingStatus = status;
+        UnityEngine.Debug.Log($"[MLAgentsTrainingController] Status: {status.Replace("\\n", " | ")}");
+    }
+    
+    #region Public API
+    
+    public bool IsTraining => isTraining;
+    public string CurrentRunId => currentRunId;
+    public string TrainingStatus => trainingStatus;
+    public float ElapsedTrainingTime => isTraining ? Time.time - trainingStartTime : 0f;
+    
+    public void SetRunId(string newRunId)
+    {
+        if (!isTraining)
+        {
+            currentRunId = newRunId;
+            UpdateStatus($"Run ID changed to: {currentRunId}");
+        }
+        else
+        {
+            UnityEngine.Debug.LogWarning("[MLAgentsTrainingController] Cannot change run ID during training");
+        }
+    }
+    
+    #endregion
+    
+    #region Context Menu Actions
+    
+    [ContextMenu("Start ML-Agents Training")]
+    public void StartTrainingMenu()
+    {
+        StartTraining();
+    }
+    
+    [ContextMenu("Stop ML-Agents Training")]
+    public void StopTrainingMenu()
+    {
+        StopTraining();
+    }
+    
+    [ContextMenu("Generate New Run ID")]
+    public void GenerateNewRunId()
+    {
+        if (!isTraining)
+        {
+            currentRunId = GenerateRunId();
+            UpdateStatus($"Generated new run ID: {currentRunId}");
+        }
+    }
+    
+    [ContextMenu("Parse Latest Results")]
+    public void ParseLatestResults()
+    {
+        if (!isTraining)
+        {
+            StartCoroutine(ParseTrainingResults());
+        }
+    }
+    
+    #endregion
+    
+    private void OnDestroy()
+    {
+        StopTraining();
+    }
+}
