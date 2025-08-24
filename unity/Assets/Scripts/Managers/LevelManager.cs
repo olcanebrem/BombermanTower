@@ -45,6 +45,9 @@ public class LevelManager : MonoBehaviour
     public event System.Action<LevelData> OnLevelLoaded;
     public event System.Action OnLevelReset;
     
+    // RL Training Integration - Write Only
+    public bool enableRLTrainingLogging = true;
+    
     private void Awake()
     {
         // Singleton pattern
@@ -190,6 +193,33 @@ public class LevelManager : MonoBehaviour
     public LevelData GetCurrentLevelData() => currentLevelData;
     public List<string> GetAvailableLevels() => new List<string>(availableLevels);
     public string GetCurrentLevelName() => currentLevelName;
+    
+    // RL Training Integration Methods
+    public void SaveRLTrainingResults(RLTrainingData trainingData)
+    {
+        if (enableRLTrainingLogging && LevelTrainingManager.Instance != null)
+        {
+            string levelFileName = GetCurrentLevelFileName();
+            if (!string.IsNullOrEmpty(levelFileName))
+            {
+                LevelTrainingManager.Instance.SaveTrainingData(levelFileName, trainingData);
+                Debug.Log($"[LevelManager] Saved RL training data for {levelFileName}");
+            }
+        }
+    }
+    
+    public string GetCurrentLevelFileName()
+    {
+        if (!string.IsNullOrEmpty(currentLevelName))
+        {
+            // Check if it already has .txt extension
+            if (currentLevelName.EndsWith(".txt"))
+                return currentLevelName;
+            else
+                return currentLevelName + ".txt";
+        }
+        return null;
+    }
     
     // Helper methods
     public Vector2Int WorldToGrid(Vector3 worldPosition)

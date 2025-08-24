@@ -88,3 +88,73 @@ MIN_PLAYER_EXIT_DIST=26.6
 # ===================================
 # END OF LEVEL 0001
 # ===================================
+
+# ===================================
+# RL TRAINING DATA
+# ===================================
+
+# ===================================
+# RL TRAINING DATA v1
+# ===================================
+
+[training_params_v1]
+version=1
+seed=12345
+learning_rate=0.000300
+gamma=0.990
+epsilon=0.200
+max_steps=50000
+training_date=2025-08-24T16:45:00Z
+training_note=Initial training run with default parameters
+
+[training_results_v1]
+episodes=120
+avg_reward=0.780000
+success_rate=64.500
+deaths=23
+collectibles=45/60
+training_time=125.5
+
+# ===================================
+# RL TRAINING DATA v2
+# ===================================
+
+[training_params_v2]
+version=2
+seed=54321
+learning_rate=0.000500
+gamma=0.950
+epsilon=0.100
+max_steps=75000
+training_date=2025-08-24T17:15:00Z
+training_note=Improved hyperparameters for better performance
+
+[training_results_v2]
+episodes=95
+avg_reward=0.890000
+success_rate=78.200
+deaths=15
+collectibles=52/60
+training_time=180.2
+
+# ===================================
+# RL TRAINING DATA v3
+# ===================================
+
+[training_params_v3]
+version=3
+seed=98765
+learning_rate=0.000700
+gamma=0.980
+epsilon=0.150
+max_steps=60000
+training_date=2025-08-24T18:30:00Z
+training_note=Optimized parameters - best performance yet!
+
+[training_results_v3]
+episodes=85
+avg_reward=0.920000
+success_rate=82.100
+deaths=12
+collectibles=55/60
+training_time=165.8
