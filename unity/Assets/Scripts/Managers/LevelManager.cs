@@ -32,8 +32,9 @@ public class LevelManager : MonoBehaviour
     public static LevelManager Instance { get; private set; }
     
     [Header("Level Settings")]
-    public string currentLevelName = "LEVEL_0001_v1.0.0_v4.3";
+    [SerializeField] private string defaultLevelName = ""; // Auto-detected first level
     public bool randomizeLevel = false;
+    public bool autoSelectFirstLevel = true;
     
     [Header("Level Paths")]
     public string levelsPath = "Assets/Levels/";
@@ -41,6 +42,7 @@ public class LevelManager : MonoBehaviour
     private LevelData currentLevelData;
     private LevelLoader levelLoader;
     private List<string> availableLevels;
+    private string currentLevelName; // Now private, auto-managed
     
     public event System.Action<LevelData> OnLevelLoaded;
     public event System.Action OnLevelReset;
@@ -65,7 +67,9 @@ public class LevelManager : MonoBehaviour
         levelLoader = GetComponent<LevelLoader>();
         if (levelLoader == null)
         {
-            levelLoader = gameObject.AddComponent<LevelLoader>();
+            Debug.LogError("[LevelManager] LevelLoader component is required on the same GameObject! " +
+                          "Please add LevelLoader component manually to this GameObject and configure it properly.");
+            return;
         }
         
         ScanAvailableLevels();
@@ -83,15 +87,41 @@ public class LevelManager : MonoBehaviour
         // Use LevelLoader's level scanning system
         if (levelLoader != null)
         {
-            levelLoader.ScanForLevelFiles();
-            var levelEntries = levelLoader.GetAvailableLevels();
-            
-            foreach (var entry in levelEntries)
+            try
             {
-                availableLevels.Add(entry.fileName);
+                levelLoader.ScanForLevelFiles();
+                var levelEntries = levelLoader.GetAvailableLevels();
+                
+                if (levelEntries != null)
+                {
+                    foreach (var entry in levelEntries)
+                    {
+                        if (!string.IsNullOrEmpty(entry.fileName))
+                        {
+                            availableLevels.Add(entry.fileName);
+                        }
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[LevelManager] Error scanning levels: {e.Message}");
             }
             
             Debug.Log($"[LevelManager] Found {availableLevels.Count} levels via LevelLoader: {string.Join(", ", availableLevels)}");
+            
+            // Auto-select first level if no default set
+            if (autoSelectFirstLevel && availableLevels.Count > 0)
+            {
+                if (string.IsNullOrEmpty(defaultLevelName) || !availableLevels.Contains(defaultLevelName))
+                {
+                    defaultLevelName = availableLevels[0];
+                    Debug.Log($"[LevelManager] Auto-selected first level: {defaultLevelName}");
+                }
+                currentLevelName = defaultLevelName;
+            }
+            
+            UpdateInspectorStatus();
         }
         else
         {
@@ -105,8 +135,21 @@ public class LevelManager : MonoBehaviour
         {
             currentLevelName = availableLevels[Random.Range(0, availableLevels.Count)];
         }
+        else if (string.IsNullOrEmpty(currentLevelName) && availableLevels.Count > 0)
+        {
+            // Fallback: use first available level
+            currentLevelName = availableLevels[0];
+            Debug.Log($"[LevelManager] No level set, using first available: {currentLevelName}");
+        }
         
-        LoadLevel(currentLevelName);
+        if (!string.IsNullOrEmpty(currentLevelName))
+        {
+            LoadLevel(currentLevelName);
+        }
+        else
+        {
+            Debug.LogError("[LevelManager] No level to load! Make sure level files exist in Assets/Levels/");
+        }
     }
     
     public void LoadLevel(string levelName)
@@ -133,11 +176,15 @@ public class LevelManager : MonoBehaviour
                 HoudiniLevelData houdiniData = levelLoader.GetCurrentLevelData();
                 if (houdiniData != null)
                 {
+                    // Update current level name
+                    currentLevelName = levelName;
+                    
                     // Convert HoudiniLevelData to LevelData for compatibility
                     currentLevelData = ConvertHoudiniToLevelData(houdiniData);
                     currentLevelData.levelName = levelName;
                     
                     OnLevelLoaded?.Invoke(currentLevelData);
+                    UpdateInspectorStatus();
                     Debug.Log($"[LevelManager] Level loaded via LevelLoader: {levelName} ({currentLevelData.width}x{currentLevelData.height})");
                     Debug.Log($"[LevelManager] Generation params - Seed: {houdiniData.houdiniSeed}, Rooms: {houdiniData.roomCount}, Enemy Density: {houdiniData.enemyDensity}");
                 }
@@ -193,6 +240,18 @@ public class LevelManager : MonoBehaviour
     public LevelData GetCurrentLevelData() => currentLevelData;
     public List<string> GetAvailableLevels() => new List<string>(availableLevels);
     public string GetCurrentLevelName() => currentLevelName;
+    
+    // Inspector display (read-only)
+    [Header("Current Status")]
+    [SerializeField, TextArea(2, 4)] private string inspectorStatus = "Loading...";
+    
+    private void UpdateInspectorStatus()
+    {
+        inspectorStatus = $"Current Level: {currentLevelName ?? "None"}\n" +
+                         $"Available Levels: {availableLevels?.Count ?? 0}\n" +
+                         $"Auto Select First: {autoSelectFirstLevel}\n" +
+                         $"Randomize: {randomizeLevel}";
+    }
     
     // RL Training Integration Methods
     public void SaveRLTrainingResults(RLTrainingData trainingData)

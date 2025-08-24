@@ -158,3 +158,42 @@ success_rate=82.100
 deaths=12
 collectibles=55/60
 training_time=165.8
+
+# ===================================
+# RL TRAINING DATA v4
+# ===================================
+
+[training_params_v4]
+version=4
+seed=42987
+learning_rate=0.000300
+gamma=0.990
+epsilon=0.200
+max_steps=2000000
+gae_lambda=0.950
+entropy_coef=0.010000
+vf_coef=0.500
+batch_size=64
+n_steps=2048
+n_epochs=10
+max_grad_norm=0.500
+normalize_advantage=true
+training_date=2025-08-24T19:45:00Z
+training_note=Full PPO training with complete hyperparameter set
+
+[training_results_v4]
+episodes=340
+avg_reward=0.945000
+success_rate=91.200
+deaths=4
+collectibles=59/60
+training_time=287.3
+total_timesteps=2000000
+training_fps=125.4
+final_loss=0.002341
+policy_loss=0.001823
+value_loss=0.000518
+entropy_loss=0.000156
+kl_divergence=0.003421
+explained_variance=0.892000
+approx_kl=0.003156

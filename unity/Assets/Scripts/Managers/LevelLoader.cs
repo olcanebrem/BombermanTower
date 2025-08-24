@@ -89,7 +89,8 @@ public class LevelLoader : MonoBehaviour
     {
         if (instance != null && instance != this)
         {
-            Destroy(gameObject);
+            Debug.LogWarning("[LevelLoader] Multiple LevelLoader instances detected. Destroying duplicate component only.");
+            Destroy(this);
             return;
         }
         instance = this;
@@ -104,14 +105,31 @@ public class LevelLoader : MonoBehaviour
 
         // Prefab sözlüğünü doldur
         prefabMap = new Dictionary<TileType, TileBase>();
-        foreach (var entry in tilePrefabs)
+        if (tilePrefabs != null)
         {
-            if (entry.prefab != null && !prefabMap.ContainsKey(entry.type))
+            foreach (var entry in tilePrefabs)
             {
-                prefabMap.Add(entry.type, entry.prefab);
+                if (entry.prefab != null && !prefabMap.ContainsKey(entry.type))
+                {
+                    prefabMap.Add(entry.type, entry.prefab);
+                }
             }
+            Debug.Log($"[LevelLoader] Loaded {prefabMap.Count} tile prefab mappings");
         }
-        spriteDatabase.Initialize(); // Veri tabanını hazırla
+        else
+        {
+            Debug.LogWarning("[LevelLoader] tilePrefabs array is null! Please assign tile prefabs in Inspector.");
+        }
+        // Sprite database'i initialize et
+        if (spriteDatabase != null)
+        {
+            spriteDatabase.Initialize(); // Veri tabanını hazırla
+            Debug.Log("[LevelLoader] SpriteDatabase initialized");
+        }
+        else
+        {
+            Debug.LogWarning("[LevelLoader] spriteDatabase is null! Please assign SpriteDatabase in Inspector.");
+        }
     }
 
     void Start()
@@ -557,33 +575,43 @@ public class LevelLoader : MonoBehaviour
                 // Prefab sözlüğünde bu tip için bir girdi var mı diye bak.
                 if (prefabMap.TryGetValue(type, out var tileBasePrefab))
                 {
-                    Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-                    TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
-                    
-                    // Yeni oluşturulan tile'ı kur.
-                    newTile.SetVisual(spriteDatabase.GetSprite(type));
-                    (newTile as IInitializable)?.Init(x, y);
-                    
-                    // ML-Agent tracking - Add to appropriate lists
-                    if (type == TileType.Enemy || type == TileType.EnemyShooter)
+                    if (tileBasePrefab != null)
                     {
-                        enemies.Add(newTile.gameObject);
+                        Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
+                        TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
+                        
+                        // Yeni oluşturulan tile'ı kur.
+                        if (spriteDatabase != null)
+                        {
+                            newTile.SetVisual(spriteDatabase.GetSprite(type));
+                        }
+                        (newTile as IInitializable)?.Init(x, y);
+                        
+                        // ML-Agent tracking - Add to appropriate lists
+                        if (type == TileType.Enemy || type == TileType.EnemyShooter)
+                        {
+                            enemies.Add(newTile.gameObject);
+                        }
+                        else if (type == TileType.Coin || type == TileType.Health)
+                        {
+                            collectibles.Add(newTile.gameObject);
+                        }
+                        else if (type == TileType.Stairs)
+                        {
+                            exitObject = newTile.gameObject;
+                        }
+                        
+                        // Tile array'ine ekle
+                        tileObjects[x, y] = newTile.gameObject;
                     }
-                    else if (type == TileType.Coin || type == TileType.Health)
+                    else
                     {
-                        collectibles.Add(newTile.gameObject);
+                        Debug.LogWarning($"[LevelLoader] TileBase prefab for {type} is null at position ({x}, {y})");
                     }
-                    else if (type == TileType.Stairs)
-                    {
-                        exitObject = newTile.gameObject;
-                    }
-                    
-                    // Referans haritasına ekle.
-                    tileObjects[x, y] = newTile.gameObject;
                 }
                 else
                 {
-                    Debug.LogWarning($"Prefab bulunamadı, bu tip için: {type}");
+                    Debug.LogWarning($"[LevelLoader] No prefab mapping found for TileType: {type} at position ({x}, {y})");
                 }
             }
         }
@@ -596,7 +624,18 @@ public class LevelLoader : MonoBehaviour
         Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
         
         // b) Oyuncuyu, hesaplanan bu pozisyonda oluştur.
-        playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+        if (playerPrefab != null)
+        {
+            playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+        }
+        else
+        {
+            Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
+            // Create empty GameObject as fallback
+            playerObject = new GameObject("Player (Missing Prefab)");
+            playerObject.transform.position = playerPos;
+            playerObject.transform.SetParent(transform);
+        }
         
         // c) Gerekli bileşen referanslarını SADECE BİR KERE al.
         var playerController = playerObject.GetComponent<PlayerController>();

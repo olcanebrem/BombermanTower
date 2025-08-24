@@ -14,8 +14,20 @@ public class RLTrainingData
     public int seed = 12345;
     public float learningRate = 0.0003f;
     public float gamma = 0.99f;
-    public float epsilon = 0.2f;
+    public float epsilon = 0.2f;              // PPO clip_range
     public int maxSteps = 50000;
+    
+    [Header("PPO Hyperparameters")]
+    public float gaeLambda = 0.95f;           // GAE lambda parameter
+    public float entropyCoef = 0.01f;         // Entropy coefficient (ent_coef)
+    public float vfCoef = 0.5f;               // Value function coefficient
+    public int batchSize = 64;                // Batch size for training
+    public int nSteps = 2048;                 // Steps per environment per update
+    public int nEpochs = 10;                  // Epochs per update
+    public float maxGradNorm = 0.5f;          // Maximum gradient norm
+    public bool normalizeAdvantage = true;    // Normalize advantages
+    public float clipRangeVf = -1f;           // VF clipping (-1 = same as epsilon)
+    public float targetKl = -1f;              // Target KL divergence (-1 = disabled)
     
     [Header("Training Results")]
     public int episodes;
@@ -25,6 +37,17 @@ public class RLTrainingData
     public int collectiblesFound;
     public int totalCollectibles;
     public float totalTrainingTime;
+    
+    [Header("Advanced Training Metrics")]
+    public float finalLoss = 0f;              // Final training loss
+    public float policyLoss = 0f;             // Policy loss
+    public float valueLoss = 0f;              // Value function loss
+    public float entropyLoss = 0f;            // Entropy loss
+    public float klDivergence = 0f;           // KL divergence
+    public float explainedVariance = 0f;      // Explained variance
+    public int totalTimesteps = 0;            // Total training timesteps
+    public float fps = 0f;                    // Training FPS
+    public float approxKl = 0f;               // Approximate KL divergence
     
     public string CollectiblesRatio => $"{collectiblesFound}/{totalCollectibles}";
     public string VersionTag => $"v{version}";
@@ -167,4 +190,20 @@ public enum DifficultyRating
     Medium, 
     Hard, 
     Expert 
+}
+
+[System.Serializable]
+public class TrainingExportData
+{
+    public string levelName;
+    public System.DateTime exportDate;
+    public List<RLTrainingData> trainingData;
+}
+
+[System.Serializable]
+public class AllLevelsExportData
+{
+    public System.DateTime exportDate;
+    public int totalLevels;
+    public Dictionary<string, List<RLTrainingData>> allLevelsData;
 }

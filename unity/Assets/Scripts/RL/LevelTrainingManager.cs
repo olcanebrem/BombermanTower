@@ -262,7 +262,7 @@ public class LevelTrainingManager : MonoBehaviour
         try
         {
             var allTraining = GetAllTrainingVersions(levelFileName);
-            var exportData = new
+            var exportData = new TrainingExportData
             {
                 levelName = levelFileName,
                 exportDate = DateTime.Now,
@@ -294,9 +294,10 @@ public class LevelTrainingManager : MonoBehaviour
             }
             
             string json = File.ReadAllText(importPath);
-            var importData = JsonConvert.DeserializeObject<dynamic>(json);
             
-            var trainingList = JsonConvert.DeserializeObject<List<RLTrainingData>>(importData.trainingData.ToString());
+            // Create a proper class for import data instead of using dynamic
+            var importData = JsonConvert.DeserializeObject<TrainingExportData>(json);
+            var trainingList = importData.trainingData;
             
             foreach (var training in trainingList)
             {
@@ -327,7 +328,7 @@ public class LevelTrainingManager : MonoBehaviour
                 allData[fileName] = GetAllTrainingVersions(fileName);
             }
             
-            var exportData = new
+            var exportData = new AllLevelsExportData
             {
                 exportDate = DateTime.Now,
                 totalLevels = allData.Keys.Count,
@@ -424,6 +425,21 @@ public class LevelTrainingManager : MonoBehaviour
             lines.Add($"gamma={trainingData.gamma.ToString("F3", CultureInfo.InvariantCulture)}");
             lines.Add($"epsilon={trainingData.epsilon.ToString("F3", CultureInfo.InvariantCulture)}");
             lines.Add($"max_steps={trainingData.maxSteps}");
+            
+            // PPO Hyperparameters
+            lines.Add($"gae_lambda={trainingData.gaeLambda.ToString("F3", CultureInfo.InvariantCulture)}");
+            lines.Add($"entropy_coef={trainingData.entropyCoef.ToString("F6", CultureInfo.InvariantCulture)}");
+            lines.Add($"vf_coef={trainingData.vfCoef.ToString("F3", CultureInfo.InvariantCulture)}");
+            lines.Add($"batch_size={trainingData.batchSize}");
+            lines.Add($"n_steps={trainingData.nSteps}");
+            lines.Add($"n_epochs={trainingData.nEpochs}");
+            lines.Add($"max_grad_norm={trainingData.maxGradNorm.ToString("F3", CultureInfo.InvariantCulture)}");
+            lines.Add($"normalize_advantage={trainingData.normalizeAdvantage.ToString().ToLower()}");
+            if (trainingData.clipRangeVf >= 0)
+                lines.Add($"clip_range_vf={trainingData.clipRangeVf.ToString("F3", CultureInfo.InvariantCulture)}");
+            if (trainingData.targetKl >= 0)
+                lines.Add($"target_kl={trainingData.targetKl.ToString("F6", CultureInfo.InvariantCulture)}");
+            
             lines.Add($"training_date={trainingData.trainingDate:yyyy-MM-ddTHH:mm:ssZ}");
             if (!string.IsNullOrEmpty(trainingData.trainingNote))
             {
@@ -441,6 +457,26 @@ public class LevelTrainingManager : MonoBehaviour
             if (trainingData.totalTrainingTime > 0)
             {
                 lines.Add($"training_time={trainingData.totalTrainingTime.ToString("F1", CultureInfo.InvariantCulture)}");
+            }
+            if (trainingData.totalTimesteps > 0)
+            {
+                lines.Add($"total_timesteps={trainingData.totalTimesteps}");
+            }
+            if (trainingData.fps > 0)
+            {
+                lines.Add($"training_fps={trainingData.fps.ToString("F1", CultureInfo.InvariantCulture)}");
+            }
+            
+            // Advanced metrics
+            if (trainingData.finalLoss != 0 || trainingData.policyLoss != 0)
+            {
+                lines.Add($"final_loss={trainingData.finalLoss.ToString("F6", CultureInfo.InvariantCulture)}");
+                lines.Add($"policy_loss={trainingData.policyLoss.ToString("F6", CultureInfo.InvariantCulture)}");
+                lines.Add($"value_loss={trainingData.valueLoss.ToString("F6", CultureInfo.InvariantCulture)}");
+                lines.Add($"entropy_loss={trainingData.entropyLoss.ToString("F6", CultureInfo.InvariantCulture)}");
+                lines.Add($"kl_divergence={trainingData.klDivergence.ToString("F6", CultureInfo.InvariantCulture)}");
+                lines.Add($"explained_variance={trainingData.explainedVariance.ToString("F6", CultureInfo.InvariantCulture)}");
+                lines.Add($"approx_kl={trainingData.approxKl.ToString("F6", CultureInfo.InvariantCulture)}");
             }
             lines.Add("");
             
@@ -563,6 +599,36 @@ public class LevelTrainingManager : MonoBehaviour
                 case "training_note":
                     training.trainingNote = value;
                     break;
+                case "gae_lambda":
+                    training.gaeLambda = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "entropy_coef":
+                    training.entropyCoef = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "vf_coef":
+                    training.vfCoef = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "batch_size":
+                    training.batchSize = int.Parse(value);
+                    break;
+                case "n_steps":
+                    training.nSteps = int.Parse(value);
+                    break;
+                case "n_epochs":
+                    training.nEpochs = int.Parse(value);
+                    break;
+                case "max_grad_norm":
+                    training.maxGradNorm = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "normalize_advantage":
+                    training.normalizeAdvantage = bool.Parse(value);
+                    break;
+                case "clip_range_vf":
+                    training.clipRangeVf = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "target_kl":
+                    training.targetKl = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
             }
         }
         catch (Exception e)
@@ -600,6 +666,33 @@ public class LevelTrainingManager : MonoBehaviour
                     break;
                 case "training_time":
                     training.totalTrainingTime = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "total_timesteps":
+                    training.totalTimesteps = int.Parse(value);
+                    break;
+                case "training_fps":
+                    training.fps = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "final_loss":
+                    training.finalLoss = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "policy_loss":
+                    training.policyLoss = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "value_loss":
+                    training.valueLoss = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "entropy_loss":
+                    training.entropyLoss = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "kl_divergence":
+                    training.klDivergence = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "explained_variance":
+                    training.explainedVariance = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "approx_kl":
+                    training.approxKl = float.Parse(value, CultureInfo.InvariantCulture);
                     break;
             }
         }
