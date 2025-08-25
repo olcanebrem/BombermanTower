@@ -19,23 +19,86 @@ public class MLAgentsTrainingController : MonoBehaviour
     [SerializeField] private bool generateConfigFromUnity = true;
     
     [Header("PPO Hyperparameters")]
-    [SerializeField, Range(0.0001f, 0.01f)] private float learningRate = 0.0003f;
-    [SerializeField, Range(0.8f, 0.999f)] private float gamma = 0.99f;
-    [SerializeField, Range(0.01f, 0.5f)] private float epsilon = 0.2f;
-    [SerializeField, Range(0.8f, 0.99f)] private float gaeLambda = 0.95f;
-    [SerializeField, Range(0.001f, 0.1f)] private float beta = 0.01f;
-    [SerializeField, Range(32, 512)] private int batchSize = 64;
-    [SerializeField, Range(512, 20480)] private int bufferSize = 10240;
-    [SerializeField, Range(3, 20)] private int numEpoch = 10;
-    [SerializeField, Range(1024, 4096)] private int timeHorizon = 2048;
-    [SerializeField, Range(128, 512)] private int hiddenUnits = 256;
-    [SerializeField, Range(1, 4)] private int numLayers = 2;
+    [SerializeField, Range(0.0001f, 0.01f), Tooltip("Learning rate for PPO optimizer")]
+    private float learningRate = 0.0003f;
+    
+    [SerializeField, Range(0.8f, 0.999f), Tooltip("Discount factor for future rewards")]
+    private float gamma = 0.99f;
+    
+    [SerializeField, Range(0.01f, 0.5f), Tooltip("PPO clipping parameter for policy updates")]
+    private float epsilon = 0.2f;
+    
+    [SerializeField, Range(0.8f, 0.99f), Tooltip("GAE lambda parameter for advantage estimation")]
+    private float gaeLambda = 0.95f;
+    
+    [SerializeField, Range(0.001f, 0.1f), Tooltip("Entropy coefficient to encourage exploration")]
+    private float beta = 0.01f;
+    
+    [SerializeField, Range(32, 512), Tooltip("Batch size for PPO training")]
+    private int batchSize = 64;
+    
+    [SerializeField, Range(512, 20480), Tooltip("Buffer size for experience replay")]
+    private int bufferSize = 10240;
+    
+    [SerializeField, Range(3, 20), Tooltip("Number of epochs per PPO update")]
+    private int numEpoch = 10;
+    
+    [SerializeField, Range(1024, 4096), Tooltip("Steps per environment before updating policy")]
+    private int timeHorizon = 2048;
+    
+    [Header("Network Architecture")]
+    [SerializeField, Range(128, 512), Tooltip("Hidden units per neural network layer")]
+    private int hiddenUnits = 256;
+    
+    [SerializeField, Range(1, 4), Tooltip("Number of hidden layers in neural network")]
+    private int numLayers = 2;
+    
+    [SerializeField, Tooltip("Normalize vector observations")]
+    private bool normalize = false;
+    
+    [SerializeField, Tooltip("Normalize advantages during training")]
+    private bool normalizeAdvantage = true;
+    
+    [Header("Additional PPO Parameters")]
+    [SerializeField, Range(0.1f, 1.0f), Tooltip("Value function coefficient")]
+    private float vfCoef = 0.5f;
+    
+    [SerializeField, Range(0.1f, 1.0f), Tooltip("Maximum gradient norm for clipping")]
+    private float maxGradNorm = 0.5f;
+    
+    [SerializeField, Range(-1f, 1.0f), Tooltip("Clipping range for value function (-1 to disable)")]
+    private float clipRangeVf = -1f;
+    
+    [SerializeField, Range(-1f, 0.1f), Tooltip("Target KL divergence (-1 to disable)")]
+    private float targetKl = -1f;
+    
+    [SerializeField, Tooltip("Learning rate schedule type")]
+    private string learningRateSchedule = "linear";
+    
+    [SerializeField, Tooltip("Beta schedule type")]  
+    private string betaSchedule = "constant";
+    
+    [SerializeField, Tooltip("Epsilon schedule type")]
+    private string epsilonSchedule = "linear";
+    
+    [SerializeField, Tooltip("Visual encoder type")]
+    private string visEncodeType = "simple";
+    
+    [SerializeField, Tooltip("Reward signal strength")]
+    private float rewardStrength = 1.0f;
     
     [Header("Training Schedule")]
-    [SerializeField, Range(100000, 10000000)] private int maxSteps = 2000000;
-    [SerializeField, Range(10000, 100000)] private int summaryFreq = 50000;
-    [SerializeField, Range(50000, 500000)] private int checkpointInterval = 100000;
-    [SerializeField] private bool normalizeAdvantage = true;
+    [SerializeField, Range(100000, 10000000), Tooltip("Total training timesteps")]
+    private int maxSteps = 2000000;
+    
+    [SerializeField, Range(10000, 100000), Tooltip("Frequency of TensorBoard logging")]
+    private int summaryFreq = 50000;
+    
+    [SerializeField, Range(50000, 500000), Tooltip("Frequency of model checkpoints")]
+    private int checkpointInterval = 100000;
+    
+    [SerializeField, Range(1, 10), Tooltip("Number of checkpoints to keep")]
+    private int keepCheckpoints = 5;
     
     [Header("Training Control")]
     [SerializeField] private bool startTrainingOnAwake = false;

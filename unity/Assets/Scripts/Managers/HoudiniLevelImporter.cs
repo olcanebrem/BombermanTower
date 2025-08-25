@@ -427,24 +427,24 @@ public class HoudiniLevelImporter : MonoBehaviour
     public void TestImportSample()
     {
         string sampleINI = @"[CELL_TYPES]
-0=.,EMPTY,true,0
-1=#,WALL,false,1
-3=P,PLAYER,true,3
-4=E,ENEMY,true,4
-6=C,COIN,true,6
+        0=.,EMPTY,true,0
+        1=#,WALL,false,1
+        3=P,PLAYER,true,3
+        4=E,ENEMY,true,4
+        6=C,COIN,true,6
 
-[LEVEL_CONFIG]
-LEVEL_NAME=Test Level
-LEVEL_ID=0001
-GRID_WIDTH=5
-GRID_HEIGHT=5
+        [LEVEL_CONFIG]
+        LEVEL_NAME=Test Level
+        LEVEL_ID=0001
+        GRID_WIDTH=5
+        GRID_HEIGHT=5
 
-[GRID_ASCII]
-#####
-#P.C#
-#...#
-#.E.#
-#####";
+        [GRID_ASCII]
+        #####
+        #P.C#
+        #...#
+        #.E.#
+        #####";
         
         HoudiniLevelData testData = ImportFromText(sampleINI, true);
         if (testData != null)

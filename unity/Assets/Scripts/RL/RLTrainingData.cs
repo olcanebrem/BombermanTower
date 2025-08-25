@@ -22,12 +22,32 @@ public class RLTrainingData
     public float entropyCoef = 0.01f;         // Entropy coefficient (ent_coef)
     public float vfCoef = 0.5f;               // Value function coefficient
     public int batchSize = 64;                // Batch size for training
+    public int bufferSize = 10240;            // Buffer size for experience replay
     public int nSteps = 2048;                 // Steps per environment per update
     public int nEpochs = 10;                  // Epochs per update
     public float maxGradNorm = 0.5f;          // Maximum gradient norm
     public bool normalizeAdvantage = true;    // Normalize advantages
     public float clipRangeVf = -1f;           // VF clipping (-1 = same as epsilon)
     public float targetKl = -1f;              // Target KL divergence (-1 = disabled)
+    
+    [Header("Network Architecture")]
+    public int hiddenUnits = 256;             // Hidden units per layer
+    public int numLayers = 2;                 // Number of hidden layers
+    public bool normalize = false;            // Normalize vector observations
+    
+    [Header("Training Schedule")]
+    public int summaryFreq = 50000;           // TensorBoard logging frequency
+    public int checkpointInterval = 100000;   // Model checkpoint frequency
+    public int keepCheckpoints = 5;           // Number of checkpoints to keep
+    
+    [Header("Schedule Types")]
+    public string learningRateSchedule = "linear";  // Learning rate schedule
+    public string betaSchedule = "constant";        // Beta schedule
+    public string epsilonSchedule = "linear";       // Epsilon schedule
+    public string visEncodeType = "simple";         // Visual encoder type
+    
+    [Header("Reward Settings")]
+    public float rewardStrength = 1.0f;       // Reward signal strength
     
     [Header("Training Results")]
     public int episodes;

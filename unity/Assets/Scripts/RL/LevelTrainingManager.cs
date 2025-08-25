@@ -431,6 +431,7 @@ public class LevelTrainingManager : MonoBehaviour
             lines.Add($"entropy_coef={trainingData.entropyCoef.ToString("F6", CultureInfo.InvariantCulture)}");
             lines.Add($"vf_coef={trainingData.vfCoef.ToString("F3", CultureInfo.InvariantCulture)}");
             lines.Add($"batch_size={trainingData.batchSize}");
+            lines.Add($"buffer_size={trainingData.bufferSize}");
             lines.Add($"n_steps={trainingData.nSteps}");
             lines.Add($"n_epochs={trainingData.nEpochs}");
             lines.Add($"max_grad_norm={trainingData.maxGradNorm.ToString("F3", CultureInfo.InvariantCulture)}");
@@ -439,6 +440,27 @@ public class LevelTrainingManager : MonoBehaviour
                 lines.Add($"clip_range_vf={trainingData.clipRangeVf.ToString("F3", CultureInfo.InvariantCulture)}");
             if (trainingData.targetKl >= 0)
                 lines.Add($"target_kl={trainingData.targetKl.ToString("F6", CultureInfo.InvariantCulture)}");
+                
+            // Network Architecture
+            lines.Add($"hidden_units={trainingData.hiddenUnits}");
+            lines.Add($"num_layers={trainingData.numLayers}");
+            lines.Add($"normalize={trainingData.normalize.ToString().ToLower()}");
+            
+            // Schedules
+            if (!string.IsNullOrEmpty(trainingData.learningRateSchedule))
+                lines.Add($"learning_rate_schedule={trainingData.learningRateSchedule}");
+            if (!string.IsNullOrEmpty(trainingData.betaSchedule))
+                lines.Add($"beta_schedule={trainingData.betaSchedule}");
+            if (!string.IsNullOrEmpty(trainingData.epsilonSchedule))
+                lines.Add($"epsilon_schedule={trainingData.epsilonSchedule}");
+            if (!string.IsNullOrEmpty(trainingData.visEncodeType))
+                lines.Add($"vis_encode_type={trainingData.visEncodeType}");
+                
+            // Training Schedule
+            lines.Add($"summary_freq={trainingData.summaryFreq}");
+            lines.Add($"checkpoint_interval={trainingData.checkpointInterval}");
+            lines.Add($"keep_checkpoints={trainingData.keepCheckpoints}");
+            lines.Add($"reward_strength={trainingData.rewardStrength.ToString("F3", CultureInfo.InvariantCulture)}");
             
             lines.Add($"training_date={trainingData.trainingDate:yyyy-MM-ddTHH:mm:ssZ}");
             if (!string.IsNullOrEmpty(trainingData.trainingNote))
@@ -628,6 +650,42 @@ public class LevelTrainingManager : MonoBehaviour
                     break;
                 case "target_kl":
                     training.targetKl = float.Parse(value, CultureInfo.InvariantCulture);
+                    break;
+                case "buffer_size":
+                    training.bufferSize = int.Parse(value);
+                    break;
+                case "hidden_units":
+                    training.hiddenUnits = int.Parse(value);
+                    break;
+                case "num_layers":
+                    training.numLayers = int.Parse(value);
+                    break;
+                case "normalize":
+                    training.normalize = bool.Parse(value);
+                    break;
+                case "learning_rate_schedule":
+                    training.learningRateSchedule = value;
+                    break;
+                case "beta_schedule":
+                    training.betaSchedule = value;
+                    break;
+                case "epsilon_schedule":
+                    training.epsilonSchedule = value;
+                    break;
+                case "vis_encode_type":
+                    training.visEncodeType = value;
+                    break;
+                case "summary_freq":
+                    training.summaryFreq = int.Parse(value);
+                    break;
+                case "checkpoint_interval":
+                    training.checkpointInterval = int.Parse(value);
+                    break;
+                case "keep_checkpoints":
+                    training.keepCheckpoints = int.Parse(value);
+                    break;
+                case "reward_strength":
+                    training.rewardStrength = float.Parse(value, CultureInfo.InvariantCulture);
                     break;
             }
         }

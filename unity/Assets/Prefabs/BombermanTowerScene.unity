@@ -184,66 +184,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 14256951}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -552.609, y: -546.72943, z: 252.70547}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &48723204
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 48723206}
-  - component: {fileID: 48723205}
-  m_Layer: 0
-  m_Name: PPOTrainingBridge
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &48723205
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 48723204}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5221099b312cdec4cb5965f5024c6e34, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  pythonExecutable: python
-  trainingScriptPath: ../../Python/train.py
-  configPath: ../../Python/ppo.yml
-  startTrainingOnAwake: 0
-  autoSyncResults: 1
-  syncInterval: 30
-  isTraining: 0
-  currentTimesteps: 0
-  currentReward: 0
-  trainingStatus: Idle
---- !u!4 &48723206
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 48723204}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 512.21344, y: -196.2363, z: -9.135819}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 400170550}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &323567813
 GameObject:
@@ -411,6 +357,23 @@ MonoBehaviour:
   configPath: ../../Python/config/bomberman_ppo_config.yaml
   runId: bomberman_training
   autoGenerateRunId: 1
+  generateConfigFromUnity: 1
+  learningRate: 0.0003
+  gamma: 0.99
+  epsilon: 0.2
+  gaeLambda: 0.95
+  beta: 0.01
+  batchSize: 64
+  bufferSize: 10240
+  numEpoch: 10
+  timeHorizon: 2048
+  hiddenUnits: 256
+  numLayers: 2
+  normalizeAdvantage: 1
+  maxSteps: 2000000
+  summaryFreq: 50000
+  checkpointInterval: 100000
+  keepCheckpoints: 5
   startTrainingOnAwake: 0
   autoParseResults: 1
   statusCheckInterval: 10
@@ -429,11 +392,47 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 380877712}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 356.6, y: 457, z: -256}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -196.009, y: -89.72943, z: -3.2945251}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
+  m_Father: {fileID: 400170550}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &400170549
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 400170550}
+  m_Layer: 0
+  m_Name: MANAGEMENT
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &400170550
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 400170549}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 552.609, y: 546.72943, z: -252.70547}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 14256954}
+  - {fileID: 2122158501}
+  - {fileID: 778810547}
+  - {fileID: 1168086239}
+  - {fileID: 380877714}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &582686562
@@ -711,12 +710,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 778810545}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 136.95386, y: 558.40125, z: 46.38793}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -415.65515, y: 11.671814, z: 299.0934}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 400170550}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1168086237
 GameObject:
@@ -757,12 +756,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1168086237}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 512.21344, y: -196.2363, z: -9.135819}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -40.39557, y: -742.9657, z: 243.56966}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 400170550}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1254606223
 GameObject:
@@ -1318,6 +1317,42 @@ MonoBehaviour:
   currentTimesteps: 0
   currentReward: 0
   trainingStatus: Idle
+  logFilePath: 
+  currentLevelName: 
+  currentTrainingData:
+    version: 1
+    trainingNote: 
+    seed: 12345
+    learningRate: 0.0003
+    gamma: 0.99
+    epsilon: 0.2
+    maxSteps: 50000
+    gaeLambda: 0.95
+    entropyCoef: 0.01
+    vfCoef: 0.5
+    batchSize: 64
+    nSteps: 2048
+    nEpochs: 10
+    maxGradNorm: 0.5
+    normalizeAdvantage: 1
+    clipRangeVf: -1
+    targetKl: -1
+    episodes: 0
+    avgReward: 0
+    successRate: 0
+    deaths: 0
+    collectiblesFound: 0
+    totalCollectibles: 0
+    totalTrainingTime: 0
+    finalLoss: 0
+    policyLoss: 0
+    valueLoss: 0
+    entropyLoss: 0
+    klDivergence: 0
+    explainedVariance: 0
+    totalTimesteps: 0
+    fps: 0
+    approxKl: 0
 --- !u!1 &1992962428
 GameObject:
   m_ObjectHideFlags: 0
@@ -1598,12 +1633,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2122158499}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 136.95386, y: 558.40125, z: 46.38793}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -415.65515, y: 11.671814, z: 299.0934}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 400170550}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
@@ -1612,9 +1647,4 @@ SceneRoots:
   - {fileID: 1992962431}
   - {fileID: 1254606225}
   - {fileID: 1262185611}
-  - {fileID: 14256954}
-  - {fileID: 2122158501}
-  - {fileID: 778810547}
-  - {fileID: 1168086239}
-  - {fileID: 48723206}
-  - {fileID: 380877714}
+  - {fileID: 400170550}
