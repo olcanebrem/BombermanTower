@@ -106,8 +106,8 @@ public class HoudiniLevelImporter : MonoBehaviour
             string currentSection = "";
             List<string> gridLines = new List<string>();
             
-            if (enableLogging)
-                Debug.Log("[HoudiniImporter] Starting INI parsing...");
+            // Track parsing progress for final summary
+            int cellTypeCount = 0, configCount = 0, paramCount = 0;
             
             foreach (string line in lines)
             {
@@ -121,8 +121,6 @@ public class HoudiniLevelImporter : MonoBehaviour
                 if (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]"))
                 {
                     currentSection = trimmedLine.Substring(1, trimmedLine.Length - 2);
-                    if (enableLogging)
-                        Debug.Log($"[HoudiniImporter] Entering section: {currentSection}");
                     continue;
                 }
                 
@@ -131,27 +129,27 @@ public class HoudiniLevelImporter : MonoBehaviour
                 {
                     case "CELL_TYPES":
                         ParseCellType(trimmedLine, levelData, enableLogging);
+                        cellTypeCount++;
                         break;
                         
                     case "LEVEL_CONFIG":
                         ParseLevelConfig(trimmedLine, levelData, enableLogging);
+                        configCount++;
                         break;
                         
                     case "GENERATION_PARAMS":
                         ParseGenerationParams(trimmedLine, levelData, enableLogging);
+                        paramCount++;
                         break;
                         
                     case "GRID_ASCII":
-                        if (enableLogging)
-                            Debug.Log($"[HoudiniImporter] GRID_ASCII line: '{trimmedLine}' (length: {trimmedLine.Length})");
                         gridLines.Add(trimmedLine);
                         break;
                 }
             }
             
             // Parse grid data and extract positions
-            if (enableLogging)
-                Debug.Log($"[HoudiniImporter] Collected {gridLines.Count} grid lines");
+            // Grid collection info moved to final summary
                 
             if (gridLines.Count > 0)
             {
@@ -165,9 +163,19 @@ public class HoudiniLevelImporter : MonoBehaviour
             
             if (enableLogging)
             {
-                Debug.Log($"[HoudiniImporter] Import completed: {levelData.levelName}");
-                Debug.Log($"[HoudiniImporter] Grid size: {levelData.gridWidth}x{levelData.gridHeight}");
-                Debug.Log($"[HoudiniImporter] Found: {levelData.enemyPositions.Count} enemies, {levelData.coinPositions.Count} coins, {levelData.healthPositions.Count} health items");
+                // Combined import completion message
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                sb.AppendLine($"\n=== HOUDINI IMPORT COMPLETED ===");
+                sb.AppendLine($"Level: {levelData.levelName} (ID: {levelData.levelId})");
+                sb.AppendLine($"Version: {levelData.version} | Format: {levelData.formatVersion}");
+                sb.AppendLine($"Grid: {levelData.gridWidth}x{levelData.gridHeight} ({gridLines.Count} lines parsed)");
+                sb.AppendLine($"Seed: {levelData.houdiniSeed} | Rooms: {levelData.roomCount}");
+                sb.AppendLine($"Parsed: {cellTypeCount} cell types, {configCount} configs, {paramCount} params");
+                sb.AppendLine($"Densities - Enemy:{levelData.enemyDensity:F3} Loot:{levelData.lootDensity:F3} Coin:{levelData.coinDensity:F3}");
+                sb.AppendLine($"Objects - Enemies:{levelData.enemyPositions.Count} EnemyShooters:{levelData.enemyShooterPositions.Count} Coins:{levelData.coinPositions.Count} Health:{levelData.healthPositions.Count} Breakables:{levelData.breakablePositions.Count}");
+                sb.AppendLine($"Player spawn: {levelData.playerSpawn} | Exit: {levelData.exitPosition}");
+                sb.AppendLine("===============================");
+                Debug.Log(sb.ToString());
             }
             
             return levelData;
@@ -212,8 +220,7 @@ public class HoudiniLevelImporter : MonoBehaviour
         HoudiniCellType cellType = new HoudiniCellType(id, symbol, name, passable, prefabIndex);
         levelData.cellTypes[id] = cellType;
         
-        if (enableLogging)
-            Debug.Log($"[HoudiniImporter] Cell Type: {id}='{symbol}' ({name}) passable:{passable} prefab:{prefabIndex}");
+        // Cell type logging moved to final summary
     }
     
     private static void ParseLevelConfig(string line, HoudiniLevelData levelData, bool enableLogging)
@@ -246,8 +253,7 @@ public class HoudiniLevelImporter : MonoBehaviour
                 break;
         }
         
-        if (enableLogging)
-            Debug.Log($"[HoudiniImporter] Level Config: {key} = {value}");
+        // Level config logging moved to final summary
     }
     
     private static void ParseGenerationParams(string line, HoudiniLevelData levelData, bool enableLogging)
@@ -303,8 +309,7 @@ public class HoudiniLevelImporter : MonoBehaviour
                     break;
             }
             
-            if (enableLogging)
-                Debug.Log($"[HoudiniImporter] Generation Param: {key} = {value}");
+            // Generation params logging moved to final summary
         }
         catch (System.Exception e)
         {
@@ -321,13 +326,11 @@ public class HoudiniLevelImporter : MonoBehaviour
             levelData.gridHeight = gridLines.Count;
             levelData.gridWidth = gridLines.Count > 0 ? gridLines[0].Length : 0;
             
-            if (enableLogging)
-                Debug.Log($"[HoudiniImporter] Using auto-detected grid size: {levelData.gridWidth}x{levelData.gridHeight}");
+            // Grid size auto-detection info moved to final summary
         }
         else
         {
-            if (enableLogging)
-                Debug.Log($"[HoudiniImporter] Using configured grid size: {levelData.gridWidth}x{levelData.gridHeight}");
+            // Configured grid size info moved to final summary
         }
         
         // Create grid array with specified dimensions
@@ -352,11 +355,7 @@ public class HoudiniLevelImporter : MonoBehaviour
             }
         }
         
-        if (enableLogging)
-        {
-            Debug.Log($"[HoudiniImporter] Grid parsed: {levelData.gridWidth}x{levelData.gridHeight}");
-            Debug.Log($"[HoudiniImporter] ASCII data: {gridLines.Count} lines, max line length: {(gridLines.Count > 0 ? gridLines.Max(l => l.Length) : 0)}");
-        }
+        // Grid parsing info moved to final summary
     }
     
     private static void ExtractSpecialPositions(HoudiniLevelData levelData, bool enableLogging)
@@ -395,16 +394,7 @@ public class HoudiniLevelImporter : MonoBehaviour
             }
         }
         
-        if (enableLogging)
-        {
-            Debug.Log($"[HoudiniImporter] Player spawn: {levelData.playerSpawn}");
-            Debug.Log($"[HoudiniImporter] Exit: {levelData.exitPosition}");
-            Debug.Log($"[HoudiniImporter] Enemies: {levelData.enemyPositions.Count}");
-            Debug.Log($"[HoudiniImporter] Enemy Shooters: {levelData.enemyShooterPositions.Count}");
-            Debug.Log($"[HoudiniImporter] Coins: {levelData.coinPositions.Count}");
-            Debug.Log($"[HoudiniImporter] Health: {levelData.healthPositions.Count}");
-            Debug.Log($"[HoudiniImporter] Breakables: {levelData.breakablePositions.Count}");
-        }
+        // Special positions info moved to final summary
     }
     
     // Utility methods for editor/debugging

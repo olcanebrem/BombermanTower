@@ -62,12 +62,54 @@ public class TurnManager : MonoBehaviour
             case TileType.Bomb: return "O";
             case TileType.Explosion: return "X";
             case TileType.Projectile: return "*";
-            case TileType.Coin: return "$";
+            case TileType.Coin: return "C";
             case TileType.Health: return "H";
             case TileType.Stairs: return "S";
             case TileType.Empty: return ".";
             default: return "?";
         }
+    }
+    
+    private TileType GetTileTypeFromGameObject(GameObject obj)
+    {
+        if (obj == null) return TileType.Empty;
+        
+        // Check GameObject name or tag
+        string name = obj.name.ToLower();
+        
+        if (name.Contains("player")) return TileType.Player;
+        if (name.Contains("enemy")) return TileType.Enemy;
+        if (name.Contains("shooter")) return TileType.EnemyShooter;
+        if (name.Contains("bomb")) return TileType.Bomb;
+        if (name.Contains("coin")) return TileType.Coin;
+        if (name.Contains("health")) return TileType.Health;
+        if (name.Contains("breakable")) return TileType.Breakable;
+        if (name.Contains("wall")) return TileType.Wall;
+        if (name.Contains("stairs")) return TileType.Stairs;
+        
+        // Fallback: use tag if available (with safety check)
+        try 
+        {
+            if (obj.CompareTag("Player")) return TileType.Player;
+            if (obj.tag == "Enemy") return TileType.Enemy;
+        }
+        catch (System.Exception)
+        {
+            // Tag doesn't exist, ignore
+        }
+        
+        return TileType.Empty; // Unknown object
+    }
+    
+    private bool IsDynamicObject(TileType type)
+    {
+        // Only these objects should override the levelMap
+        return type == TileType.Player || 
+               type == TileType.Enemy || 
+               type == TileType.EnemyShooter ||
+               type == TileType.Bomb ||
+               type == TileType.Explosion ||
+               type == TileType.Projectile;
     }
     
     private void PrintDebugMap()
@@ -84,7 +126,7 @@ public class TurnManager : MonoBehaviour
             for (int x = 0; x < ll.Width; x++)
                 debugGrid[x, y] = GetDebugSymbol(TileSymbols.DataSymbolToType(ll.levelMap[x, y]));
         
-        // Add objects from tileObjects
+        // Add dynamic objects from tileObjects (only for moving/dynamic objects)
         for (int y = 0; y < ll.Height; y++)
         {
             for (int x = 0; x < ll.Width; x++)
@@ -92,11 +134,18 @@ public class TurnManager : MonoBehaviour
                 var obj = ll.tileObjects[x, y];
                 if (obj != null)
                 {
-                    var tileType = TileSymbols.DataSymbolToType(ll.levelMap[x, y]);
-                    debugGrid[x, y] = GetDebugSymbol(tileType);
+                    // Only override for dynamic objects (Player, Enemy, Bomb)
+                    TileType objectType = GetTileTypeFromGameObject(obj);
+                    if (IsDynamicObject(objectType))
+                    {
+                        debugGrid[x, y] = GetDebugSymbol(objectType);
+                    }
                 }
             }
         }
+        
+        // Debug: Print a few levelMap samples
+        Debug.Log($"[DEBUG] levelMap samples - [0,0]='{ll.levelMap[0,0]}' [5,5]='{ll.levelMap[5,5]}' [10,10]='{ll.levelMap[10,10]}'");
         
         // Build the entire map as a single string
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
@@ -108,7 +157,7 @@ public class TurnManager : MonoBehaviour
             string row = "";
             for (int x = 0; x < ll.Width; x++)
             {
-                row += debugGrid[x, y] + " ";
+                row += debugGrid[x, y];
             }
             sb.AppendLine(row);
         }
@@ -126,7 +175,6 @@ public class TurnManager : MonoBehaviour
             if (prevTurnStartTime > 0f)
             {
                 float elapsed = now - prevTurnStartTime;
-                Debug.Log($"[TurnManager] TUR {TurnCount + 1} süresi: {elapsed:F4} sn");
                 turnDurations.Add(elapsed); // Her tur süresini listeye ekle
             }
             prevTurnStartTime = now;

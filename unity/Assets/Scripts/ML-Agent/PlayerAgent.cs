@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
+using System.Collections;
 
 /// <summary>
 /// ML-Agent implementation that integrates with turn-based system through ITurnBased interface.
@@ -93,9 +94,15 @@ public class PlayerAgent : Agent, ITurnBased
             return;
         }
         
+        rewardSystem = FindObjectOfType<RewardSystem>();
         if (rewardSystem == null)
         {
-            Debug.LogWarning("[PlayerAgent] RewardSystem not found. Rewards will not be applied.");
+            Debug.LogWarning("[PlayerAgent] RewardSystem not found immediately. Starting delayed search...");
+            StartCoroutine(DelayedRewardSystemSearch());
+        }
+        else
+        {
+            Debug.Log("[PlayerAgent] RewardSystem found immediately!");
         }
         
         if (envManager == null)
@@ -117,7 +124,37 @@ public class PlayerAgent : Agent, ITurnBased
             Debug.Log("[PlayerAgent] ML-Agent mode activated and registered with TurnManager!");
         }
     }
-    
+    IEnumerator DelayedRewardSystemSearch()
+    {
+        for (int i = 0; i < 5; i++) // 5 deneme
+        {
+            yield return new WaitForSeconds(0.2f * (i + 1)); // Artan bekleme
+            
+            rewardSystem = FindObjectOfType<RewardSystem>();
+            if (rewardSystem != null)
+            {
+                Debug.Log($"[PlayerAgent] RewardSystem found after {i + 1} attempts!");
+                break;
+            }
+            
+            // RL TRAINING objesinde spesifik arama
+            GameObject rlTraining = GameObject.Find("RL TRAINING");
+            if (rlTraining != null)
+            {
+                rewardSystem = rlTraining.GetComponent<RewardSystem>();
+                if (rewardSystem != null)
+                {
+                    Debug.Log("[PlayerAgent] RewardSystem found in RL TRAINING object!");
+                    break;
+                }
+            }
+        }
+        
+        if (rewardSystem == null)
+        {
+            Debug.LogError("[PlayerAgent] RewardSystem still not found after multiple attempts!");
+        }
+    }
     public override void OnEpisodeBegin()
     {
         if (debugActions) Debug.Log("[PlayerAgent] Episode starting...");
@@ -192,14 +229,25 @@ public class PlayerAgent : Agent, ITurnBased
     
     public override void OnActionReceived(ActionBuffers actions)
     {
+        var discreteActions = actions.DiscreteActions;
+        
+        if (discreteActions.Length == 0)
+        {
+            Debug.LogError("OnActionReceived: DiscreteActions array boş!");
+            return;
+        }
+        
         if (!useMLAgent || playerController == null || !needsDecision) return;
         
         episodeSteps++;
         needsDecision = false;
         
+        int moveAction = discreteActions[0];
+        Debug.Log($"Received action: {moveAction}");
+        
         // Parse discrete actions
-        int moveActionIndex = actions.DiscreteActions[0]; // 0-8: movement directions
-        int bombActionIndex = actions.DiscreteActions[1]; // 0-1: bomb placement
+        int moveActionIndex = discreteActions[0]; // 0-8: movement directions
+        int bombActionIndex = discreteActions.Length > 1 ? discreteActions[1] : 0; // 0-1: bomb placement
         
         // Convert to IGameAction
         pendingAction = CreateGameAction(moveActionIndex, bombActionIndex);
@@ -314,33 +362,19 @@ public class PlayerAgent : Agent, ITurnBased
     
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        // Manual control for testing and debugging
-        var discreteActions = actionsOut.DiscreteActions;
+        var discreteActionsOut = actionsOut.DiscreteActions;
         
-        // Movement (WASD keys)
-        discreteActions[0] = 0; // Default: no movement
+        if (discreteActionsOut.Length == 0) return;
         
-        if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.D)) 
-            discreteActions[0] = 5; // Up-Right
-        else if (Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.D)) 
-            discreteActions[0] = 6; // Down-Right
-        else if (Input.GetKey(KeyCode.S) && Input.GetKey(KeyCode.A)) 
-            discreteActions[0] = 7; // Down-Left
-        else if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.A)) 
-            discreteActions[0] = 8; // Up-Left
-        else if (Input.GetKey(KeyCode.W)) 
-            discreteActions[0] = 1; // Up
-        else if (Input.GetKey(KeyCode.D)) 
-            discreteActions[0] = 2; // Right
-        else if (Input.GetKey(KeyCode.S)) 
-            discreteActions[0] = 3; // Down
-        else if (Input.GetKey(KeyCode.A)) 
-            discreteActions[0] = 4; // Left
+        int action = 0;
+        if (Input.GetKey(KeyCode.W)) action = 1;
+        else if (Input.GetKey(KeyCode.S)) action = 2;
+        else if (Input.GetKey(KeyCode.A)) action = 3;
+        else if (Input.GetKey(KeyCode.D)) action = 4;
         
-        // Bomb placement (Space key)
-        discreteActions[1] = Input.GetKey(KeyCode.Space) ? 1 : 0;
+        discreteActionsOut[0] = action;
     }
-    
+        
     //=========================================================================
     // OBSERVATION COLLECTION HELPERS
     //=========================================================================

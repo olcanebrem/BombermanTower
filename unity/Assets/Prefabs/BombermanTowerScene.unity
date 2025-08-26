@@ -191,6 +191,107 @@ Transform:
   m_Children: []
   m_Father: {fileID: 400170550}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &104523215
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 104523216}
+  - component: {fileID: 104523219}
+  - component: {fileID: 104523218}
+  - component: {fileID: 104523217}
+  m_Layer: 0
+  m_Name: RL TRAINING
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &104523216
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 104523215}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 400170550}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &104523217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 104523215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da08746c81ade0049b7f98c85402fd6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  explosionDelay: 3
+  explosionRange: 2
+  explosionPrefab: {fileID: 618472659354836283, guid: 1a98a8e16944dbf41a5ca59fb2de826d, type: 3}
+  damageableLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  spriteRenderer: {fileID: 0}
+  warningColor: {r: 1, g: 0, b: 0, a: 1}
+--- !u!114 &104523218
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 104523215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af84bf3f67d697343ac7b183be2675c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  MaxStepsPerEpisode: 3000
+  levelManager: {fileID: 0}
+  levelLoader: {fileID: 0}
+--- !u!114 &104523219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 104523215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b80651f588bd8b9478f39947052dd7e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  levelCompleteReward: 10
+  enemyKillReward: 2
+  collectibleReward: 1
+  healthCollectibleReward: 1.5
+  upgradeCollectibleReward: 2
+  bombPlacedReward: 0.1
+  wallDestroyReward: 0.2
+  explorationReward: 0.05
+  deathPenalty: -5
+  damagePenalty: -1
+  wallCollisionPenalty: -0.1
+  inactivityPenalty: -0.02
+  stepPenalty: -0.001
+  timeoutPenalty: -2
+  bombSelfDamagePenalty: -0.5
+  collectibleDestroyPenalty: -0.3
+  useDistanceRewards: 1
+  enemyProximityReward: 0.01
+  exitProximityReward: 0.02
+  collectibleProximityReward: 0.01
 --- !u!1 &323567813
 GameObject:
   m_ObjectHideFlags: 0
@@ -369,19 +470,29 @@ MonoBehaviour:
   timeHorizon: 2048
   hiddenUnits: 256
   numLayers: 2
+  normalize: 0
   normalizeAdvantage: 1
+  vfCoef: 0.5
+  maxGradNorm: 0.5
+  clipRangeVf: -1
+  targetKl: -1
+  learningRateSchedule: linear
+  betaSchedule: constant
+  epsilonSchedule: linear
+  visEncodeType: simple
+  rewardStrength: 1
   maxSteps: 2000000
   summaryFreq: 50000
   checkpointInterval: 100000
   keepCheckpoints: 5
-  startTrainingOnAwake: 0
+  startTrainingOnAwake: 1
   autoParseResults: 1
   statusCheckInterval: 10
-  pythonExecutable: python
+  pythonExecutable: C:\Users\olcan\AppData\Local\Programs\Python\Python310\python.exe
   mlagentsLearnPath: mlagents-learn
   resultsParserPath: ../../Python/mlagents_results_parser.py
   trainingStatus: Ready to start training...
-  isTraining: 0
+  isTraining: 1
   currentRunId: 
   trainingStartTime: 0
 --- !u!4 &380877714
@@ -433,6 +544,7 @@ Transform:
   - {fileID: 778810547}
   - {fileID: 1168086239}
   - {fileID: 380877714}
+  - {fileID: 104523216}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &582686562
@@ -1190,7 +1302,6 @@ GameObject:
   - component: {fileID: 1936635822}
   - component: {fileID: 1936635823}
   - component: {fileID: 1936635824}
-  - component: {fileID: 1936635825}
   m_Layer: 0
   m_Name: Game
   m_TagString: Untagged
@@ -1275,7 +1386,7 @@ MonoBehaviour:
     textAsset: {fileID: 4900000, guid: c17d6d1d6752b3d41add03cef180087d, type: 3}
     levelNumber: 3
     version: 1.0.0
-  selectedLevelIndex: 2
+  selectedLevelIndex: 0
   levelsDirectoryPath: Assets/Levels
 --- !u!114 &1936635824
 MonoBehaviour:
@@ -1295,64 +1406,6 @@ MonoBehaviour:
   levelsPath: Assets/Levels/
   enableRLTrainingLogging: 1
   inspectorStatus: Loading...
---- !u!114 &1936635825
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1936635821}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5221099b312cdec4cb5965f5024c6e34, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  pythonExecutable: python
-  trainingScriptPath: ../../Python/train.py
-  configPath: ../../Python/ppo.yml
-  startTrainingOnAwake: 0
-  autoSyncResults: 1
-  syncInterval: 30
-  isTraining: 0
-  currentTimesteps: 0
-  currentReward: 0
-  trainingStatus: Idle
-  logFilePath: 
-  currentLevelName: 
-  currentTrainingData:
-    version: 1
-    trainingNote: 
-    seed: 12345
-    learningRate: 0.0003
-    gamma: 0.99
-    epsilon: 0.2
-    maxSteps: 50000
-    gaeLambda: 0.95
-    entropyCoef: 0.01
-    vfCoef: 0.5
-    batchSize: 64
-    nSteps: 2048
-    nEpochs: 10
-    maxGradNorm: 0.5
-    normalizeAdvantage: 1
-    clipRangeVf: -1
-    targetKl: -1
-    episodes: 0
-    avgReward: 0
-    successRate: 0
-    deaths: 0
-    collectiblesFound: 0
-    totalCollectibles: 0
-    totalTrainingTime: 0
-    finalLoss: 0
-    policyLoss: 0
-    valueLoss: 0
-    entropyLoss: 0
-    klDivergence: 0
-    explainedVariance: 0
-    totalTimesteps: 0
-    fps: 0
-    approxKl: 0
 --- !u!1 &1992962428
 GameObject:
   m_ObjectHideFlags: 0
@@ -1604,7 +1657,7 @@ GameObject:
   - component: {fileID: 2122158501}
   - component: {fileID: 2122158500}
   m_Layer: 0
-  m_Name: LevelManager
+  m_Name: GameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

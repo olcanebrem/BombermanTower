@@ -13,7 +13,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     public static MLAgentsTrainingController Instance { get; private set; }
     
     [Header("ML-Agents Training Configuration")]
-    [SerializeField] private string configPath = "../../Python/config/bomberman_ppo_config.yaml";
+    [SerializeField] private string configPath = "../../Python/config/bomberman_ppo_simple.yaml";
     [SerializeField] private string runId = "bomberman_training";
     [SerializeField] private bool autoGenerateRunId = true;
     [SerializeField] private bool generateConfigFromUnity = true;
@@ -106,7 +106,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     [SerializeField] private float statusCheckInterval = 10f;
     
     [Header("Paths")]
-    [SerializeField] private string pythonExecutable = "python";
+    [SerializeField] private string pythonExecutable = @"C:\Users\olcan\AppData\Local\Programs\Python\Python310\python.exe";
     [SerializeField] private string mlagentsLearnPath = "mlagents-learn";
     [SerializeField] private string resultsParserPath = "../../Python/mlagents_results_parser.py";
     
@@ -226,7 +226,7 @@ public class MLAgentsTrainingController : MonoBehaviour
             ProcessStartInfo startInfo = new ProcessStartInfo()
             {
                 FileName = pythonExecutable,
-                Arguments = $"-m {arguments}",
+                Arguments = $"-m mlagents.trainers.learn \"{actualConfigPath}\" --run-id={currentRunId} --force",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

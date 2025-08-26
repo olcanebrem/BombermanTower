@@ -20,9 +20,6 @@ behaviors:
       lambd: 0.95             # GAE lambda parameter (was gae_lambda)
       num_epoch: 10           # Number of epochs per update (was n_epochs)
       
-      # Normalization
-      normalize_advantage: true
-      
     # Network architecture
     network_settings:
       normalize: false

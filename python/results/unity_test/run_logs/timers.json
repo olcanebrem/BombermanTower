@@ -1,0 +1,42 @@
+{
+    "name": "root",
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1756149094",
+        "python_version": "3.10.6 (tags/v3.10.6:9c7b4bd, Aug  1 2022, 21:53:49) [MSC v.1932 64 bit (AMD64)]",
+        "command_line_arguments": "C:\\Users\\olcan\\AppData\\Local\\Programs\\Python\\Python310\\lib\\site-packages\\mlagents\\trainers\\learn.py config/bomberman_ppo_simple.yaml --run-id=unity_test --force",
+        "mlagents_version": "1.1.0",
+        "mlagents_envs_version": "1.1.0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.8.0+cpu",
+        "numpy_version": "1.23.5",
+        "end_time_seconds": "1756149157"
+    },
+    "total": 62.73568410000007,
+    "count": 1,
+    "self": 0.02324590000353055,
+    "children": {
+        "run_training.setup": {
+            "total": 0.10582559999602381,
+            "count": 1,
+            "self": 0.10582559999602381
+        },
+        "TrainerController.start_learning": {
+            "total": 62.60661260000052,
+            "count": 1,
+            "self": 0.00010089998977491632,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 62.606495600004564,
+                    "count": 1,
+                    "self": 62.606495600004564
+                },
+                "TrainerController._save_models": {
+                    "total": 1.610000617802143e-05,
+                    "count": 1,
+                    "self": 1.610000617802143e-05
+                }
+            }
+        }
+    }
+}

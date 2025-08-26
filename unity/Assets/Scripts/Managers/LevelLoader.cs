@@ -529,12 +529,6 @@ public class LevelLoader : MonoBehaviour
         playerStartX = levelData.playerSpawn.x;
         playerStartY = levelData.playerSpawn.y;
         
-        Debug.Log($"[LevelLoader] Level loaded from HoudiniData: {Width}x{Height}, Player spawn: ({playerStartX}, {playerStartY})");
-        Debug.Log($"[LevelLoader] Level: {levelData.levelName} (v{levelData.version}), Enemies: {levelData.enemyPositions.Count}");
-        
-        // Debug grid content at key positions
-        Debug.Log($"[LevelLoader] Grid samples - Top-left: '{levelMap[0,0]}', Top-right: '{levelMap[Width-1,0]}', Bottom-left: '{levelMap[0,Height-1]}', Bottom-right: '{levelMap[Width-1,Height-1]}'");
-        
         // Count non-empty cells
         int nonEmptyCells = 0;
         for (int x = 0; x < Width; x++)
@@ -545,7 +539,21 @@ public class LevelLoader : MonoBehaviour
                     nonEmptyCells++;
             }
         }
-        Debug.Log($"[LevelLoader] Non-empty cells in grid: {nonEmptyCells}/{Width * Height}");
+        
+        // Combined debug info in single message
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        sb.AppendLine($"\n=== LEVEL LOADER DEBUG INFO ===");
+        sb.AppendLine($"Level: {levelData.levelName} (v{levelData.version})");
+        sb.AppendLine($"Dimensions: {Width}x{Height}");
+        sb.AppendLine($"Player spawn: ({playerStartX}, {playerStartY})");
+        sb.AppendLine($"Enemies: {levelData.enemyPositions.Count}");
+        sb.AppendLine($"Non-empty cells: {nonEmptyCells}/{Width * Height}");
+        sb.AppendLine($"Grid samples:");
+        sb.AppendLine($"  Top-left: '{levelMap[0,0]}' | Top-right: '{levelMap[Width-1,0]}'");
+        sb.AppendLine($"  Bottom-left: '{levelMap[0,Height-1]}' | Bottom-right: '{levelMap[Width-1,Height-1]}'");
+        sb.AppendLine("==============================");
+        
+        Debug.Log(sb.ToString());
     }
     
     
