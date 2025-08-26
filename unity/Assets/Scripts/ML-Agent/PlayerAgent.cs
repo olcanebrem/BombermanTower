@@ -285,8 +285,8 @@ public class PlayerAgent : Agent, ITurnBased
             return new MoveAction(playerController, moveDirection);
         }
         
-        // No action
-        return null;
+        // "No movement" is also a valid action - create MoveAction with zero vector
+        return new MoveAction(playerController, Vector2Int.zero);
     }
     
     public override void CollectObservations(VectorSensor sensor)
@@ -668,6 +668,7 @@ public class PlayerAgent : Agent, ITurnBased
         HasActedThisTurn = false;
         pendingAction = null;
         needsDecision = false;
+        Debug.Log("[PlayerAgent] Turn reset - HasActedThisTurn = false");
     }
     
     public IGameAction GetAction()
@@ -678,21 +679,49 @@ public class PlayerAgent : Agent, ITurnBased
             return null;
         }
         
+        Debug.Log($"[PlayerAgent] GetAction called - HasActedThisTurn: {HasActedThisTurn}, PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}");
+        
         // Check if we already have a pending action from ML decision
         if (pendingAction != null)
         {
             IGameAction action = pendingAction;
             pendingAction = null;
             HasActedThisTurn = true;
+            Debug.Log($"[PlayerAgent] Returning action: {action.GetType().Name}");
             return action;
         }
         
-        // Request decision from ML-Agent
-        needsDecision = true;
-        Debug.Log("[PlayerAgent] RequestDecision called");
+        // Always request new decision - simple approach
+        Debug.Log("[PlayerAgent] RequestDecision called - requesting fresh decision");
         RequestDecision();
         
-        // Return null for this turn, action will be available next turn
+        // TEMPORARY SOLUTION: Manual simulation until OnActionReceived works
+        // TODO: Remove this when ML-Agents Python connection is fixed
+        
+        Debug.Log("[PlayerAgent] [TEMP] Using manual simulation - ML-Agents not connected");
+        
+        // Apply step rewards (same as real ML-Agents would do) 
+        if (rewardSystem != null)
+        {
+            ApplyStepRewards();
+        }
+        
+        // Simulate discrete actions 
+        int simulatedMoveAction = UnityEngine.Random.Range(0, 9); 
+        int simulatedBombAction = UnityEngine.Random.Range(0, 2);
+        
+        Debug.Log($"[PlayerAgent] [TEMP] Simulated MoveIndex: {simulatedMoveAction}, BombIndex: {simulatedBombAction}");
+        
+        // Use real CreateGameAction logic
+        IGameAction simulatedAction = CreateGameAction(simulatedMoveAction, simulatedBombAction);
+        
+        if (simulatedAction != null)
+        {
+            HasActedThisTurn = true;
+            Debug.Log($"[PlayerAgent] [TEMP] Returning simulated action: {simulatedAction.GetType().Name}");
+            return simulatedAction;
+        }
+        
         return null;
     }
     
