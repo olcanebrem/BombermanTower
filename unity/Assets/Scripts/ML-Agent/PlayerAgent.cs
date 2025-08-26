@@ -111,11 +111,11 @@ public class PlayerAgent : Agent, ITurnBased
         }
         
         // Setup ML-Agent integration
-        if (useMLAgent)
+        if (UseMLAgent)
         {
             // Keep reference for backward compatibility
             playerController.mlAgent = this;
-            playerController.useMLAgent = useMLAgent;
+            playerController.useMLAgent = UseMLAgent;
             
             // Register with TurnManager for turn-based control
             // Note: PlayerController will unregister itself when ML-Agent takes over
@@ -239,9 +239,9 @@ public class PlayerAgent : Agent, ITurnBased
             return;
         }
         
-        Debug.Log($"[PlayerAgent] OnActionReceived - useMLAgent: {useMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
+        Debug.Log($"[PlayerAgent] OnActionReceived - useMLAgent: {UseMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
         
-        if (!useMLAgent || playerController == null) return;
+        if (!UseMLAgent || playerController == null) return;
         
         episodeSteps++;
         needsDecision = false;
@@ -677,7 +677,7 @@ public class PlayerAgent : Agent, ITurnBased
     
     public IGameAction GetAction()
     {
-        if (!useMLAgent || playerController == null)
+        if (!UseMLAgent || playerController == null)
         {
             // Return null action if ML-Agent is disabled
             return null;
@@ -695,15 +695,6 @@ public class PlayerAgent : Agent, ITurnBased
             if (action is MoveAction moveAction)
             {
                 Debug.Log($"[PlayerAgent] Returning MoveAction with direction: {moveAction.Direction}");
-                
-                // DEBUG: If direction is (0,0), create a random move for testing
-                if (moveAction.Direction == Vector2Int.zero)
-                {
-                    Debug.Log("[PlayerAgent] Converting no-movement to random movement for testing");
-                    Vector2Int randomDir = moveDirections[UnityEngine.Random.Range(1, 5)]; // 1-4 = up,right,down,left
-                    action = new MoveAction(playerController, randomDir);
-                    Debug.Log($"[PlayerAgent] Using random direction: {randomDir}");
-                }
             }
             else
             {
@@ -716,14 +707,58 @@ public class PlayerAgent : Agent, ITurnBased
         Debug.Log("[PlayerAgent] RequestDecision called - requesting fresh decision");
         RequestDecision();
         
-        // Return null for this turn, action will be available next turn via OnActionReceived
+        // Check ML-Agents connection and training status
+        bool pythonConnected = IsMLAgentsConnected();
+        bool trainingActive = IsTrainingActive();
+        
+        Debug.Log($"[PlayerAgent] Python connected: {pythonConnected}, Training active: {trainingActive}");
+        
+        // If no Python connection or training disabled, agent stays still
+        if (!pythonConnected || !trainingActive)
+        {
+            Debug.Log("[PlayerAgent] ML-Agents not available - agent will stay still (no manual movement)");
+            return null; // Agent stays still when conditions not met
+        }
+        
+        // Return null for this turn, action will be available next turn via OnActionReceived  
         return null;
+    }
+    
+    /// <summary>
+    /// Check if ML-Agents Python server is connected
+    /// </summary>
+    private bool IsMLAgentsConnected()
+    {
+        // Check if Academy is connected to trainer
+        return Unity.MLAgents.Academy.Instance.IsCommunicatorOn;
+    }
+    
+    /// <summary>
+    /// Check if training is actively enabled via MLAgentsTrainingController
+    /// </summary>
+    private bool IsTrainingActive()
+    {
+        var trainingController = MLAgentsTrainingController.Instance;
+        return trainingController != null && trainingController.IsTraining;
+    }
+    
+    /// <summary>
+    /// Public property that derives from MLAgentsTrainingController.IsTraining
+    /// This replaces the old useMLAgent checkbox as the master training control
+    /// </summary>
+    public bool UseMLAgent
+    {
+        get
+        {
+            var trainingController = MLAgentsTrainingController.Instance;
+            return trainingController != null && trainingController.IsTraining;
+        }
     }
     
     private void OnDestroy()
     {
         // Unregister from TurnManager when destroyed
-        if (useMLAgent && TurnManager.Instance != null)
+        if (UseMLAgent && TurnManager.Instance != null)
         {
             TurnManager.Instance.Unregister(this);
         }

@@ -101,8 +101,10 @@ public class MLAgentsTrainingController : MonoBehaviour
     private int keepCheckpoints = 5;
     
     [Header("Training Control")]
-    [SerializeField] private bool startTrainingOnAwake = false;
+    [Tooltip("Master training control - controls all ML-Agent behavior")]
+    public bool isTraining = false;
     [SerializeField] private bool autoParseResults = true;
+    private bool startTrainingOnAwake = false; // Now private and controlled by isTraining
     [SerializeField] private float statusCheckInterval = 10f;
     
     [Header("Paths")]
@@ -112,7 +114,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     
     [Header("Training Status")]
     [SerializeField, TextArea(3, 8)] private string trainingStatus = "Ready to start training...";
-    [SerializeField] private bool isTraining = false;
+    private bool internalIsTraining = false; // Internal training state
     [SerializeField] private string currentRunId = "";
     [SerializeField] private float trainingStartTime = 0f;
     
@@ -207,7 +209,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     
     public void StopTraining()
     {
-        if (!isTraining)
+        if (!internalIsTraining)
         {
             UnityEngine.Debug.LogWarning("[MLAgentsTrainingController] No training in progress!");
             return;
@@ -251,7 +253,8 @@ public class MLAgentsTrainingController : MonoBehaviour
             trainingProcess.BeginOutputReadLine();
             trainingProcess.BeginErrorReadLine();
             
-            isTraining = true;
+            internalIsTraining = true;
+            isTraining = true; // Update public property
             trainingStartTime = Time.time;
             
             UpdateStatus($"🚀 Training started with run ID: {currentRunId}\\nProcess ID: {trainingProcess.Id}\\nWaiting for Unity connection...");
@@ -269,7 +272,8 @@ public class MLAgentsTrainingController : MonoBehaviour
             string error = $"Failed to start training: {e.Message}";
             UnityEngine.Debug.LogError($"[MLAgentsTrainingController] {error}");
             UpdateStatus($"❌ ERROR: {error}");
-            isTraining = false;
+            internalIsTraining = false;
+            isTraining = false; // Update public property
         }
     }
     
@@ -290,7 +294,8 @@ public class MLAgentsTrainingController : MonoBehaviour
             }
         }
         
-        isTraining = false;
+        internalIsTraining = false;
+        isTraining = false; // Update public property
         UpdateStatus($"⏹️ Training stopped manually at {DateTime.Now:HH:mm:ss}");
         
         UnityEngine.Debug.Log("[MLAgentsTrainingController] Training stopped manually");
@@ -298,7 +303,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     
     private void UpdateTrainingStatus()
     {
-        if (isTraining && trainingProcess != null && !trainingProcess.HasExited)
+        if (internalIsTraining && trainingProcess != null && !trainingProcess.HasExited)
         {
             float elapsedTime = Time.time - trainingStartTime;
             int minutes = Mathf.FloorToInt(elapsedTime / 60f);
@@ -338,7 +343,8 @@ public class MLAgentsTrainingController : MonoBehaviour
     {
         CancelInvoke(nameof(UpdateTrainingStatus));
         
-        isTraining = false;
+        internalIsTraining = false;
+        isTraining = false; // Update public property
         
         if (trainingProcess.ExitCode == 0)
         {
@@ -426,7 +432,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     
     public void SetRunId(string newRunId)
     {
-        if (!isTraining)
+        if (!internalIsTraining)
         {
             currentRunId = newRunId;
             UpdateStatus($"Run ID changed to: {currentRunId}");
@@ -456,7 +462,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     [ContextMenu("Generate New Run ID")]
     public void GenerateNewRunId()
     {
-        if (!isTraining)
+        if (!internalIsTraining)
         {
             currentRunId = GenerateRunId();
             UpdateStatus($"Generated new run ID: {currentRunId}");
@@ -466,7 +472,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     [ContextMenu("Parse Latest Results")]
     public void ParseLatestResults()
     {
-        if (!isTraining)
+        if (!internalIsTraining)
         {
             StartCoroutine(ParseTrainingResults());
         }

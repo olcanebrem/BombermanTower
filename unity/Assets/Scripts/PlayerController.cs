@@ -12,7 +12,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     public static PlayerController Instance { get; private set; }
     
     // --- ML-Agent ---
-    public bool useMLAgent { get; set; }
+    public bool useMLAgent { get; set; } // Now private - controlled by MLAgentsTrainingController
     [Header("ML-Agent Support")]
     public PlayerAgent mlAgent;
     // --- Arayüzler ve Değişkenler ---
@@ -92,7 +92,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     {
 
         // Skip input if ML-Agent is controlling this player through turn-based system
-        if (mlAgent != null && mlAgent.useMLAgent) return;
+        if (mlAgent != null && mlAgent.UseMLAgent) return;
           
         int horizontal = 0;
         int vertical = 0;

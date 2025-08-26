@@ -187,7 +187,7 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 3000
-  useMLAgent: 1
+  useMLAgent: 0
   moveSpeed: 5
   behaviorName: PlayerAgent
   observationRadius: 2
