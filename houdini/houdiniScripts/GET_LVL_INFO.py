@@ -11,18 +11,25 @@ from collections import defaultdict
 
 # CELL_TYPES sözlüğü: tile_type (string) -> (ID, Symbol, Name, Passable, PrefabIndex, ExtraAttributes)
 CELL_TYPES = {
-    "empty":        (0, ".", "EMPTY",        True,  0, {}),
-    "wall":         (1, "#", "WALL",         False, 1, {"health": "100"}),
+    "empty":        (0, "-", "EMPTY",        True,  0, {}),
+    "wall":         (1, "|", "WALL",         False, 1, {"health": "100"}),
     "floor":        (2, "o", "FLOOR",        True,  2, {}),
-    "spawn":        (3, "S", "SPAWN",        True,  3, {"spawn_type": "player"}),
-    "enemy_spawn":  (4, "E", "ENEMY_SPAWN",  True,  4, {"enemy_type": "goblin"}),
-    "collectible":  (5, "C", "COLLECTIBLE",  True,  5, {"item_type": "coin", "value": "10"}),
-    "exit":         (6, "X", "EXIT",         True,  6, {}),
+    "spawn":        (3, "p", "SPAWN",        True,  3, {"spawn_type": "player"}),
+    "player":       (8, "P", "PLAYER",       True,  8, {}),
+    "enemy":        (4, "E", "ENEMY",        True,  4, {"enemy_type": "goblin"}),
+    "enemy_shooter": (9, "S", "ENEMY_SHOOTER", True, 9, {"enemy_type": "shooter"}),
+    "coin":         (5, "C", "COIN",         True,  5, {"item_type": "coin", "value": "10"}),
+    "health":       (10, "H", "HEALTH",      True,  10, {"item_type": "health"}),
+    "gate":         (6, "G", "GATE",         True,  6, {}),
+    "breakable":    (11, "B", "BREAKABLE",   False, 11, {"health": "50"}),
+    "bomb":         (12, "O", "BOMB",        False, 12, {}),
+    "projectile":   (13, "*", "PROJECTILE",  True,  13, {}),
+    "explosion":    (14, "X", "EXPLOSION",   True,  14, {}),
     "trap":         (7, "T", "TRAP",         True,  7, {"damage": "25"}),
 }
 
 # Symbol fallback (tile_type tanınmazsa . koy)
-FALLBACK_SYMBOL = "."
+FALLBACK_SYMBOL = "-"
 
 # --------------------------
 # 1) HELPERS

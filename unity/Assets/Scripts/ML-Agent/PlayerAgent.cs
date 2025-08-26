@@ -688,7 +688,7 @@ public class PlayerAgent : Agent, ITurnBased
             case TileType.Empty: return 0f;
             case TileType.Breakable: return 0.5f;
             case TileType.Wall: return 1f;
-            case TileType.Stairs: return 0.2f;
+            case TileType.Gate: return 0.2f;
             default: return 0f;
         }
     }

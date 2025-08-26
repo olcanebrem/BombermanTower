@@ -21,7 +21,7 @@ except AttributeError:
 # --- 2. DÜŞMAN YERLEŞTİRME MANTIĞI ---
 
 # Önce, düşman yerleştirmek için uygun boş noktaları bul.
-# Oyuncunun hemen dibinde başlamamaları için, 'player' ve 'stairs' olmayanları alalım.
+# Oyuncunun hemen dibinde başlamamaları için, 'player' ve 'gate' olmayanları alalım.
 suitable_empty_points = []
 for pt in geo.points():
     if pt.stringAttribValue("tile_type") == "empty":
@@ -43,6 +43,6 @@ if suitable_empty_points and enemy_density > 0:
             # Şimdilik basit bir mantıkla, %20 ihtimalle atıcı, %80 ihtimalle normal düşman koyalım.
             # Bu mantığı daha sonra "uzun koridor bulma" gibi daha akıllı bir hale getirebiliriz.
             if random.random() < 0.2:
-                pt.setAttribValue("tile_type", "enemy_shooter") # F
+                pt.setAttribValue("tile_type", "enemy_shooter") # S
             else:
                 pt.setAttribValue("tile_type", "enemy") # E

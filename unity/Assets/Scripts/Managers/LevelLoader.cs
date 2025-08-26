@@ -610,7 +610,7 @@ public class LevelLoader : MonoBehaviour
                         {
                             collectibles.Add(newTile.gameObject);
                         }
-                        else if (type == TileType.Stairs)
+                        else if (type == TileType.Gate)
                         {
                             exitObject = newTile.gameObject;
                         }

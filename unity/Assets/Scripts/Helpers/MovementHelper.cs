@@ -129,7 +129,7 @@ public static class MovementHelper
         switch (targetType)
         {
             case TileType.Empty:
-            case TileType.Stairs:
+            case TileType.Gate:
                 return true;
             case TileType.Coin:
             case TileType.Health:

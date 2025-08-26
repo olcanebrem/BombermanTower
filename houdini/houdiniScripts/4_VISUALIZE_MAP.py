@@ -12,16 +12,16 @@ if not geo.findPrimAttrib("tile_char"):
 
 # --- TILE SÖZLÜĞÜ ---
 tile_properties = {
-    "wall":         {"color": (0.2, 0.2, 0.2), "char": "#"},
+    "wall":         {"color": (0.2, 0.2, 0.2), "char": "|"},
     "player":       {"color": (0.0, 0.8, 1.0), "char": "P"},
     "enemy":        {"color": (1.0, 0.2, 0.2), "char": "E"},
-    "enemy_shooter":{"color": (1.0, 0.5, 0.0), "char": "F"},
-    "stairs":       {"color": (0.8, 0.5, 1.0), "char": "S"},
+    "enemy_shooter":{"color": (1.0, 0.5, 0.0), "char": "S"},
+    "gate":         {"color": (0.8, 0.5, 1.0), "char": "G"},
     "coin":         {"color": (1.0, 0.8, 0.0), "char": "C"},
     "health":       {"color": (0.0, 1.0, 0.0), "char": "H"},
     "breakable":    {"color": (0.5, 0.3, 0.1), "char": "B"},
     "1":            {"color": (0.4, 0.4, 0.0), "char": "1"},
-    "empty":        {"color": (0.1, 0.1, 0.1), "char": "."}, 
+    "empty":        {"color": (0.1, 0.1, 0.1), "char": "-"}, 
 }
 default_tile = "empty"
 path_highlight_color = (0.4, 0.4, 0.0)

@@ -77,22 +77,8 @@ public class TurnManager : MonoBehaviour
 
     private string GetDebugSymbol(TileType type)
     {
-        switch (type)
-        {
-            case TileType.Player: return "P";
-            case TileType.Enemy: return "E";
-            case TileType.EnemyShooter: return "F";
-            case TileType.Wall: return "#";
-            case TileType.Breakable: return "B";
-            case TileType.Bomb: return "O";
-            case TileType.Explosion: return "X";
-            case TileType.Projectile: return "*";
-            case TileType.Coin: return "C";
-            case TileType.Health: return "H";
-            case TileType.Stairs: return "S";
-            case TileType.Empty: return ".";
-            default: return "?";
-        }
+        // Use TileSymbols.TypeToDataSymbol for consistency
+        return TileSymbols.TypeToDataSymbol(type).ToString();
     }
     
     private TileType GetTileTypeFromGameObject(GameObject obj)
@@ -110,8 +96,8 @@ public class TurnManager : MonoBehaviour
         if (name.Contains("health")) return TileType.Health;
         if (name.Contains("breakable")) return TileType.Breakable;
         if (name.Contains("wall")) return TileType.Wall;
-        if (name.Contains("stairs")) return TileType.Stairs;
-        
+        if (name.Contains("gate")) return TileType.Gate;
+
         // Fallback: use tag if available (with safety check)
         try 
         {

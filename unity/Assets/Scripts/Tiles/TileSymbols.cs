@@ -6,7 +6,6 @@ public enum TileType
     Empty,
     Breakable,
     Gate,
-    Stairs,
     PlayerSpawn,
     Player,
     Enemy,
@@ -30,7 +29,6 @@ public static class TileSymbols
             case TileType.Empty:        return "<sprite name=empty>";
             case TileType.Breakable:    return "<sprite name=breakable>";
             case TileType.Gate:         return "<sprite name=gate>";
-            case TileType.Stairs:       return "<sprite name=stairs>";
             case TileType.PlayerSpawn:  return "<sprite name=playerspawn>";
             case TileType.Player:       return "<sprite name=player>";
             case TileType.Enemy:        return "<sprite name=enemy>";
@@ -50,16 +48,15 @@ public static class TileSymbols
     {
         switch (type)
         {
-            case TileType.Wall:         return '#';
+            case TileType.Wall:         return '|';
             case TileType.Empty:        return '-';
             case TileType.Breakable:    return 'B';
             case TileType.Gate:         return 'G';
-            case TileType.Stairs:       return 'S';
             case TileType.PlayerSpawn:  return 'p';
             case TileType.Player:       return 'P';
             case TileType.Enemy:        return 'E';
-            case TileType.EnemyShooter: return 'F';
-            case TileType.Bomb:         return 'x';
+            case TileType.EnemyShooter: return 'S'; // User requested EnemyShooter to show as 'S'
+            case TileType.Bomb:         return 'O'; // User requested Bomb as 'O'
             case TileType.Projectile:   return '*';
             case TileType.Coin:         return 'C';
             case TileType.Health:       return 'H';
@@ -73,26 +70,25 @@ public static class TileSymbols
     {
         switch (symbol)
         {
-            // Original mappings
-            case '#': return TileType.Wall;
+            // Updated mappings per user request
+            case '|': return TileType.Wall;         // Wall changed from '#' to '|'
+            case '#': return TileType.Wall;         // Legacy support
             case '-': return TileType.Empty;
             case 'B': return TileType.Breakable;
-            case 'G': return TileType.Gate;
+            case 'G': return TileType.Gate;         // Gate uses 'G' symbol
             case 'p': return TileType.PlayerSpawn;
-            case 'x': return TileType.Bomb;
+            case 'x': return TileType.Bomb;         // Legacy support
             case '*': return TileType.Projectile;
+            case 'X': return TileType.Explosion;    // Explosion stays 'X'
             
             // Houdini format mappings
             case '.': return TileType.Empty;        // EMPTY
-            case 'o': return TileType.Empty;        // FLOOR (treat as empty)
             case 'P': return TileType.Player;       // PLAYER
-            case 'E': return TileType.Enemy;        // ENEMY
-            case 'S': return TileType.EnemyShooter; // ENEMY_SHOOTER
+            case 'E': return TileType.Enemy;        // ENEMY (both Enemy and EnemyShooter show as 'E')
+            case 'S': return TileType.EnemyShooter; // ENEMY_SHOOTER (level data still uses 'S')
             case 'C': return TileType.Coin;         // COIN
             case 'H': return TileType.Health;       // HEALTH
-            // case 'B': already mapped to Breakable // BREAKABLE
-            case 'X': return TileType.Stairs;       // STAIRS (exit)
-            case 'F': return TileType.Empty;        // Special floor type
+            case '?': return TileType.Empty;        // Special floor type
             
             default:  return TileType.Empty;
         }
