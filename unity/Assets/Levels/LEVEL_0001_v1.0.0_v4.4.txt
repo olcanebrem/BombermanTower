@@ -65,7 +65,7 @@ MIN_PLAYER_EXIT_DIST=26.6
 ##################B#
 ###BBBBB#BBBBBB#####
 ####B...C.....BB####
-##B#B.FCC..C....PB##
+##B#B.FCC..C.....B##
 #B##BH.C.C....H..B##
 ####B..HH........###
 ##BBB.....P...H..B##

@@ -241,7 +241,7 @@ public class RewardSystem : MonoBehaviour
     // Distance-based rewards (called each frame/step)
     public void UpdateDistanceRewards()
     {
-        if (!useDistanceRewards) return;
+        if (!useDistanceRewards || agent == null) return;
         
         // Enemy proximity reward
         float currentEnemyDistance = GetNearestEnemyDistance();

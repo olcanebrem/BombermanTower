@@ -249,8 +249,12 @@ public class PlayerAgent : Agent, ITurnBased
         int moveActionIndex = discreteActions[0]; // 0-8: movement directions
         int bombActionIndex = discreteActions.Length > 1 ? discreteActions[1] : 0; // 0-1: bomb placement
         
+        Debug.Log($"[PlayerAgent] MoveIndex: {moveActionIndex}, BombIndex: {bombActionIndex}");
+        
         // Convert to IGameAction
         pendingAction = CreateGameAction(moveActionIndex, bombActionIndex);
+        
+        Debug.Log($"[PlayerAgent] PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}");
         
         // Debug logging
         if (debugActions)
@@ -685,6 +689,7 @@ public class PlayerAgent : Agent, ITurnBased
         
         // Request decision from ML-Agent
         needsDecision = true;
+        Debug.Log("[PlayerAgent] RequestDecision called");
         RequestDecision();
         
         // Return null for this turn, action will be available next turn

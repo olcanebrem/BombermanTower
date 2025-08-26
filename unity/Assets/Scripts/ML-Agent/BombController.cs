@@ -163,19 +163,15 @@ public class BombController : MonoBehaviour
         // Chain reaction - explode other bombs
         if (envManager.HasBombAt(gridPos))
         {
-            GameObject[] allBombs = GameObject.FindGameObjectsWithTag("Bomb");
-            foreach (GameObject bomb in allBombs)
+            BombController[] allBombs = FindObjectsOfType<BombController>();
+            foreach (BombController bomb in allBombs)
             {
-                if (bomb != gameObject)
+                if (bomb.gameObject != gameObject)
                 {
                     Vector2Int bombPos = envManager.WorldToGrid(bomb.transform.position);
                     if (bombPos == gridPos)
                     {
-                        BombController otherBomb = bomb.GetComponent<BombController>();
-                        if (otherBomb != null)
-                        {
-                            otherBomb.TriggerExplosion();
-                        }
+                        bomb.TriggerExplosion();
                     }
                 }
             }

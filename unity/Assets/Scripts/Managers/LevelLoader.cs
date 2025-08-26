@@ -632,17 +632,34 @@ public class LevelLoader : MonoBehaviour
         Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
         
         // b) Oyuncuyu, hesaplanan bu pozisyonda oluştur.
-        if (playerPrefab != null)
+        // Singleton pattern: Varsa mevcut player'ı kullan
+        if (PlayerController.Instance != null)
         {
-            playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+            playerObject = PlayerController.Instance.gameObject;
+            playerObject.transform.position = playerPos;
+            Debug.Log("[LevelLoader] Using existing Singleton Player instance");
+        }
+        else if (playerObject == null)
+        {
+            if (playerPrefab != null)
+            {
+                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+                Debug.Log("[LevelLoader] New Singleton Player created");
+            }
+            else
+            {
+                Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
+                // Create empty GameObject as fallback
+                playerObject = new GameObject("Player (Missing Prefab)");
+                playerObject.transform.position = playerPos;
+                playerObject.transform.SetParent(transform);
+            }
         }
         else
         {
-            Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
-            // Create empty GameObject as fallback
-            playerObject = new GameObject("Player (Missing Prefab)");
+            // Mevcut player'ı yeni pozisyona taşı
             playerObject.transform.position = playerPos;
-            playerObject.transform.SetParent(transform);
+            Debug.Log("[LevelLoader] Existing player repositioned");
         }
         
         // c) Gerekli bileşen referanslarını SADECE BİR KERE al.

@@ -8,6 +8,9 @@ using Debug = UnityEngine.Debug;
 
 public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
+    // --- SINGLETON PATTERN ---
+    public static PlayerController Instance { get; private set; }
+    
     // --- ML-Agent ---
     public bool useMLAgent { get; set; }
     [Header("ML-Agent Support")]
@@ -37,6 +40,24 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     //=========================================================================
     // KAYIT VE KURULUM
     //=========================================================================
+    
+    private void Awake()
+    {
+        // Singleton pattern implementation
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            Debug.Log("[PlayerController] Singleton instance created");
+        }
+        else if (Instance != this)
+        {
+            Debug.Log("[PlayerController] Duplicate instance destroyed");
+            Destroy(gameObject);
+            return;
+        }
+    }
+    
     public void ResetTurn() => HasActedThisTurn = false;
     void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
     void OnDisable()

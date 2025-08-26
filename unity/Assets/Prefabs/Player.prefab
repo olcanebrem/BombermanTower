@@ -193,8 +193,8 @@ MonoBehaviour:
   observationRadius: 2
   useDistanceObservations: 1
   useGridObservations: 1
-  debugActions: 0
-  debugObservations: 0
+  debugActions: 1
+  debugObservations: 1
 --- !u!114 &-94589322604941226
 MonoBehaviour:
   m_ObjectHideFlags: 0
