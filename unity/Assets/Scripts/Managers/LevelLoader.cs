@@ -765,6 +765,28 @@ public class LevelLoader : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Clear tile at specified grid position - removes from both levelMap and tileObjects
+    /// Used for clean tile removal operations (e.g., player death, object destruction)
+    /// </summary>
+    public void ClearTile(int x, int y)
+    {
+        if (x >= 0 && x < Width && y >= 0 && y < Height)
+        {
+            // Clear the levelMap data
+            levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            
+            // Clear the object reference
+            tileObjects[x, y] = null;
+            
+            Debug.Log($"[LevelLoader] Cleared tile at ({x}, {y})");
+        }
+        else
+        {
+            Debug.LogWarning($"[LevelLoader] ClearTile called with invalid coordinates ({x}, {y})");
+        }
+    }
+    
     public Vector2Int WorldToGrid(Vector3 worldPosition)
     {
         return new Vector2Int(

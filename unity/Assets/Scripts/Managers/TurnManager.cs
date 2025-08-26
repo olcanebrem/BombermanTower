@@ -6,6 +6,10 @@ using System.Linq;
 public class TurnManager : MonoBehaviour
 {
     public static TurnManager Instance { get; private set; }
+    
+    // ML-Agent Integration
+    private PlayerAgent mlAgent;
+    private MLAgentsTrainingController trainingController;
 
     public float turnInterval = 0.2f;
     [Header("Animasyonlar için ek süre")]
@@ -31,6 +35,24 @@ public class TurnManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+    }
+    
+    void Start()
+    {
+        // Find ML-Agent components for central control
+        mlAgent = FindObjectOfType<PlayerAgent>();
+        trainingController = MLAgentsTrainingController.Instance;
+        
+        // Subscribe to player death event
+        PlayerController.OnPlayerDied += HandlePlayerDeathEvent;
+        
+        Debug.Log($"[TurnManager] ML-Agent found: {mlAgent != null}, Training controller: {trainingController != null}");
+    }
+    
+    void OnDestroy()
+    {
+        // Unsubscribe from events
+        PlayerController.OnPlayerDied -= HandlePlayerDeathEvent;
     }
 
     void Update()
@@ -269,6 +291,8 @@ public class TurnManager : MonoBehaviour
     // Sıralamayı belirleyen merkezi kural motoru.
     private int GetExecutionOrder(ITurnBased unit)
     {
+        // ML-Agent gets priority when active
+        if (IsMLAgentActive && unit is PlayerAgent) return -1;
         if (unit is PlayerController) return 0;
         if (unit is EnemyShooterTile || unit is EnemyTile) return 1;
         if (unit is ExplosionWave) return 2; // YENİ SIRA
@@ -277,4 +301,58 @@ public class TurnManager : MonoBehaviour
         return 100;
     }
     
+    // ML-Agent Central Control Properties and Methods
+    public bool IsMLAgentActive
+    {
+        get
+        {
+            return trainingController != null && 
+                   trainingController.IsTraining && 
+                   mlAgent != null && 
+                   mlAgent.UseMLAgent;
+        }
+    }
+    
+    /// <summary>
+    /// Handle player death event - triggered by PlayerController.OnPlayerDied
+    /// This maintains loose coupling through event system
+    /// </summary>
+    private void HandlePlayerDeathEvent(PlayerController deadPlayer)
+    {
+        if (IsMLAgentActive)
+        {
+            Debug.Log($"[TurnManager] Player {deadPlayer.name} died - triggering ML-Agent episode end");
+            mlAgent.ForceEndEpisode();
+        }
+        else
+        {
+            Debug.Log($"[TurnManager] Player {deadPlayer.name} died - no ML-Agent active");
+        }
+    }
+    
+    /// <summary>
+    /// Register ML-Agent when training starts
+    /// This ensures proper turn-based integration
+    /// </summary>
+    public void RegisterMLAgent(PlayerAgent agent)
+    {
+        if (!turnBasedObjects.Contains(agent))
+        {
+            mlAgent = agent;
+            Register(agent);
+            Debug.Log("[TurnManager] ML-Agent registered for turn-based control");
+        }
+    }
+    
+    /// <summary>
+    /// Unregister ML-Agent when training stops
+    /// </summary>
+    public void UnregisterMLAgent(PlayerAgent agent)
+    {
+        if (turnBasedObjects.Contains(agent))
+        {
+            Unregister(agent);
+            Debug.Log("[TurnManager] ML-Agent unregistered from turn-based control");
+        }
+    }
 }

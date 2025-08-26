@@ -11,10 +11,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     // --- SINGLETON PATTERN ---
     public static PlayerController Instance { get; private set; }
     
-    // --- ML-Agent ---
-    public bool useMLAgent { get; set; } // Now private - controlled by MLAgentsTrainingController
-    [Header("ML-Agent Support")]
-    public PlayerAgent mlAgent;
+    // ML-Agent reference removed - now handled centrally by TurnManager
     // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
     public int Y { get; private set; }
@@ -26,6 +23,9 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     public int MaxHealth { get; set; }
     public int CurrentHealth { get; set; }
     public event Action OnHealthChanged;
+    
+    // Event for player death - anyone can listen
+    public static event Action<PlayerController> OnPlayerDied;
     private bool isAnimating = false;
     // --- YENİ ÇAPRAZ HAREKET TAMPONU DEĞİŞKENLERİ ---
     private Vector2Int bufferedMove; // Tamponlanan ilk hareket
@@ -91,8 +91,8 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     void Update()
     {
 
-        // Skip input if ML-Agent is controlling this player through turn-based system
-        if (mlAgent != null && mlAgent.UseMLAgent) return;
+        // Skip input if ML-Agent is controlling - handled by TurnManager
+        if (TurnManager.Instance != null && TurnManager.Instance.IsMLAgentActive) return;
           
         int horizontal = 0;
         int vertical = 0;
@@ -264,37 +264,16 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     private void Die()
     {
         Debug.LogError("OYUNCU ÖLDÜ!");
-        // Oyuncuyu haritadan kaldır
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        LevelLoader.instance.tileObjects[X, Y] = null;
-        // Oyunu durdur veya yeniden başlatma ekranını göster
-        // Time.timeScale = 0; 
+        
+        // Olay yayınla, kim dinlerse aksiyon alsın
+        OnPlayerDied?.Invoke(this);
+        
+        // Harita objesini temizle
+        LevelLoader.instance.ClearTile(X, Y);
+        
         Destroy(gameObject);
     }
     
-    //=========================================================================
-    // ML-AGENT INTERFACE METODLARI
-    //=========================================================================
-    
-    // Note: ML-Agent integration now works through ITurnBased/IGameAction system
-    // These methods are kept for backward compatibility but not used in new system
-    /// <summary>
-    /// [DEPRECATED] ML-Agent tarafından moveIntent ayarlamak için kullanılır - Use ITurnBased system instead
-    /// </summary>
-    public void SetMLMoveIntent(Vector2Int move) => moveIntent = move;
-    
-    /// <summary>
-    /// [DEPRECATED] ML-Agent tarafından bombIntent ayarlamak için kullanılır - Use ITurnBased system instead
-    /// </summary>
-    public void SetMLBombIntent(bool bomb) => bombIntent = bomb;
-    
-    /// <summary>
-    /// ML-Agent için mevcut moveIntent'i döndürür (debug için)
-    /// </summary>
-    public Vector2Int GetMoveIntent() => moveIntent;
-    
-    /// <summary>
-    /// ML-Agent için mevcut bombIntent'i döndürür (debug için)
-    /// </summary>
-    public bool GetBombIntent() => bombIntent;
+    // ML-Agent integration now handled centrally by TurnManager
+    // All ML-Agent actions flow through ITurnBased/IGameAction system
 }

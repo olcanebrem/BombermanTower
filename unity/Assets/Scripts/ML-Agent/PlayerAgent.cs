@@ -110,18 +110,13 @@ public class PlayerAgent : Agent, ITurnBased
             Debug.LogWarning("[PlayerAgent] EnvManager not found. Some observations may not work.");
         }
         
-        // Setup ML-Agent integration
+        // Setup ML-Agent integration - now centralized through TurnManager
         if (UseMLAgent)
         {
-            // Keep reference for backward compatibility
-            playerController.mlAgent = this;
-            playerController.useMLAgent = UseMLAgent;
-            
-            // Register with TurnManager for turn-based control
-            // Note: PlayerController will unregister itself when ML-Agent takes over
+            // Unregister PlayerController and register ML-Agent centrally
             TurnManager.Instance?.Unregister(playerController);
-            TurnManager.Instance?.Register(this);
-            Debug.Log("[PlayerAgent] ML-Agent mode activated and registered with TurnManager!");
+            TurnManager.Instance?.RegisterMLAgent(this);
+            Debug.Log("[PlayerAgent] ML-Agent registered centrally through TurnManager");
         }
     }
     IEnumerator DelayedRewardSystemSearch()
@@ -173,6 +168,12 @@ public class PlayerAgent : Agent, ITurnBased
         if (envManager != null)
         {
             lastEnemyCount = envManager.GetRemainingEnemyCount();
+        }
+        
+        // Reset environment
+        if (envManager != null)
+        {
+            envManager.ResetEnvironment();
         }
         
         // Reset reward system
@@ -757,10 +758,10 @@ public class PlayerAgent : Agent, ITurnBased
     
     private void OnDestroy()
     {
-        // Unregister from TurnManager when destroyed
-        if (UseMLAgent && TurnManager.Instance != null)
+        // Unregister from TurnManager when destroyed - centralized
+        if (TurnManager.Instance != null)
         {
-            TurnManager.Instance.Unregister(this);
+            TurnManager.Instance.UnregisterMLAgent(this);
         }
         
         // Unsubscribe from events
