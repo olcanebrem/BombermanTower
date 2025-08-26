@@ -84,6 +84,8 @@ Thumbs.db
 # --- Unity Collaborate (kullanmıyorsan) ---
 .collab/
 .claude
+*.pt
+*.onnx
 # --- Paket Cache ---
 /Packages/manifest.json
 /Packages/packages-lock.json
@@ -91,8 +93,4 @@ unity/Packages/manifest.json
 unity/Packages/packages-lock.json
 Unity/ProjectSettings/McpUnitySettings.json
 unity/Packages/manifest.json
-Python/results/test/PlayerAgent/checkpoint.pt
-Python/results/test/PlayerAgent/PlayerAgent-1559.pt
-Python/results/test/PlayerAgent/PlayerAgent-1559.onnx
-Python/results/test/PlayerAgent.onnx
-Python/results/test/PlayerAgent/events.out.tfevents.1756238346.KNIGHT.31164.0
+

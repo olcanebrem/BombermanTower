@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Debug = UnityEngine.Debug;
 
 public class TurnManager : MonoBehaviour
 {
@@ -319,14 +320,77 @@ public class TurnManager : MonoBehaviour
     /// </summary>
     private void HandlePlayerDeathEvent(PlayerController deadPlayer)
     {
+        Debug.Log($"[TurnManager] Player {deadPlayer.name} died - handling death sequence");
+        
         if (IsMLAgentActive)
         {
-            Debug.Log($"[TurnManager] Player {deadPlayer.name} died - triggering ML-Agent episode end");
+            // ML-Agent training mode: Load next level and continue
+            LoadNextLevelInTrainingSequence();
+            
+            // End current episode - new level will start fresh episode
             mlAgent.ForceEndEpisode();
         }
         else
         {
-            Debug.Log($"[TurnManager] Player {deadPlayer.name} died - no ML-Agent active");
+            // Manual gameplay mode: Handle differently (game over, restart, etc.)
+            HandleManualGameplayDeath(deadPlayer);
+        }
+    }
+    
+    /// <summary>
+    /// Handle player death in ML-Agent training mode
+    /// Loads next level in sequence and continues training
+    /// </summary>
+    private void LoadNextLevelInTrainingSequence()
+    {
+        var levelLoader = LevelLoader.instance;
+        if (levelLoader != null && levelLoader.useMultiLevelSequence)
+        {
+            Debug.Log("[TurnManager] Loading next level in training sequence...");
+            levelLoader.LoadNextLevelInSequence();
+        }
+        else
+        {
+            Debug.LogWarning("[TurnManager] LevelLoader not found or multi-level sequence disabled");
+        }
+    }
+    
+    /// <summary>
+    /// Handle player death in manual gameplay mode
+    /// Can be extended for game over screens, lives system, etc.
+    /// </summary>
+    private void HandleManualGameplayDeath(PlayerController deadPlayer)
+    {
+        Debug.Log($"[TurnManager] Manual gameplay - player {deadPlayer.name} died");
+        
+        // TODO: Implement manual gameplay death handling
+        // - Game over screen
+        // - Lives system
+        // - Level restart
+        // - Menu return
+        
+        // For now, just restart current level
+        var levelLoader = LevelLoader.instance;
+        if (levelLoader != null)
+        {
+            Debug.Log("[TurnManager] Restarting current level for manual gameplay");
+            // Could add a delay or UI confirmation here
+            StartCoroutine(RestartCurrentLevelDelayed());
+        }
+    }
+    
+    /// <summary>
+    /// Restart current level with a small delay
+    /// </summary>
+    private System.Collections.IEnumerator RestartCurrentLevelDelayed()
+    {
+        yield return new WaitForSeconds(1f); // Give time to see death
+        
+        var levelLoader = LevelLoader.instance;
+        if (levelLoader != null)
+        {
+            // Reload same level
+            levelLoader.InitializeLevelSequence(levelLoader.GetCurrentLevelSequenceIndex());
         }
     }
     

@@ -3,6 +3,7 @@ using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using System.Collections;
+using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// ML-Agent implementation that integrates with turn-based system through ITurnBased interface.
@@ -52,6 +53,12 @@ public class PlayerAgent : Agent, ITurnBased
     private int cachedInitialEnemyCount = 1;
     private int cachedInitialCollectibleCount = 1;
     private bool levelDataCached = false;
+    
+    // Debug Panel Properties
+    public int CurrentMoveIndex { get; private set; } = 0;
+    public int CurrentBombIndex { get; private set; } = 0;
+    public Vector2Int LastActionDirection { get; private set; } = Vector2Int.zero;
+    public string CurrentActionType { get; private set; } = "None";
     
     // Action mapping arrays
     private readonly Vector2Int[] moveDirections = new Vector2Int[]
@@ -254,10 +261,33 @@ public class PlayerAgent : Agent, ITurnBased
         int moveActionIndex = discreteActions[0]; // 0-8: movement directions
         int bombActionIndex = discreteActions.Length > 1 ? discreteActions[1] : 0; // 0-1: bomb placement
         
+        // Update debug properties
+        CurrentMoveIndex = moveActionIndex;
+        CurrentBombIndex = bombActionIndex;
+        
         Debug.Log($"[PlayerAgent] MoveIndex: {moveActionIndex}, BombIndex: {bombActionIndex}");
         
         // Convert to IGameAction
         pendingAction = CreateGameAction(moveActionIndex, bombActionIndex);
+        
+        // Update debug info
+        if (pendingAction != null)
+        {
+            CurrentActionType = pendingAction.GetType().Name;
+            if (pendingAction is MoveAction moveActionDebug)
+            {
+                LastActionDirection = moveActionDebug.Direction;
+            }
+            else if (pendingAction is PlaceBombAction)
+            {
+                LastActionDirection = Vector2Int.zero; // Bomb at current position
+            }
+        }
+        else
+        {
+            CurrentActionType = "None";
+            LastActionDirection = Vector2Int.zero;
+        }
         
         Debug.Log($"[PlayerAgent] PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}");
         

@@ -70,7 +70,7 @@ MIN_PLAYER_EXIT_DIST=26.6
 ##...C...HCHH..H.B##
 #BHHEC....C.F.C.HB##
 #B....H.HH.......B#B
-##C.H..E.F.....B#B
+##C.H..E.F.....B#BB#
 ##HHHH...E..#B##B###
 ##......E...HC..CB##
 #B...H.C..E...HH.#BB
@@ -78,7 +78,7 @@ MIN_PLAYER_EXIT_DIST=26.6
 ########F.C...HH..B#
 #######B..C....C..##
 #######BH.H.......BB
-#######BC.........E.B#
+#######BC.........E.
 ########......H...B#
 #######BBB#BH.E.SCB#
 ########B##B#B##B###

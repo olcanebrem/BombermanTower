@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Diagnostics;
 using System.Collections;
+using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Controller for ML-Agents training from within Unity
@@ -158,9 +159,17 @@ public class MLAgentsTrainingController : MonoBehaviour
             currentRunId = runId;
         }
         
+        // Subscribe to level loader events for multi-level training
+        if (LevelLoader.instance != null)
+        {
+            LevelLoader.instance.OnLevelSequenceChanged += OnLevelSequenceChanged;
+            LevelLoader.instance.OnAllLevelsCycled += OnAllLevelsCycled;
+        }
+        
         UpdateStatus($"Initialized. Ready to start training with run ID: {currentRunId}");
         
-        if (startTrainingOnAwake)
+        // Auto-start training if enabled
+        if (isTraining)
         {
             StartCoroutine(DelayedStartTraining());
         }
@@ -194,6 +203,13 @@ public class MLAgentsTrainingController : MonoBehaviour
         {
             UnityEngine.Debug.LogWarning("[MLAgentsTrainingController] Training already in progress!");
             return;
+        }
+        
+        // Initialize multi-level sequence when training starts
+        if (LevelLoader.instance != null && LevelLoader.instance.useMultiLevelSequence)
+        {
+            LevelLoader.instance.InitializeLevelSequence(0);
+            Debug.Log("[MLAgentsTrainingController] Initialized multi-level training sequence");
         }
         
         if (!File.Exists(actualConfigPath))
@@ -482,6 +498,26 @@ public class MLAgentsTrainingController : MonoBehaviour
     
     private void OnDestroy()
     {
+        // Unsubscribe from events
+        if (LevelLoader.instance != null)
+        {
+            LevelLoader.instance.OnLevelSequenceChanged -= OnLevelSequenceChanged;
+            LevelLoader.instance.OnAllLevelsCycled -= OnAllLevelsCycled;
+        }
+        
         StopTraining();
+    }
+    
+    // Level sequence event handlers
+    private void OnLevelSequenceChanged(int currentIndex, int totalLevels)
+    {
+        UpdateStatus($"🎯 Training Level: {currentIndex + 1}/{totalLevels}\\nRun ID: {currentRunId}\\nMulti-level curriculum active");
+        Debug.Log($"[MLAgentsTrainingController] Level sequence: {currentIndex + 1}/{totalLevels}");
+    }
+    
+    private void OnAllLevelsCycled()
+    {
+        Debug.Log($"[MLAgentsTrainingController] Completed full level cycle - curriculum learning continues");
+        UpdateStatus($"🔄 Completed level cycle\\nRun ID: {currentRunId}\\nCurriculum learning active");
     }
 }
