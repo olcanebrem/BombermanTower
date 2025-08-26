@@ -229,6 +229,8 @@ public class PlayerAgent : Agent, ITurnBased
     
     public override void OnActionReceived(ActionBuffers actions)
     {
+        Debug.Log("[PlayerAgent] OnActionReceived CALLED! - Starting action processing");
+        
         var discreteActions = actions.DiscreteActions;
         
         if (discreteActions.Length == 0)
@@ -237,7 +239,9 @@ public class PlayerAgent : Agent, ITurnBased
             return;
         }
         
-        if (!useMLAgent || playerController == null || !needsDecision) return;
+        Debug.Log($"[PlayerAgent] OnActionReceived - useMLAgent: {useMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
+        
+        if (!useMLAgent || playerController == null) return;
         
         episodeSteps++;
         needsDecision = false;
@@ -666,9 +670,9 @@ public class PlayerAgent : Agent, ITurnBased
     public void ResetTurn()
     {
         HasActedThisTurn = false;
-        pendingAction = null;
+        // DON'T clear pendingAction here - let GetAction handle it
         needsDecision = false;
-        Debug.Log("[PlayerAgent] Turn reset - HasActedThisTurn = false");
+        Debug.Log("[PlayerAgent] Turn reset - HasActedThisTurn = false, PendingAction preserved");
     }
     
     public IGameAction GetAction()
@@ -687,7 +691,24 @@ public class PlayerAgent : Agent, ITurnBased
             IGameAction action = pendingAction;
             pendingAction = null;
             HasActedThisTurn = true;
-            Debug.Log($"[PlayerAgent] Returning action: {action.GetType().Name}");
+            // Debug action details
+            if (action is MoveAction moveAction)
+            {
+                Debug.Log($"[PlayerAgent] Returning MoveAction with direction: {moveAction.Direction}");
+                
+                // DEBUG: If direction is (0,0), create a random move for testing
+                if (moveAction.Direction == Vector2Int.zero)
+                {
+                    Debug.Log("[PlayerAgent] Converting no-movement to random movement for testing");
+                    Vector2Int randomDir = moveDirections[UnityEngine.Random.Range(1, 5)]; // 1-4 = up,right,down,left
+                    action = new MoveAction(playerController, randomDir);
+                    Debug.Log($"[PlayerAgent] Using random direction: {randomDir}");
+                }
+            }
+            else
+            {
+                Debug.Log($"[PlayerAgent] Returning action: {action.GetType().Name}");
+            }
             return action;
         }
         
@@ -695,33 +716,7 @@ public class PlayerAgent : Agent, ITurnBased
         Debug.Log("[PlayerAgent] RequestDecision called - requesting fresh decision");
         RequestDecision();
         
-        // TEMPORARY SOLUTION: Manual simulation until OnActionReceived works
-        // TODO: Remove this when ML-Agents Python connection is fixed
-        
-        Debug.Log("[PlayerAgent] [TEMP] Using manual simulation - ML-Agents not connected");
-        
-        // Apply step rewards (same as real ML-Agents would do) 
-        if (rewardSystem != null)
-        {
-            ApplyStepRewards();
-        }
-        
-        // Simulate discrete actions 
-        int simulatedMoveAction = UnityEngine.Random.Range(0, 9); 
-        int simulatedBombAction = UnityEngine.Random.Range(0, 2);
-        
-        Debug.Log($"[PlayerAgent] [TEMP] Simulated MoveIndex: {simulatedMoveAction}, BombIndex: {simulatedBombAction}");
-        
-        // Use real CreateGameAction logic
-        IGameAction simulatedAction = CreateGameAction(simulatedMoveAction, simulatedBombAction);
-        
-        if (simulatedAction != null)
-        {
-            HasActedThisTurn = true;
-            Debug.Log($"[PlayerAgent] [TEMP] Returning simulated action: {simulatedAction.GetType().Name}");
-            return simulatedAction;
-        }
-        
+        // Return null for this turn, action will be available next turn via OnActionReceived
         return null;
     }
     

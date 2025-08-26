@@ -8,6 +8,9 @@ public class MoveAction : IGameAction
 
     // IGameAction'ın yeni özelliği
     public GameObject Actor => actorGameObject; // Return the stored reference
+    
+    // Debug için direction property
+    public Vector2Int Direction => direction;
 
     public MoveAction(IMovable mover, Vector2Int direction)
     {
