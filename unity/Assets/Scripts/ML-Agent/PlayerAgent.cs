@@ -88,6 +88,19 @@ public class PlayerAgent : Agent, ITurnBased
             Debug.Log($"[PlayerAgent] Behavior name set to: {behaviorName}");
         }
         
+        // Validate action space setup
+        var behaviorParameters = GetComponent<Unity.MLAgents.Policies.BehaviorParameters>();
+        if (behaviorParameters != null)
+        {
+            var actionSpec = behaviorParameters.BrainParameters.ActionSpec;
+            Debug.Log($"[PlayerAgent] Action Space - Discrete Actions: {actionSpec.NumDiscreteActions}, Branch sizes: [{string.Join(", ", actionSpec.BranchSizes)}]");
+            
+            if (actionSpec.NumDiscreteActions != 2)
+            {
+                Debug.LogWarning($"[PlayerAgent] Expected 2 discrete actions (move + bomb), but found {actionSpec.NumDiscreteActions}. Please check BehaviorParameters in Inspector.");
+            }
+        }
+        
         // Get required components
         playerController = GetComponent<PlayerController>();
         rewardSystem = GetComponent<RewardSystem>();
@@ -265,7 +278,16 @@ public class PlayerAgent : Agent, ITurnBased
         CurrentMoveIndex = moveActionIndex;
         CurrentBombIndex = bombActionIndex;
         
-        Debug.Log($"[PlayerAgent] MoveIndex: {moveActionIndex}, BombIndex: {bombActionIndex}");
+        Debug.Log($"[PlayerAgent] Received Actions - MoveIndex: {moveActionIndex}, BombIndex: {bombActionIndex} (DiscreteActions.Length: {discreteActions.Length})");
+        
+        // Debug: Show all received actions
+        if (debugActions)
+        {
+            for (int i = 0; i < discreteActions.Length; i++)
+            {
+                Debug.Log($"[PlayerAgent] DiscreteAction[{i}] = {discreteActions[i]}");
+            }
+        }
         
         // Convert to IGameAction
         pendingAction = CreateGameAction(moveActionIndex, bombActionIndex);
@@ -306,11 +328,14 @@ public class PlayerAgent : Agent, ITurnBased
     
     private IGameAction CreateGameAction(int moveActionIndex, int bombActionIndex)
     {
+        Debug.Log($"[PlayerAgent] CreateGameAction - Move: {moveActionIndex}, Bomb: {bombActionIndex}");
+        
         // Priority: Bomb action > Move action > No action
         if (bombActionIndex == 1)
         {
             // Place bomb at current position
             Vector2Int bombDirection = Vector2Int.zero;
+            Debug.Log($"[PlayerAgent] Creating PlaceBombAction at current position");
             return new PlaceBombAction(playerController, bombDirection);
         }
         
@@ -405,13 +430,26 @@ public class PlayerAgent : Agent, ITurnBased
         
         if (discreteActionsOut.Length == 0) return;
         
-        int action = 0;
-        if (Input.GetKey(KeyCode.W)) action = 1;
-        else if (Input.GetKey(KeyCode.S)) action = 2;
-        else if (Input.GetKey(KeyCode.A)) action = 3;
-        else if (Input.GetKey(KeyCode.D)) action = 4;
+        // Movement action (0-8)
+        int moveAction = 0;
+        if (Input.GetKey(KeyCode.W)) moveAction = 1;
+        else if (Input.GetKey(KeyCode.D)) moveAction = 2; 
+        else if (Input.GetKey(KeyCode.S)) moveAction = 3;
+        else if (Input.GetKey(KeyCode.A)) moveAction = 4;
         
-        discreteActionsOut[0] = action;
+        // Bomb action (0-1)
+        int bombAction = Input.GetKey(KeyCode.Space) ? 1 : 0;
+        
+        discreteActionsOut[0] = moveAction;
+        if (discreteActionsOut.Length > 1)
+        {
+            discreteActionsOut[1] = bombAction;
+        }
+        
+        if (debugActions && (moveAction != 0 || bombAction != 0))
+        {
+            Debug.Log($"[PlayerAgent] Heuristic - Move: {moveAction}, Bomb: {bombAction}");
+        }
     }
         
     //=========================================================================

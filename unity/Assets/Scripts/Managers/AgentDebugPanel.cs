@@ -11,7 +11,7 @@ public class AgentDebugPanel : MonoBehaviour
     [Header("Component References")]
     public MLAgentsTrainingController trainingController;
     public TurnManager turnManager;
-    public LevelLoader levelLoader;
+    public LevelSequencer levelSequencer;
 
     [Header("Debug Options")]
     public bool showDebugPanel = true;
@@ -34,7 +34,7 @@ public class AgentDebugPanel : MonoBehaviour
         if (playerAgent == null) playerAgent = FindObjectOfType<PlayerAgent>();
         if (trainingController == null) trainingController = MLAgentsTrainingController.Instance;
         if (turnManager == null) turnManager = TurnManager.Instance;
-        if (levelLoader == null) levelLoader = LevelLoader.instance;
+        if (levelSequencer == null) levelSequencer = LevelSequencer.Instance;
         
         // Initialize panel rect
         UpdatePanelRect();
@@ -115,14 +115,18 @@ public class AgentDebugPanel : MonoBehaviour
         }
 
         // === LEVEL INFO ===
-        if (showLevelInfo && levelLoader != null)
+        if (showLevelInfo && levelSequencer != null)
         {
             GUI.Label(new Rect(panelRect.x + 10, panelRect.y + yOffset, panelSize.x - 20, lineHeight),
                       "🎯 LEVEL INFO", headerStyle);
             yOffset += lineHeight + 5;
 
             GUI.Label(new Rect(panelRect.x + 15, panelRect.y + yOffset, panelSize.x - 30, lineHeight),
-                      $"Current: {levelLoader.GetCurrentLevelInfo()}", labelStyle);
+                      $"Current: {levelSequencer.GetCurrentLevelInfo()}", labelStyle);
+            yOffset += lineHeight;
+            
+            GUI.Label(new Rect(panelRect.x + 15, panelRect.y + yOffset, panelSize.x - 30, lineHeight),
+                      $"Cycles: {levelSequencer.GetCompletedCycles()}", labelStyle);
             yOffset += lineHeight;
 
             if (turnManager != null)
@@ -209,16 +213,16 @@ public class AgentDebugPanel : MonoBehaviour
         }
 
         // Level sequence controls
-        if (levelLoader != null && levelLoader.useMultiLevelSequence)
+        if (levelSequencer != null && levelSequencer.IsSequenceActive())
         {
             if (GUI.Button(new Rect(panelRect.x + 15, panelRect.y + yOffset, 100, 20), "Next Level"))
             {
-                levelLoader.LoadNextLevelInSequence();
+                levelSequencer.LoadNextLevel();
             }
             
             if (GUI.Button(new Rect(panelRect.x + 125, panelRect.y + yOffset, 100, 20), "Reset Level"))
             {
-                levelLoader.InitializeLevelSequence(levelLoader.GetCurrentLevelSequenceIndex());
+                levelSequencer.RestartCurrentLevel();
             }
             yOffset += lineHeight + 5;
         }

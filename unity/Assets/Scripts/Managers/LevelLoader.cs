@@ -44,11 +44,7 @@ public class LevelLoader : MonoBehaviour
     [SerializeField] private int selectedLevelIndex = 0;
     [SerializeField] private string levelsDirectoryPath = "Assets/Levels";
     
-    // --- Multi-Level Sequence Management ---
-    [Header("Multi-Level Training")]
-    public bool useMultiLevelSequence = true;
-    private int currentLevelSequenceIndex = 0;
-    public event System.Action<int, int> OnLevelSequenceChanged; // (currentIndex, totalLevels)
+    // Multi-level sequence management moved to LevelSequencer.cs
     
     // --- Current Level Data ---
     private HoudiniLevelData currentLevelData; 
@@ -70,9 +66,8 @@ public class LevelLoader : MonoBehaviour
     public event System.Action OnEnemyListChanged;
     public event System.Action OnCollectibleListChanged;
     
-    // Events for level management
+    // Level loading events (sequence events moved to LevelSequencer)
     public event System.Action<string> OnLevelLoaded; // levelName
-    public event System.Action OnAllLevelsCycled; // When we complete full cycle
     public void DebugPrintMap()
     {
         // TurnManager'dan o anki tur sayısını alarak log'u daha bilgilendirici yapalım.
@@ -814,120 +809,12 @@ public class LevelLoader : MonoBehaviour
             0
         );
     }
-    
-    //=========================================================================
-    // MULTI-LEVEL SEQUENCE MANAGEMENT
-    //=========================================================================
-    
-    /// <summary>
-    /// Get total number of available levels for sequence
-    /// </summary>
-    public int GetTotalLevelsCount()
-    {
-        return availableLevels.Count;
-    }
-    
-    /// <summary>
-    /// Get current level index in sequence
-    /// </summary>
-    public int GetCurrentLevelSequenceIndex()
-    {
-        return currentLevelSequenceIndex;
-    }
-    
-    /// <summary>
-    /// Load next level in sequence (cycles back to start when reaching end)
-    /// Called when player dies or level is completed unsuccessfully
-    /// </summary>
-    public void LoadNextLevelInSequence()
-    {
-        if (!useMultiLevelSequence || availableLevels.Count == 0)
-        {
-            Debug.LogWarning("[LevelLoader] Multi-level sequence disabled or no levels available");
-            return;
-        }
-        
-        // Move to next level
-        currentLevelSequenceIndex = (currentLevelSequenceIndex + 1) % availableLevels.Count;
-        
-        // Check if we completed a full cycle
-        if (currentLevelSequenceIndex == 0)
-        {
-            Debug.Log("[LevelLoader] Completed full level cycle - starting over");
-            OnAllLevelsCycled?.Invoke();
-        }
-        
-        // Load the next level
-        LoadLevelByIndex(currentLevelSequenceIndex);
-        
-        // Notify listeners
-        OnLevelSequenceChanged?.Invoke(currentLevelSequenceIndex, availableLevels.Count);
-        
-        Debug.Log($"[LevelLoader] Loaded next level in sequence: {currentLevelSequenceIndex + 1}/{availableLevels.Count}");
-    }
-    
-    /// <summary>
-    /// Load level by specific index
-    /// </summary>
-    private void LoadLevelByIndex(int index)
-    {
-        if (index < 0 || index >= availableLevels.Count)
-        {
-            Debug.LogError($"[LevelLoader] Invalid level index: {index}");
-            return;
-        }
-        
-        selectedLevelIndex = index;
-        var levelEntry = availableLevels[index];
-        
-        if (levelEntry.textAsset != null)
-        {
-            // Load from TextAsset using HoudiniLevelImporter
-            var levelData = levelImporter.LoadLevelData(levelEntry.textAsset);
-            if (levelData != null)
-            {
-                LoadLevelFromHoudiniData(levelData);
-                OnLevelLoaded?.Invoke(levelEntry.fileName);
-            }
-            else
-            {
-                UnityEngine.Debug.LogError($"[LevelLoader] Failed to load level data from {levelEntry.fileName}");
-            }
-        }
-        else
-        {
-            Debug.LogError($"[LevelLoader] Level {index} has no TextAsset assigned");
-        }
-    }
-    
-    /// <summary>
-    /// Initialize level sequence (typically called at training start)
-    /// </summary>
-    public void InitializeLevelSequence(int startIndex = 0)
-    {
-        if (availableLevels.Count == 0)
-        {
-            Debug.LogError("[LevelLoader] No levels available for sequence");
-            return;
-        }
-        
-        currentLevelSequenceIndex = Mathf.Clamp(startIndex, 0, availableLevels.Count - 1);
-        LoadLevelByIndex(currentLevelSequenceIndex);
-        
-        Debug.Log($"[LevelLoader] Initialized level sequence starting at index {currentLevelSequenceIndex}");
-    }
-    
-    /// <summary>
-    /// Get current level info for debugging/UI
-    /// </summary>
-    public string GetCurrentLevelInfo()
-    {
-        if (currentLevelSequenceIndex < availableLevels.Count)
-        {
-            var current = availableLevels[currentLevelSequenceIndex];
-            return $"{current.fileName} ({currentLevelSequenceIndex + 1}/{availableLevels.Count})";
-        }
-        return "No level loaded";
-    }
 
+    //=========================================================================
+    // LEVEL LOADING CORE FUNCTIONALITY
+    //=========================================================================
+    
+    // Multi-level sequence management has been moved to LevelSequencer.cs
+    // LevelLoader now focuses solely on level generation and loading
+    
 }

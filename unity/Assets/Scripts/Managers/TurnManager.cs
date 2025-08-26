@@ -11,6 +11,7 @@ public class TurnManager : MonoBehaviour
     // ML-Agent Integration
     private PlayerAgent mlAgent;
     private MLAgentsTrainingController trainingController;
+    private LevelSequencer levelSequencer;
 
     public float turnInterval = 0.2f;
     [Header("Animasyonlar için ek süre")]
@@ -43,11 +44,12 @@ public class TurnManager : MonoBehaviour
         // Find ML-Agent components for central control
         mlAgent = FindObjectOfType<PlayerAgent>();
         trainingController = MLAgentsTrainingController.Instance;
+        levelSequencer = LevelSequencer.Instance;
         
         // Subscribe to player death event
         PlayerController.OnPlayerDied += HandlePlayerDeathEvent;
         
-        Debug.Log($"[TurnManager] ML-Agent found: {mlAgent != null}, Training controller: {trainingController != null}");
+        Debug.Log($"[TurnManager] ML-Agent found: {mlAgent != null}, Training controller: {trainingController != null}, Level sequencer: {levelSequencer != null}");
     }
     
     void OnDestroy()
@@ -343,15 +345,14 @@ public class TurnManager : MonoBehaviour
     /// </summary>
     private void LoadNextLevelInTrainingSequence()
     {
-        var levelLoader = LevelLoader.instance;
-        if (levelLoader != null && levelLoader.useMultiLevelSequence)
+        if (levelSequencer != null && levelSequencer.IsSequenceActive())
         {
             Debug.Log("[TurnManager] Loading next level in training sequence...");
-            levelLoader.LoadNextLevelInSequence();
+            levelSequencer.LoadNextLevel();
         }
         else
         {
-            Debug.LogWarning("[TurnManager] LevelLoader not found or multi-level sequence disabled");
+            Debug.LogWarning("[TurnManager] LevelSequencer not found or sequence disabled");
         }
     }
     
@@ -370,8 +371,7 @@ public class TurnManager : MonoBehaviour
         // - Menu return
         
         // For now, just restart current level
-        var levelLoader = LevelLoader.instance;
-        if (levelLoader != null)
+        if (levelSequencer != null && levelSequencer.IsSequenceActive())
         {
             Debug.Log("[TurnManager] Restarting current level for manual gameplay");
             // Could add a delay or UI confirmation here
@@ -386,11 +386,10 @@ public class TurnManager : MonoBehaviour
     {
         yield return new WaitForSeconds(1f); // Give time to see death
         
-        var levelLoader = LevelLoader.instance;
-        if (levelLoader != null)
+        if (levelSequencer != null)
         {
             // Reload same level
-            levelLoader.InitializeLevelSequence(levelLoader.GetCurrentLevelSequenceIndex());
+            levelSequencer.RestartCurrentLevel();
         }
     }
     

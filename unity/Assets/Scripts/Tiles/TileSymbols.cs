@@ -84,7 +84,6 @@ public static class TileSymbols
             
             // Houdini format mappings
             case '.': return TileType.Empty;        // EMPTY
-            case '1': return TileType.Wall;         // WALL (alternative)
             case 'o': return TileType.Empty;        // FLOOR (treat as empty)
             case 'P': return TileType.Player;       // PLAYER
             case 'E': return TileType.Enemy;        // ENEMY

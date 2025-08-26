@@ -159,11 +159,11 @@ public class MLAgentsTrainingController : MonoBehaviour
             currentRunId = runId;
         }
         
-        // Subscribe to level loader events for multi-level training
-        if (LevelLoader.instance != null)
+        // Subscribe to level sequencer events for multi-level training
+        if (LevelSequencer.Instance != null)
         {
-            LevelLoader.instance.OnLevelSequenceChanged += OnLevelSequenceChanged;
-            LevelLoader.instance.OnAllLevelsCycled += OnAllLevelsCycled;
+            LevelSequencer.Instance.OnLevelSequenceChanged += OnLevelSequenceChanged;
+            LevelSequencer.Instance.OnAllLevelsCycled += OnAllLevelsCycled;
         }
         
         UpdateStatus($"Initialized. Ready to start training with run ID: {currentRunId}");
@@ -206,9 +206,9 @@ public class MLAgentsTrainingController : MonoBehaviour
         }
         
         // Initialize multi-level sequence when training starts
-        if (LevelLoader.instance != null && LevelLoader.instance.useMultiLevelSequence)
+        if (LevelSequencer.Instance != null && LevelSequencer.Instance.IsSequenceActive())
         {
-            LevelLoader.instance.InitializeLevelSequence(0);
+            LevelSequencer.Instance.InitializeSequence(0);
             Debug.Log("[MLAgentsTrainingController] Initialized multi-level training sequence");
         }
         
@@ -499,10 +499,10 @@ public class MLAgentsTrainingController : MonoBehaviour
     private void OnDestroy()
     {
         // Unsubscribe from events
-        if (LevelLoader.instance != null)
+        if (LevelSequencer.Instance != null)
         {
-            LevelLoader.instance.OnLevelSequenceChanged -= OnLevelSequenceChanged;
-            LevelLoader.instance.OnAllLevelsCycled -= OnAllLevelsCycled;
+            LevelSequencer.Instance.OnLevelSequenceChanged -= OnLevelSequenceChanged;
+            LevelSequencer.Instance.OnAllLevelsCycled -= OnAllLevelsCycled;
         }
         
         StopTraining();
@@ -515,9 +515,9 @@ public class MLAgentsTrainingController : MonoBehaviour
         Debug.Log($"[MLAgentsTrainingController] Level sequence: {currentIndex + 1}/{totalLevels}");
     }
     
-    private void OnAllLevelsCycled()
+    private void OnAllLevelsCycled(int cycleCount)
     {
-        Debug.Log($"[MLAgentsTrainingController] Completed full level cycle - curriculum learning continues");
-        UpdateStatus($"🔄 Completed level cycle\\nRun ID: {currentRunId}\\nCurriculum learning active");
+        Debug.Log($"[MLAgentsTrainingController] Completed level cycle #{cycleCount} - curriculum learning continues");
+        UpdateStatus($"🔄 Level Cycle #{cycleCount}\\nRun ID: {currentRunId}\\nCurriculum learning active");
     }
 }
