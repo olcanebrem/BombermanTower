@@ -1,6 +1,8 @@
 using UnityEngine;
 public class HealthTile : TileBase, ICollectible, IInitializable
 {
+    public override TileType TileType => TileType.Health;
+    
     public void Init(int x, int y) { } // Artık X,Y tutmasına gerek yok.
     public int healAmount = 1;
     public bool OnCollect(GameObject collector)

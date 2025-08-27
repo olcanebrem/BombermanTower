@@ -131,9 +131,12 @@ public class LevelManager : MonoBehaviour
     
     public void LoadCurrentLevel()
     {
+        Debug.Log($"[LevelManager] LoadCurrentLevel - randomizeLevel: {randomizeLevel}, currentLevelName: '{currentLevelName}', availableLevels: [{string.Join(", ", availableLevels)}]");
+        
         if (randomizeLevel && availableLevels.Count > 0)
         {
             currentLevelName = availableLevels[Random.Range(0, availableLevels.Count)];
+            Debug.Log($"[LevelManager] Randomized level selected: {currentLevelName}");
         }
         else if (string.IsNullOrEmpty(currentLevelName) && availableLevels.Count > 0)
         {
@@ -144,6 +147,7 @@ public class LevelManager : MonoBehaviour
         
         if (!string.IsNullOrEmpty(currentLevelName))
         {
+            Debug.Log($"[LevelManager] Loading level: {currentLevelName}");
             LoadLevel(currentLevelName);
         }
         else
@@ -154,6 +158,8 @@ public class LevelManager : MonoBehaviour
     
     public void LoadLevel(string levelName)
     {
+        Debug.Log($"[LevelManager] LoadLevel called with: '{levelName}'");
+        
         if (levelLoader == null)
         {
             Debug.LogError("[LevelManager] LevelLoader not available!");
@@ -164,12 +170,17 @@ public class LevelManager : MonoBehaviour
         {
             // Find level by name and select it
             var levelEntries = levelLoader.GetAvailableLevels();
+            Debug.Log($"[LevelManager] Available level entries: [{string.Join(", ", levelEntries.Select(e => e.fileName))}]");
+            
             int levelIndex = levelEntries.FindIndex(entry => entry.fileName == levelName);
+            Debug.Log($"[LevelManager] Level '{levelName}' found at index: {levelIndex}");
             
             if (levelIndex >= 0)
             {
                 // Select and load via LevelLoader
+                Debug.Log($"[LevelManager] Selecting level index {levelIndex}");
                 levelLoader.SelectLevel(levelIndex);
+                Debug.Log($"[LevelManager] Loading selected level");
                 levelLoader.LoadSelectedLevel();
                 
                 // Get the HoudiniLevelData for LevelManager's interface

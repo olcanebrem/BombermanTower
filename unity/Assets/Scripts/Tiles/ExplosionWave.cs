@@ -4,7 +4,7 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
 {
     public int X { get; private set; }
     public int Y { get; private set; }
-    public TileType TileType => TileType.Explosion;
+    public override TileType TileType => TileType.Explosion;
     public bool HasActedThisTurn { get; set; }
     
     private int stepsRemaining;

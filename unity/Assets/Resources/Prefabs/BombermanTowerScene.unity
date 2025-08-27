@@ -204,7 +204,7 @@ GameObject:
   - component: {fileID: 104523218}
   - component: {fileID: 104523217}
   m_Layer: 0
-  m_Name: RL TRAINING
+  m_Name: RL TRAINING PARAMETERS
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -481,18 +481,17 @@ MonoBehaviour:
   epsilonSchedule: linear
   visEncodeType: simple
   rewardStrength: 1
-  maxSteps: 2000000
+  maxSteps: 100000
   summaryFreq: 50000
   checkpointInterval: 100000
   keepCheckpoints: 5
-  startTrainingOnAwake: 1
+  isTraining: 1
   autoParseResults: 1
   statusCheckInterval: 10
   pythonExecutable: C:\Users\olcan\AppData\Local\Programs\Python\Python310\python.exe
   mlagentsLearnPath: mlagents-learn
   resultsParserPath: ../../Python/mlagents_results_parser.py
   trainingStatus: Ready to start training...
-  isTraining: 1
   currentRunId: 
   trainingStartTime: 0
 --- !u!4 &380877714
@@ -544,7 +543,9 @@ Transform:
   - {fileID: 778810547}
   - {fileID: 1168086239}
   - {fileID: 380877714}
+  - {fileID: 599021166}
   - {fileID: 104523216}
+  - {fileID: 1965126726}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &582686562
@@ -726,6 +727,63 @@ RectTransform:
   m_AnchoredPosition: {x: 400, y: 1171.9}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &599021165
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 599021166}
+  - component: {fileID: 599021167}
+  m_Layer: 0
+  m_Name: 'AgentDebugPanel '
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &599021166
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 599021165}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -41.804443, y: 19.78247, z: 0.42799377}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 400170550}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &599021167
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 599021165}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1869b7ebf92080a4eba8f554c29efa66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agent: {fileID: 0}
+  playerAgent: {fileID: 0}
+  trainingController: {fileID: 380877713}
+  turnManager: {fileID: 778810546}
+  levelSequencer: {fileID: 0}
+  showDebugPanel: 1
+  showTrainingInfo: 1
+  showLevelInfo: 1
+  showActionInfo: 1
+  panelColor: {r: 0, g: 0, b: 0, a: 0.7}
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  panelPosition: {x: 10, y: 10}
+  panelSize: {x: 300, y: 400}
 --- !u!1 &740817441
 GameObject:
   m_ObjectHideFlags: 0
@@ -1406,6 +1464,58 @@ MonoBehaviour:
   levelsPath: Assets/Levels/
   enableRLTrainingLogging: 1
   inspectorStatus: Loading...
+--- !u!1 &1965126725
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1965126726}
+  - component: {fileID: 1965126727}
+  m_Layer: 0
+  m_Name: LevelSequencer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1965126726
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1965126725}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -552.609, y: -546.72943, z: 252.70547}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 400170550}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1965126727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1965126725}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fba154e3fc3f37f45ad04aad1fbdf5f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  useMultiLevelSequence: 1
+  availableLevels: []
+  startLevelIndex: 0
+  currentLevelIndex: 0
+  cyclesCompleted: 0
+  levelLoader: {fileID: 1936635823}
+  levelImporter: {fileID: 0}
+  showDebugInfo: 1
 --- !u!1 &1992962428
 GameObject:
   m_ObjectHideFlags: 0

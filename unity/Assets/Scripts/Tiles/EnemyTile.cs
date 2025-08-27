@@ -8,7 +8,7 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
 {
     public int X { get; private set; }
     public int Y { get; private set; }
-    public TileType TileType => TileType.Enemy;
+    public override TileType TileType => TileType.Enemy;
     public bool HasActedThisTurn { get; set; }
     private bool isAnimating = false;
     [SerializeField] private int startingHealth = 1;

@@ -5,7 +5,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IMovable
 {
     public int X { get; set; }
     public int Y { get; set; }
-    public TileType TileType => TileType.Bomb;
+    public override TileType TileType => TileType.Bomb;
     public new GameObject gameObject => base.gameObject;
     public bool HasActedThisTurn { get; set; }
     private int turnCounter = 0;

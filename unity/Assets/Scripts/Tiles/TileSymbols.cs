@@ -77,7 +77,7 @@ public static class TileSymbols
             case 'B': return TileType.Breakable;
             case 'G': return TileType.Gate;         // Gate uses 'G' symbol
             case 'p': return TileType.PlayerSpawn;
-            case 'x': return TileType.Bomb;         // Legacy support
+            case 'O': return TileType.Bomb;         // Bomb uses 'O' symbol
             case '*': return TileType.Projectile;
             case 'X': return TileType.Explosion;    // Explosion stays 'X'
             

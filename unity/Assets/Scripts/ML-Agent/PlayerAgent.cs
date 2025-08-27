@@ -279,6 +279,7 @@ public class PlayerAgent : Agent, ITurnBased
         CurrentBombIndex = bombActionIndex;
         
         Debug.Log($"[PlayerAgent] Received Actions - MoveIndex: {moveActionIndex}, BombIndex: {bombActionIndex} (DiscreteActions.Length: {discreteActions.Length})");
+        Debug.Log($"[PlayerAgent] Will create bomb: {bombActionIndex >= 1}");
         
         // Debug: Show all received actions
         if (debugActions)
@@ -331,7 +332,7 @@ public class PlayerAgent : Agent, ITurnBased
         Debug.Log($"[PlayerAgent] CreateGameAction - Move: {moveActionIndex}, Bomb: {bombActionIndex}");
         
         // Priority: Bomb action > Move action > No action
-        if (bombActionIndex == 1)
+        if (bombActionIndex >= 1)
         {
             // Place bomb at current position
             Vector2Int bombDirection = Vector2Int.zero;
@@ -739,9 +740,14 @@ public class PlayerAgent : Agent, ITurnBased
     public void ResetTurn()
     {
         HasActedThisTurn = false;
-        // DON'T clear pendingAction here - let GetAction handle it
         needsDecision = false;
-        Debug.Log("[PlayerAgent] Turn reset - HasActedThisTurn = false, PendingAction preserved");
+        // Clear pendingAction from previous turn
+        if (pendingAction != null)
+        {
+            Debug.Log($"[PlayerAgent] Clearing unused pendingAction: {pendingAction.GetType().Name}");
+            pendingAction = null;
+        }
+        Debug.Log("[PlayerAgent] Turn reset - HasActedThisTurn = false, needsDecision = false");
     }
     
     public IGameAction GetAction()
@@ -752,7 +758,14 @@ public class PlayerAgent : Agent, ITurnBased
             return null;
         }
         
-        Debug.Log($"[PlayerAgent] GetAction called - HasActedThisTurn: {HasActedThisTurn}, PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}");
+        Debug.Log($"[PlayerAgent] GetAction called - HasActedThisTurn: {HasActedThisTurn}, PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}, needsDecision: {needsDecision}");
+        
+        // If we already acted this turn, return null
+        if (HasActedThisTurn)
+        {
+            Debug.Log("[PlayerAgent] Already acted this turn, returning null");
+            return null;
+        }
         
         // Check if we already have a pending action from ML decision
         if (pendingAction != null)
@@ -772,9 +785,13 @@ public class PlayerAgent : Agent, ITurnBased
             return action;
         }
         
-        // Always request new decision - simple approach
-        Debug.Log("[PlayerAgent] RequestDecision called - requesting fresh decision");
-        RequestDecision();
+        // Only request decision once per turn
+        if (!needsDecision)
+        {
+            Debug.Log("[PlayerAgent] RequestDecision called - requesting fresh decision");
+            needsDecision = true;
+            RequestDecision();
+        }
         
         // Check ML-Agents connection and training status
         bool pythonConnected = IsMLAgentsConnected();
@@ -786,6 +803,7 @@ public class PlayerAgent : Agent, ITurnBased
         if (!pythonConnected || !trainingActive)
         {
             Debug.Log("[PlayerAgent] ML-Agents not available - agent will stay still (no manual movement)");
+            HasActedThisTurn = true; // Mark as acted to prevent multiple calls this turn
             return null; // Agent stays still when conditions not met
         }
         

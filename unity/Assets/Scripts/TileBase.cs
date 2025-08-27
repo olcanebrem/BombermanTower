@@ -3,6 +3,10 @@ using UnityEngine.UI; // Image bileşeni için bu ŞART!
 
 public class TileBase : MonoBehaviour
 {
+    /// <summary>
+    /// Bu tile'ın tipini döndürür. Alt sınıflar tarafından override edilmelidir.
+    /// </summary>
+    public virtual TileType TileType => TileType.Unknown;
     // Artık TextMeshPro değil, bir Image bileşeni bekliyoruz.
     [SerializeField]
     private Image visualImage;

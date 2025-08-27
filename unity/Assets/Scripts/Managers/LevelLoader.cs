@@ -109,23 +109,39 @@ public class LevelLoader : MonoBehaviour
             Debug.Log("[LevelLoader] HoudiniLevelImporter component automatically added");
         }
 
-        // Prefab sözlüğünü doldur
+        // Prefab sözlüğünü doldur - önce otomatik keşif dene
         prefabMap = new Dictionary<TileType, TileBase>();
-        if (tilePrefabs != null)
+        
+        // Otomatik prefab keşif sistemi
+        AutoDiscoverPrefabs();
+        
+        // Inspector'dan manual atamalar (varsa) - otomatiklerin üzerine yazar
+        if (tilePrefabs != null && tilePrefabs.Length > 0)
         {
+            Debug.Log("[LevelLoader] === MANUAL PREFAB OVERRIDES ===");
             foreach (var entry in tilePrefabs)
             {
-                if (entry.prefab != null && !prefabMap.ContainsKey(entry.type))
+                if (entry.prefab != null)
                 {
-                    prefabMap.Add(entry.type, entry.prefab);
+                    if (prefabMap.ContainsKey(entry.type))
+                    {
+                        Debug.Log($"[LevelLoader] Overriding {entry.type}: {prefabMap[entry.type].name} -> {entry.prefab.name}");
+                        prefabMap[entry.type] = entry.prefab;
+                    }
+                    else
+                    {
+                        prefabMap.Add(entry.type, entry.prefab);
+                        Debug.Log($"[LevelLoader] Manual assignment {entry.type} -> {entry.prefab.name}");
+                    }
                 }
             }
-            Debug.Log($"[LevelLoader] Loaded {prefabMap.Count} tile prefab mappings");
         }
         else
         {
-            Debug.LogWarning("[LevelLoader] tilePrefabs array is null! Please assign tile prefabs in Inspector.");
+            Debug.Log("[LevelLoader] No manual prefab overrides - using auto-discovery only");
         }
+        
+        Debug.Log($"[LevelLoader] Final prefab map: {prefabMap.Count} entries");
         // Sprite database'i initialize et
         if (spriteDatabase != null)
         {
@@ -591,6 +607,7 @@ public class LevelLoader : MonoBehaviour
                 {
                     if (tileBasePrefab != null)
                     {
+                        Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name}");
                         Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
                         TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
                         
@@ -704,6 +721,9 @@ public class LevelLoader : MonoBehaviour
         // Sözlükten Bomb prefabını al
         if (prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab))
         {
+            Debug.Log($"[LevelLoader] Found Bomb prefab: {bombTilePrefab?.name} (Type: {bombTilePrefab?.GetType().Name})");
+            Debug.Log($"[LevelLoader] Bomb prefab TileType property: {bombTilePrefab?.TileType}");
+            
             Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
             TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, transform);
 
@@ -711,9 +731,24 @@ public class LevelLoader : MonoBehaviour
             newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
             (newBomb as IInitializable)?.Init(x, y);
             
+            Debug.Log($"[LevelLoader] Created bomb object: {newBomb.name} (Type: {newBomb.GetType().Name})");
+            Debug.Log($"[LevelLoader] Created bomb TileType property: {newBomb.TileType}");
+            
             // Haritaları GÜNCELLE
             tileObjects[x, y] = newBomb.gameObject; // Nesne haritasını güncelle
             levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb); // Mantıksal haritayı güncelle
+            
+            Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(TileType.Bomb)}'");
+        }
+        else
+        {
+            Debug.LogError($"[LevelLoader] No prefab found for TileType.Bomb in prefabMap!");
+            // Debug prefabMap contents
+            Debug.Log($"[LevelLoader] prefabMap contents:");
+            foreach (var kvp in prefabMap)
+            {
+                Debug.Log($"  {kvp.Key} -> {kvp.Value?.name}");
+            }
         }
         /// <summary>
         /// Mantıksal haritanın (levelMap) o anki durumunu konsola okunaklı bir şekilde yazdırır.
@@ -817,4 +852,52 @@ public class LevelLoader : MonoBehaviour
     // Multi-level sequence management has been moved to LevelSequencer.cs
     // LevelLoader now focuses solely on level generation and loading
     
+    /// <summary>
+    /// Otomatik olarak prefab'ları Resource klasöründen keşfeder ve TileType'larına göre eşler
+    /// </summary>
+    private void AutoDiscoverPrefabs()
+    {
+        Debug.Log("[LevelLoader] === AUTO PREFAB DISCOVERY ===");
+        
+        // Resources/Prefabs klasöründen tüm TileBase prefab'larını yükle
+        TileBase[] allTilePrefabs = Resources.LoadAll<TileBase>("Prefabs");
+        
+        if (allTilePrefabs.Length == 0)
+        {
+            Debug.LogWarning("[LevelLoader] No prefabs found in Resources/Prefabs. Trying root Resources folder...");
+            allTilePrefabs = Resources.LoadAll<TileBase>("");
+        }
+        
+        Debug.Log($"[LevelLoader] Found {allTilePrefabs.Length} TileBase prefabs in Resources");
+        
+        foreach (var prefab in allTilePrefabs)
+        {
+            if (prefab != null)
+            {
+                TileType prefabType = prefab.TileType;
+                
+                // Duplicate mapping kontrolü
+                if (prefabMap.ContainsKey(prefabType))
+                {
+                    Debug.LogWarning($"[LevelLoader] Duplicate prefab for {prefabType}: keeping {prefabMap[prefabType].name}, ignoring {prefab.name}");
+                    continue;
+                }
+                
+                prefabMap.Add(prefabType, prefab);
+                Debug.Log($"[LevelLoader] Auto-discovered: {prefabType} -> {prefab.name}");
+            }
+        }
+        
+        // Eksik prefab'ları rapor et
+        var allTileTypes = System.Enum.GetValues(typeof(TileType)).Cast<TileType>();
+        foreach (var tileType in allTileTypes)
+        {
+            if (tileType != TileType.Unknown && tileType != TileType.Empty && !prefabMap.ContainsKey(tileType))
+            {
+                Debug.LogWarning($"[LevelLoader] Missing prefab for {tileType}");
+            }
+        }
+        
+        Debug.Log("[LevelLoader] ================================");
+    }
 }

@@ -15,7 +15,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
     public int Y { get; private set; }
-    public TileType TileType => TileType.Player;
+    public override TileType TileType => TileType.Player;
     public bool HasActedThisTurn { get; set; }
     public GameObject bombPrefab;
     public GameObject explosionPrefab;
@@ -219,22 +219,36 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         // Metod artık bir yön parametresi alıyor.
     public bool PlaceBomb(Vector2Int direction)
     {
-        if (bombPrefab == null) return false;
+        Debug.Log($"[PlayerController] PlaceBomb called with direction: {direction}");
+        
+        if (bombPrefab == null) 
+        {
+            Debug.Log("[PlayerController] bombPrefab is null!");
+            return false;
+        }
 
         var ll = LevelLoader.instance;
+        if (ll == null)
+        {
+            Debug.Log("[PlayerController] LevelLoader.instance is null!");
+            return false;
+        }
 
         // Sadece verilen direction yönüne bomba koymayı dene.
         int targetX = X + direction.x;
         int targetY = Y + direction.y;
 
+        Debug.Log($"[PlayerController] Trying to place bomb at ({targetX}, {targetY}), player at ({X}, {Y})");
+
         if (targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height &&
             TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
         {
+            Debug.Log("[PlayerController] Calling ll.PlaceBombAt()");
             ll.PlaceBombAt(targetX, targetY);
             return true;
         }
 
-        Debug.Log("Bomba koyulacak yer dolu veya geçersiz!");
+        Debug.Log($"Bomba koyulacak yer dolu veya geçersiz! TileType: {TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY])}");
         return false;
     }
     

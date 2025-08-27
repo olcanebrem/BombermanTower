@@ -4,7 +4,7 @@ public class BreakableTile : TileBase, ITurnBased, IInitializable, IDamageable
 {
     public int X { get; private set; }
     public int Y { get; private set; }
-    public TileType TileType => TileType.Breakable;
+    public override TileType TileType => TileType.Breakable;
     public bool HasActedThisTurn { get; set; }
     
     // --- Can Sistemi ---

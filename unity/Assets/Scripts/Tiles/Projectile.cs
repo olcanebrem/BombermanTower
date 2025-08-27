@@ -9,7 +9,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
     // --- IMovable ---
     public int X { get; private set; }
     public int Y { get; private set; }
-    public TileType TileType => TileType.Projectile;
+    public override TileType TileType => TileType.Projectile;
     // --- ITurnBased ---
     public bool HasActedThisTurn { get; set; }
     private bool isAnimating = false;

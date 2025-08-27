@@ -8,7 +8,7 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
     // --- Arayüzler ve Değişkenler ---
     public int X { get; private set; }
     public int Y { get; private set; }
-    public TileType TileType => TileType.EnemyShooter;
+    public override TileType TileType => TileType.EnemyShooter;
     public bool HasActedThisTurn { get; set; }
     public GameObject projectilePrefab;
     private int turnCounter = 0;
