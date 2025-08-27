@@ -485,7 +485,7 @@ MonoBehaviour:
   summaryFreq: 50000
   checkpointInterval: 100000
   keepCheckpoints: 5
-  isTraining: 1
+  isTraining: 0
   autoParseResults: 1
   statusCheckInterval: 10
   pythonExecutable: C:\Users\olcan\AppData\Local\Programs\Python\Python310\python.exe
@@ -1397,35 +1397,35 @@ MonoBehaviour:
   tileSize: 30
   tilePrefabs:
   - type: 0
-    prefab: {fileID: 7463400741565082924, guid: c6017c26a4e8d72458430c24a2204a76, type: 3}
+    prefab: {fileID: 0}
   - type: 7
-    prefab: {fileID: -6067852266081979582, guid: 3126f2014e7fff64a9bd62865b317f4f, type: 3}
+    prefab: {fileID: 0}
   - type: 8
-    prefab: {fileID: -8316099242475396118, guid: b02a7661a6308614080f1569a948eb83, type: 3}
+    prefab: {fileID: 0}
   - type: 10
-    prefab: {fileID: -6809822318272816107, guid: 05d6850a10409e04cb82f069f7d5e45b, type: 3}
+    prefab: {fileID: 0}
   - type: 9
-    prefab: {fileID: -1884779767374466228, guid: 1836c43e7c4f24c41802b2a5078017da, type: 3}
+    prefab: {fileID: 0}
   - type: 12
-    prefab: {fileID: -1868845831795578095, guid: d08ebf60fc56429469005a8ba4328aa5, type: 3}
+    prefab: {fileID: 0}
   - type: 11
-    prefab: {fileID: 8754212365646646498, guid: e5776ae11b059414bbd7920fc1cf8ebf, type: 3}
+    prefab: {fileID: 0}
   - type: 3
-    prefab: {fileID: -887512487869568507, guid: 501f75824d17f0548a709469f050d9b7, type: 3}
+    prefab: {fileID: 0}
   - type: 2
-    prefab: {fileID: -4578038105471929661, guid: 86c66781ee79f64449fbec9db7563d77, type: 3}
+    prefab: {fileID: 0}
   - type: 4
-    prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
+    prefab: {fileID: 0}
   - type: 13
-    prefab: {fileID: 4286188762914832847, guid: 1a98a8e16944dbf41a5ca59fb2de826d, type: 3}
+    prefab: {fileID: 0}
   - type: 4
-    prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
+    prefab: {fileID: 0}
   - type: 4
-    prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
+    prefab: {fileID: 0}
   - type: 6
-    prefab: {fileID: -4926589044178424912, guid: 8e6845d74f27c0a429f00664c0e89c70, type: 3}
+    prefab: {fileID: 0}
   - type: 4
-    prefab: {fileID: -3470875761119785755, guid: 19d5f20ccc7cc3a458f6a2027321dacd, type: 3}
+    prefab: {fileID: 0}
   playerPrefab: {fileID: 9048555102869179715, guid: 8e6845d74f27c0a429f00664c0e89c70, type: 3}
   spriteDatabase: {fileID: 11400000, guid: b7056f395ed675f42bbe258ef20480cb, type: 2}
   availableLevels:
@@ -1527,6 +1527,7 @@ GameObject:
   - component: {fileID: 1992962431}
   - component: {fileID: 1992962430}
   - component: {fileID: 1992962429}
+  - component: {fileID: 1992962432}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1608,6 +1609,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1992962432
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1992962428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a42c77f8b47dc954aa9b8418df8b025f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCamera: {fileID: 1992962430}
+  smoothTime: 0.5
+  zOffset: -10
+  minOrthographicSize: 82.2
+  maxOrthographicSize: 500
+  zoomPadding: 40.09
+  mapCenterWeight: 0.459
+  playerWeight: 0.496
+  enableDebugGizmos: 1
+  enableDebugLogs: 0
 --- !u!1 &2052628526
 GameObject:
   m_ObjectHideFlags: 0
