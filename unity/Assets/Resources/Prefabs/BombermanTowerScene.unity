@@ -242,7 +242,7 @@ MonoBehaviour:
   explosionPrefab: {fileID: 618472659354836283, guid: 1a98a8e16944dbf41a5ca59fb2de826d, type: 3}
   damageableLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4294967295
   spriteRenderer: {fileID: 0}
   warningColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!114 &104523218
@@ -258,8 +258,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   MaxStepsPerEpisode: 3000
-  levelManager: {fileID: 0}
-  levelLoader: {fileID: 0}
+  levelManager: {fileID: 1936635824}
+  levelLoader: {fileID: 1936635823}
 --- !u!114 &104523219
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -486,6 +486,7 @@ MonoBehaviour:
   checkpointInterval: 100000
   keepCheckpoints: 5
   isTraining: 0
+  heuristicMode: 0
   autoParseResults: 1
   statusCheckInterval: 10
   pythonExecutable: C:\Users\olcan\AppData\Local\Programs\Python\Python310\python.exe

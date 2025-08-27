@@ -27,8 +27,12 @@ public class PlayerAgent : Agent, ITurnBased
     public bool useGridObservations = true;
     
     [Header("Debug")]
-    public bool debugActions = false;
+    public bool debugActions = true;
     public bool debugObservations = false;
+    
+    [Header("Heuristic Control")]
+    public bool useRandomHeuristic = true;
+    public bool enableManualInput = false;
     
     // Component references
     private PlayerController playerController;
@@ -81,6 +85,15 @@ public class PlayerAgent : Agent, ITurnBased
     
     public override void Initialize()
     {
+        // Configure Academy for turn-based gameplay
+        var academy = Unity.MLAgents.Academy.Instance;
+        if (academy != null)
+        {
+            // Disable automatic stepping - we'll control it manually via TurnManager
+            academy.AutomaticSteppingEnabled = false;
+            Debug.Log("[PlayerAgent] Academy automatic stepping disabled - turn-based control active");
+        }
+        
         // Set behavior name for ML-Agents training
         if (!string.IsNullOrEmpty(behaviorName))
         {
@@ -131,12 +144,34 @@ public class PlayerAgent : Agent, ITurnBased
         }
         
         // Setup ML-Agent integration - now centralized through TurnManager
+        Debug.Log($"[PlayerAgent] UseMLAgent: {UseMLAgent}, MLAgentsTrainingController found: {MLAgentsTrainingController.Instance != null}");
+        
         if (UseMLAgent)
         {
             // Unregister PlayerController and register ML-Agent centrally
             TurnManager.Instance?.Unregister(playerController);
             TurnManager.Instance?.RegisterMLAgent(this);
             Debug.Log("[PlayerAgent] ML-Agent registered centrally through TurnManager");
+            
+            // Debug: Check if registration was successful
+            if (TurnManager.Instance != null)
+            {
+                var turnObjects = TurnManager.Instance.GetTurnBasedObjects();
+                bool isRegistered = false;
+                foreach (var obj in turnObjects)
+                {
+                    if (obj == this)
+                    {
+                        isRegistered = true;
+                        break;
+                    }
+                }
+                Debug.Log($"[PlayerAgent] Registration check - Is registered: {isRegistered}, Total turn objects: {turnObjects.Count}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerAgent] UseMLAgent is FALSE - ML-Agent will NOT be registered for turn-based control!");
         }
     }
     IEnumerator DelayedRewardSystemSearch()
@@ -429,17 +464,42 @@ public class PlayerAgent : Agent, ITurnBased
     {
         var discreteActionsOut = actionsOut.DiscreteActions;
         
-        if (discreteActionsOut.Length == 0) return;
+        Debug.Log($"[PlayerAgent] Heuristic called - DiscreteActions length: {discreteActionsOut.Length}");
         
-        // Movement action (0-8)
+        if (discreteActionsOut.Length == 0) 
+        {
+            Debug.LogError("[PlayerAgent] Heuristic: DiscreteActions length is 0!");
+            return;
+        }
+        
+        // Test: Simple pattern - alternating movement and bomb
         int moveAction = 0;
-        if (Input.GetKey(KeyCode.W)) moveAction = 1;
-        else if (Input.GetKey(KeyCode.D)) moveAction = 2; 
-        else if (Input.GetKey(KeyCode.S)) moveAction = 3;
-        else if (Input.GetKey(KeyCode.A)) moveAction = 4;
+        int bombAction = 0;
         
-        // Bomb action (0-1)
-        int bombAction = Input.GetKey(KeyCode.Space) ? 1 : 0;
+        if (enableManualInput)
+        {
+            // Try Unity's new Input System first
+            if (Input.GetKey(KeyCode.W)) moveAction = 1;
+            else if (Input.GetKey(KeyCode.D)) moveAction = 2; 
+            else if (Input.GetKey(KeyCode.S)) moveAction = 3;
+            else if (Input.GetKey(KeyCode.A)) moveAction = 4;
+            
+            bombAction = Input.GetKey(KeyCode.Space) ? 1 : 0;
+        }
+        else if (useRandomHeuristic)
+        {
+            // Random test pattern for debugging
+            int randomChoice = UnityEngine.Random.Range(0, 20);
+            if (randomChoice < 4) moveAction = 1; // Up (20% chance)
+            else if (randomChoice < 8) moveAction = 2; // Right (20% chance)
+            else if (randomChoice < 12) moveAction = 3; // Down (20% chance)
+            else if (randomChoice < 16) moveAction = 4; // Left (20% chance)
+            // Else stay still (20% chance)
+            
+            bombAction = (randomChoice >= 18) ? 1 : 0; // 10% bomb chance
+            
+            Debug.Log($"[PlayerAgent] Random heuristic - Choice: {randomChoice}, Move: {moveAction}, Bomb: {bombAction}");
+        }
         
         discreteActionsOut[0] = moveAction;
         if (discreteActionsOut.Length > 1)
@@ -447,9 +507,12 @@ public class PlayerAgent : Agent, ITurnBased
             discreteActionsOut[1] = bombAction;
         }
         
+        Debug.Log($"[PlayerAgent] Heuristic - Move: {moveAction}, Bomb: {bombAction}");
+        Debug.Log($"[PlayerAgent] Input check - W:{Input.GetKey(KeyCode.W)}, A:{Input.GetKey(KeyCode.A)}, S:{Input.GetKey(KeyCode.S)}, D:{Input.GetKey(KeyCode.D)}, Space:{Input.GetKey(KeyCode.Space)}");
+        
         if (debugActions && (moveAction != 0 || bombAction != 0))
         {
-            Debug.Log($"[PlayerAgent] Heuristic - Move: {moveAction}, Bomb: {bombAction}");
+            Debug.Log($"[PlayerAgent] Heuristic action applied - Move: {moveAction}, Bomb: {bombAction}");
         }
     }
         
@@ -752,13 +815,16 @@ public class PlayerAgent : Agent, ITurnBased
     
     public IGameAction GetAction()
     {
+        Debug.Log($"[PlayerAgent] GetAction called - UseMLAgent: {UseMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
+        
         if (!UseMLAgent || playerController == null)
         {
             // Return null action if ML-Agent is disabled
+            Debug.Log("[PlayerAgent] GetAction returning NULL - ML-Agent disabled or no PlayerController");
             return null;
         }
         
-        Debug.Log($"[PlayerAgent] GetAction called - HasActedThisTurn: {HasActedThisTurn}, PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}, needsDecision: {needsDecision}");
+        Debug.Log($"[PlayerAgent] GetAction - HasActedThisTurn: {HasActedThisTurn}, PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}, needsDecision: {needsDecision}");
         
         // If we already acted this turn, return null
         if (HasActedThisTurn)
@@ -785,11 +851,13 @@ public class PlayerAgent : Agent, ITurnBased
             return action;
         }
         
-        // Only request decision once per turn
+        // Only request decision once per turn - TurnManager controlled
         if (!needsDecision)
         {
-            Debug.Log("[PlayerAgent] RequestDecision called - requesting fresh decision");
+            Debug.Log("[PlayerAgent] RequestDecision called - requesting fresh decision for this turn");
             needsDecision = true;
+            
+            // Manual decision request - bypassing DecisionRequester component
             RequestDecision();
         }
         
@@ -799,12 +867,22 @@ public class PlayerAgent : Agent, ITurnBased
         
         Debug.Log($"[PlayerAgent] Python connected: {pythonConnected}, Training active: {trainingActive}");
         
-        // If no Python connection or training disabled, agent stays still
-        if (!pythonConnected || !trainingActive)
+        // If no Python connection but training is active, use heuristic
+        if (!pythonConnected && trainingActive)
         {
-            Debug.Log("[PlayerAgent] ML-Agents not available - agent will stay still (no manual movement)");
+            Debug.Log("[PlayerAgent] No Python connection - using heuristic mode");
+            // In turn-based mode with manual Academy stepping, 
+            // Heuristic should be called immediately via RequestDecision
+            // and action should be available in the same turn
+            return null; // Action will be available next turn via OnActionReceived after manual step
+        }
+        
+        // If training is not active, agent stays still
+        if (!trainingActive)
+        {
+            Debug.Log("[PlayerAgent] Training not active - agent will stay still");
             HasActedThisTurn = true; // Mark as acted to prevent multiple calls this turn
-            return null; // Agent stays still when conditions not met
+            return null; // Agent stays still when training disabled
         }
         
         // Return null for this turn, action will be available next turn via OnActionReceived  
@@ -838,7 +916,12 @@ public class PlayerAgent : Agent, ITurnBased
         get
         {
             var trainingController = MLAgentsTrainingController.Instance;
-            return trainingController != null && trainingController.IsTraining;
+            bool isTraining = trainingController != null && trainingController.IsTraining;
+            bool heuristicMode = trainingController != null && trainingController.HeuristicMode;
+            
+            bool useML = isTraining || heuristicMode;
+            Debug.Log($"[PlayerAgent] UseMLAgent check - IsTraining: {isTraining}, HeuristicMode: {heuristicMode}, Result: {useML}");
+            return useML;
         }
     }
     

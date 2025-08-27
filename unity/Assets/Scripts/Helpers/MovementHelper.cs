@@ -11,27 +11,39 @@ public static class MovementHelper
     {
         var ll = LevelLoader.instance;
         targetWorldPos = Vector3.zero;
+        
+        Debug.Log($"[MovementHelper] TryMove - {mover.GetType().Name} at ({mover.X}, {mover.Y}) trying to move {direction}");
 
         // --- 1. GÜVENLİK KİLİDİ: "Ben Kimim ve Neredeyim?" ---
-        if (mover == null || mover.gameObject == null) return false; // Ölü birim hareket edemez.
+        if (mover == null || mover.gameObject == null) 
+        {
+            Debug.Log("[MovementHelper] FAILED - Mover is null or gameObject is null");
+            return false; // Ölü birim hareket edemez.
+        }
+        
         if (ll.tileObjects[mover.X, mover.Y] != mover.gameObject)
         {
-            Debug.LogError($"VERİ TUTARSIZLIĞI: {mover.GetType().Name} kendini ({mover.X},{mover.Y}) sanıyor ama nesne haritasında orada değil! Hareket engellendi.", mover.gameObject);
+            Debug.LogError($"[MovementHelper] VERİ TUTARSIZLIĞI: {mover.GetType().Name} kendini ({mover.X},{mover.Y}) sanıyor ama nesne haritasında orada değil! Actual object: {ll.tileObjects[mover.X, mover.Y]?.name ?? "NULL"}", mover.gameObject);
             return false;
         }
 
         // --- 2. HEDEF HESAPLAMA VE SINIR KONTROLÜ ---
         int newX = mover.X + direction.x;
         int newY = mover.Y + direction.y;
+        
+        Debug.Log($"[MovementHelper] Target position: ({newX}, {newY}), Map bounds: {ll.Width}x{ll.Height}");
 
         if (newX < 0 || newX >= ll.Width || newY < 0 || newY >= ll.Height)
         {
+            Debug.Log($"[MovementHelper] FAILED - Target out of bounds: ({newX}, {newY})");
             return false;
         }
 
         // --- 3. ETKİLEŞİM VE KARAR VERME ---
         GameObject targetObject = ll.tileObjects[newX, newY];
         TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
+        
+        Debug.Log($"[MovementHelper] Target tile: {targetType}, Object: {targetObject?.name ?? "NULL"}");
 
         // a) Hedefte bir BİRİM var mı?
         if (IsUnit(targetType))
@@ -68,6 +80,7 @@ public static class MovementHelper
         // b) Eğer hedef bir birim değilse, GEÇİLEBİLİR Mİ?
         else if (!IsTilePassable(mover, targetType))
         {
+            Debug.Log($"[MovementHelper] FAILED - Tile not passable: {targetType} for {mover.GetType().Name}");
             return false;
         }
         

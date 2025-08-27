@@ -186,7 +186,7 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 3000
-  useMLAgent: 0
+  useMLAgent: 1
   moveSpeed: 5
   behaviorName: PlayerAgent
   observationRadius: 2
@@ -194,6 +194,8 @@ MonoBehaviour:
   useGridObservations: 1
   debugActions: 1
   debugObservations: 1
+  useRandomHeuristic: 1
+  enableManualInput: 0
 --- !u!114 &-94589322604941226
 MonoBehaviour:
   m_ObjectHideFlags: 0

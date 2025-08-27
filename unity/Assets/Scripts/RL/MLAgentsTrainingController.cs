@@ -103,7 +103,9 @@ public class MLAgentsTrainingController : MonoBehaviour
     
     [Header("Training Control")]
     [Tooltip("Master training control - controls all ML-Agent behavior")]
-    public bool isTraining = false;
+    public bool isTraining = true;
+    [Tooltip("Enable heuristic mode - agent uses random actions without Python connection")]
+    public bool heuristicMode = true;
     [SerializeField] private bool autoParseResults = true;
     private bool startTrainingOnAwake = false; // Now private and controlled by isTraining
     [SerializeField] private float statusCheckInterval = 10f;
@@ -199,7 +201,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     
     public void StartTraining()
     {
-        if (isTraining)
+        if (isTraining && !heuristicMode)
         {
             UnityEngine.Debug.LogWarning("[MLAgentsTrainingController] Training already in progress!");
             return;
@@ -210,6 +212,16 @@ public class MLAgentsTrainingController : MonoBehaviour
         {
             LevelSequencer.Instance.InitializeSequence(0);
             Debug.Log("[MLAgentsTrainingController] Initialized multi-level training sequence");
+        }
+        
+        // Heuristic mode - no Python process needed
+        if (heuristicMode)
+        {
+            isTraining = true;
+            UpdateStatus($"🎯 Heuristic mode active - Random agent behavior\\nNo Python connection needed");
+            Debug.Log("[MLAgentsTrainingController] Started in heuristic mode - agent will use random actions");
+            OnTrainingStarted?.Invoke("heuristic_mode");
+            return;
         }
         
         if (!File.Exists(actualConfigPath))
@@ -442,6 +454,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     #region Public API
     
     public bool IsTraining => isTraining;
+    public bool HeuristicMode => heuristicMode;
     public string CurrentRunId => currentRunId;
     public string TrainingStatus => trainingStatus;
     public float ElapsedTrainingTime => isTraining ? Time.time - trainingStartTime : 0f;

@@ -18,7 +18,7 @@ public class TurnManager : MonoBehaviour
     public float animationInterval = 0.1f; // turnInterval * 0.5f başlangıçta
 
     private float turnTimer = 0f;
-    public bool debugnow = false;
+    public bool debugnow = true;
     public int TurnCount { get; private set; } = 0;
     private List<ITurnBased> turnBasedObjects = new List<ITurnBased>();
 
@@ -41,15 +41,51 @@ public class TurnManager : MonoBehaviour
     
     void Start()
     {
-        // Find ML-Agent components for central control
-        mlAgent = FindObjectOfType<PlayerAgent>();
+        // Find ML-Agent components for central control - delayed search since player is instantiated later
         trainingController = MLAgentsTrainingController.Instance;
         levelSequencer = LevelSequencer.Instance;
         
         // Subscribe to player death event
         PlayerController.OnPlayerDied += HandlePlayerDeathEvent;
         
-        Debug.Log($"[TurnManager] ML-Agent found: {mlAgent != null}, Training controller: {trainingController != null}, Level sequencer: {levelSequencer != null}");
+        // Start coroutine to find PlayerAgent after level loads
+        StartCoroutine(DelayedPlayerAgentSearch());
+        
+        Debug.Log($"[TurnManager] Training controller: {trainingController != null}, Level sequencer: {levelSequencer != null}");
+    }
+    
+    /// <summary>
+    /// Search for PlayerAgent after level loading is complete
+    /// </summary>
+    private System.Collections.IEnumerator DelayedPlayerAgentSearch()
+    {
+        int attempts = 0;
+        int maxAttempts = 20; // 20 attempts over 4 seconds
+        
+        while (mlAgent == null && attempts < maxAttempts)
+        {
+            yield return new WaitForSeconds(0.2f);
+            attempts++;
+            
+            mlAgent = FindObjectOfType<PlayerAgent>();
+            Debug.Log($"[TurnManager] PlayerAgent search attempt {attempts}: {mlAgent?.name ?? "NULL"}");
+        }
+        
+        if (mlAgent != null)
+        {
+            Debug.Log($"[TurnManager] PlayerAgent found after {attempts} attempts: {mlAgent.name}");
+            
+            // Now that we found the PlayerAgent, check if it needs to be registered
+            if (IsMLAgentActive && !turnBasedObjects.Contains(mlAgent))
+            {
+                RegisterMLAgent(mlAgent);
+                Debug.Log("[TurnManager] PlayerAgent auto-registered after delayed discovery");
+            }
+        }
+        else
+        {
+            Debug.LogError($"[TurnManager] PlayerAgent not found after {maxAttempts} attempts!");
+        }
     }
     
     void OnDestroy()
@@ -215,7 +251,17 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        // --- AŞAMA 1: NİYETLERİ TOPLA ---
+        // --- AŞAMA 1.5: ML-Agent Step ---
+        if (IsMLAgentActive)
+        {
+            var academy = Unity.MLAgents.Academy.Instance;
+            if (academy != null)
+            {
+                academy.EnvironmentStep();
+                Debug.Log("[TurnManager] Academy stepped BEFORE executing actions");
+            }
+        }
+        // --- AŞAMA 2: NİYETLERİ TOPLA ---
         Queue<IGameAction> actionQueue = new Queue<IGameAction>();
         var unitsToPlay = turnBasedObjects
             .Where(u => u != null && (u as MonoBehaviour) != null)
@@ -223,14 +269,21 @@ public class TurnManager : MonoBehaviour
             .ToList();
 
         // First, collect all actions without executing them
+        Debug.Log($"[TurnManager] Processing {unitsToPlay.Count} turn-based objects this turn");
         foreach (var unit in unitsToPlay)
         {
             try
             {
+                Debug.Log($"[TurnManager] Getting action from {unit.GetType().Name} (execution order: {GetExecutionOrder(unit)})");
                 IGameAction action = unit.GetAction();
                 if (action != null)
                 {
+                    Debug.Log($"[TurnManager] {unit.GetType().Name} provided action: {action.GetType().Name}");
                     actionQueue.Enqueue(action);
+                }
+                else
+                {
+                    Debug.Log($"[TurnManager] {unit.GetType().Name} returned NULL action");
                 }
             }
             catch (System.Exception e)
@@ -240,15 +293,18 @@ public class TurnManager : MonoBehaviour
         }
 
         // Then execute all actions without waiting between them
+        Debug.Log($"[TurnManager] Executing {actionQueue.Count} actions");
         while (actionQueue.Count > 0)
         {
             IGameAction currentAction = actionQueue.Dequeue();
             if (currentAction.Actor == null)
             {
+                Debug.LogWarning($"[TurnManager] Skipping action {currentAction.GetType().Name} - Actor is null");
                 continue;
             }
             try
             {
+                Debug.Log($"[TurnManager] Executing {currentAction.GetType().Name} from actor {currentAction.Actor.name}");
                 currentAction.Execute();
             }
             catch (System.Exception e)
@@ -262,7 +318,8 @@ public class TurnManager : MonoBehaviour
         {
             yield return null;
         }
-
+        
+        
         // Wait for the turn interval before starting the next turn
         yield return new WaitForSeconds(turnInterval);
     }
@@ -389,8 +446,20 @@ public class TurnManager : MonoBehaviour
         {
             mlAgent = agent;
             Register(agent);
-            Debug.Log("[TurnManager] ML-Agent registered for turn-based control");
+            Debug.Log($"[TurnManager] ML-Agent registered for turn-based control - Total objects: {turnBasedObjects.Count}");
         }
+        else
+        {
+            Debug.LogWarning("[TurnManager] ML-Agent already registered!");
+        }
+    }
+    
+    /// <summary>
+    /// Get current turn-based objects for debugging
+    /// </summary>
+    public System.Collections.Generic.List<ITurnBased> GetTurnBasedObjects()
+    {
+        return new System.Collections.Generic.List<ITurnBased>(turnBasedObjects);
     }
     
     /// <summary>

@@ -115,6 +115,13 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     {
         if (HasActedThisTurn) return null;
 
+        // Don't act if ML-Agent is controlling this player
+        if (TurnManager.Instance != null && TurnManager.Instance.IsMLAgentActive)
+        {
+            Debug.Log("[PlayerController] ML-Agent is active - PlayerController yielding control");
+            return null;
+        }
+
         // 1. O anki en mantıklı yönü belirle:
         //    Eğer bir hareket tuşuna basılıyorsa, o yöndür.
         //    Değilse, en son hareket edilen yöndür.

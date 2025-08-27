@@ -22,6 +22,8 @@ public class MoveAction : IGameAction
 
     public void Execute()
     {
+        Debug.Log($"[MoveAction] Execute called - Direction: {direction}");
+        
         // Check if the mover is still valid before trying to use it
         if (mover == null || (mover is MonoBehaviour mono && mono == null))
         {
@@ -29,10 +31,17 @@ public class MoveAction : IGameAction
             return;
         }
 
+        Debug.Log($"[MoveAction] Mover valid: {mover.GetType().Name} at ({mover.X}, {mover.Y})");
+        
         // Execute the movement if possible
         if (MovementHelper.TryMove(mover, direction, out Vector3 targetPos))
         {
+            Debug.Log($"[MoveAction] TryMove SUCCESS - Target position: {targetPos}");
             mover.StartMoveAnimation(targetPos);
+        }
+        else
+        {
+            Debug.Log($"[MoveAction] TryMove FAILED - Direction: {direction}, Current position: ({mover.X}, {mover.Y})");
         }
     }
 }
