@@ -1,0 +1,90 @@
+# === LEVEL DATASET v4.4 ===
+# Generator: Houdini 20.0.547
+# Export Date: 2025-08-23 23:14:42
+# Encoding: UTF-8
+# Levels: 1
+# Format: Incremental IDs with Suffix
+# ===================================
+
+# ===================================
+# LEVEL 0003 : Generated Level
+# ===================================
+
+[CELL_TYPES]
+# ID=Symbol,Name,Passable,Prefab_Index
+0=.,EMPTY,true,0
+1=#,WALL,false,1
+2=o,FLOOR,true,2
+3=P,PLAYER,true,3
+4=E,ENEMY,true,4
+5=S,ENEMY_SHOOTER,true,5
+6=C,COIN,true,6
+7=H,HEALTH,true,7
+8=B,BREAKABLE,false,8
+9=X,STAIRS,true,9
+
+# ===================================
+# LEVEL CONFIGURATION
+# ===================================
+
+[LEVEL_CONFIG]
+VERSION=v1.0.0
+FORMAT_VERSION=v4.4
+LEVEL_NAME=Generated Level 0003
+LEVEL_ID=0003
+GRID_WIDTH=20
+GRID_HEIGHT=25
+
+# ===================================
+# GENERATION PARAMETERS
+# ===================================
+
+[GENERATION_PARAMS]
+HOUDINI_SEED=214
+ROOM_COUNT=5
+ENEMY_DENSITY=0.511
+LOOT_DENSITY=3.86
+COIN_DENSITY=0.336
+HEALTH_DENSITY=0.463
+BREAKABLE_DENSITY=0.849
+EDGE_WALL_BIAS=0.835
+NOISE_SCALE=0.8
+NOISE_THRESHOLD=-0.1
+MIN_ROOM_SIZE=4
+MAX_ROOM_SIZE=11
+MIN_PLAYER_EXIT_DIST=26.6
+
+# ===================================
+# GRID DATA
+# ===================================
+
+[GRID_ASCII]
+####################
+##########BB#BBB####
+########H...FP.E.B##
+###B###B..H.H.C..###
+#B####BBH..C..C.CB##
+##.F......CH.....#B#
+##C..H..E...C.F..###
+##...C.....CE..CCB##
+##...C...HCHH..H.B##
+#BHHEC....C.F.C.HB##
+#B....H.HH.......B#B
+##C.H..E.F.....B#BB#
+##HHHH...E..#B##B###
+##......E...HC..CB##
+#B...H.C..E...HH.#BB
+##BBB#B#.....H.E.B#S
+########F.C...HH..B#
+#######B..C....C..##
+#######BH.H.......BB
+###SS##BC.........E.
+########......H...B#
+#######BBB#BH.E.SCB#
+########B##B#B##B###
+###B################
+####################
+
+# ===================================
+# END OF LEVEL 0003
+# ===================================

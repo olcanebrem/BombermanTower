@@ -75,8 +75,23 @@ public class HoudiniCellType
 
 public class HoudiniLevelImporter : MonoBehaviour
 {
+    public static HoudiniLevelImporter Instance { get; private set; }
+    
     [Header("Debug")]
     public bool logParsingDetails = false;
+    
+    void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+        }
+    }
     
     /// <summary>
     /// TextAsset'ten HoudiniLevelData oluşturur (Component method)

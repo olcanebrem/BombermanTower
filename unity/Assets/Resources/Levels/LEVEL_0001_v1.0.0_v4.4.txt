@@ -1,0 +1,199 @@
+# === LEVEL DATASET v4.4 ===
+# Generator: Houdini 20.0.547
+# Export Date: 2025-08-23 23:14:39
+# Encoding: UTF-8
+# Levels: 1
+# Format: Incremental IDs with Suffix
+# ===================================
+
+# ===================================
+# LEVEL 0001 : Generated Level
+# ===================================
+
+[CELL_TYPES]
+# ID=Symbol,Name,Passable,Prefab_Index
+0=.,EMPTY,true,0
+1=#,WALL,false,1
+2=o,FLOOR,true,2
+3=P,PLAYER,true,3
+4=E,ENEMY,true,4
+5=S,ENEMY_SHOOTER,true,5
+6=C,COIN,true,6
+7=H,HEALTH,true,7
+8=B,BREAKABLE,false,8
+9=X,STAIRS,true,9
+
+# ===================================
+# LEVEL CONFIGURATION
+# ===================================
+
+[LEVEL_CONFIG]
+VERSION=v1.0.0
+FORMAT_VERSION=v4.4
+LEVEL_NAME=Generated Level 0001
+LEVEL_ID=0001
+GRID_WIDTH=20
+GRID_HEIGHT=25
+
+# ===================================
+# GENERATION PARAMETERS
+# ===================================
+
+[GENERATION_PARAMS]
+HOUDINI_SEED=212
+ROOM_COUNT=5
+ENEMY_DENSITY=0.511
+LOOT_DENSITY=3.86
+COIN_DENSITY=0.336
+HEALTH_DENSITY=0.463
+BREAKABLE_DENSITY=0.849
+EDGE_WALL_BIAS=0.835
+NOISE_SCALE=0.8
+NOISE_THRESHOLD=-0.1
+MIN_ROOM_SIZE=4
+MAX_ROOM_SIZE=11
+MIN_PLAYER_EXIT_DIST=26.6
+
+# ===================================
+# GRID DATA
+# ===================================
+
+[GRID_ASCII]
+####################
+#############B######
+#####B##############
+##################B#
+###BBBBB#BBBBBB#####
+####B...C.....BB####
+##B#B.FCC..C.....B##
+#B##BH.C.C....H..B##
+####B..HH........###
+##BBB.....P...H..B##
+##BEHH.H..HE..H.HB##
+##B.....EC..C.H.B###
+##B.H...EC.....C####
+##B.....###BBB.BBB##
+#B#E..H##BB#B.######
+##C..C.......H.B####
+#B....H.BB##BBB#####
+#BS...E.############
+#BH...E.B###########
+#BB.H...B###########
+##B#B#B#BB##########
+####################
+#B#SSS##############
+####################
+#B##################
+
+# ===================================
+# END OF LEVEL 0001
+# ===================================
+
+# ===================================
+# RL TRAINING DATA
+# ===================================
+
+# ===================================
+# RL TRAINING DATA v1
+# ===================================
+
+[training_params_v1]
+version=1
+seed=12345
+learning_rate=0.000300
+gamma=0.990
+epsilon=0.200
+max_steps=50000
+training_date=2025-08-24T16:45:00Z
+training_note=Initial training run with default parameters
+
+[training_results_v1]
+episodes=120
+avg_reward=0.780000
+success_rate=64.500
+deaths=23
+collectibles=45/60
+training_time=125.5
+
+# ===================================
+# RL TRAINING DATA v2
+# ===================================
+
+[training_params_v2]
+version=2
+seed=54321
+learning_rate=0.000500
+gamma=0.950
+epsilon=0.100
+max_steps=75000
+training_date=2025-08-24T17:15:00Z
+training_note=Improved hyperparameters for better performance
+
+[training_results_v2]
+episodes=95
+avg_reward=0.890000
+success_rate=78.200
+deaths=15
+collectibles=52/60
+training_time=180.2
+
+# ===================================
+# RL TRAINING DATA v3
+# ===================================
+
+[training_params_v3]
+version=3
+seed=98765
+learning_rate=0.000700
+gamma=0.980
+epsilon=0.150
+max_steps=60000
+training_date=2025-08-24T18:30:00Z
+training_note=Optimized parameters - best performance yet!
+
+[training_results_v3]
+episodes=85
+avg_reward=0.920000
+success_rate=82.100
+deaths=12
+collectibles=55/60
+training_time=165.8
+
+# ===================================
+# RL TRAINING DATA v4
+# ===================================
+
+[training_params_v4]
+version=4
+seed=42987
+learning_rate=0.000300
+gamma=0.990
+epsilon=0.200
+max_steps=2000000
+gae_lambda=0.950
+entropy_coef=0.010000
+vf_coef=0.500
+batch_size=64
+n_steps=2048
+n_epochs=10
+max_grad_norm=0.500
+normalize_advantage=true
+training_date=2025-08-24T19:45:00Z
+training_note=Full PPO training with complete hyperparameter set
+
+[training_results_v4]
+episodes=340
+avg_reward=0.945000
+success_rate=91.200
+deaths=4
+collectibles=59/60
+training_time=287.3
+total_timesteps=2000000
+training_fps=125.4
+final_loss=0.002341
+policy_loss=0.001823
+value_loss=0.000518
+entropy_loss=0.000156
+kl_divergence=0.003421
+explained_variance=0.892000
+approx_kl=0.003156

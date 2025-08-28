@@ -694,6 +694,9 @@ public class PlayerAgent : Agent, ITurnBased
             
             if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Player died");
             EndEpisode();
+            
+            // Manual episode restart due to manual Academy stepping
+            StartCoroutine(RestartEpisodeDelayed());
             return;
         }
         
@@ -715,6 +718,9 @@ public class PlayerAgent : Agent, ITurnBased
                     
                     if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Level completed!");
                     EndEpisode();
+                    
+                    // Manual episode restart due to manual Academy stepping
+                    StartCoroutine(RestartEpisodeDelayed());
                     return;
                 }
             }
@@ -728,6 +734,9 @@ public class PlayerAgent : Agent, ITurnBased
             
             if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Timeout");
             EndEpisode();
+            
+            // Manual episode restart due to manual Academy stepping
+            StartCoroutine(RestartEpisodeDelayed());
             return;
         }
     }
@@ -794,6 +803,32 @@ public class PlayerAgent : Agent, ITurnBased
     {
         Debug.Log("[PlayerAgent] Episode manually ended");
         EndEpisode();
+        
+        // Manual episode restart due to manual Academy stepping
+        StartCoroutine(RestartEpisodeDelayed());
+    }
+    
+    /// <summary>
+    /// Restart episode with delay for manual Academy stepping mode
+    /// </summary>
+    private System.Collections.IEnumerator RestartEpisodeDelayed()
+    {
+        // Wait a frame for EndEpisode to complete
+        yield return null;
+        
+        Debug.Log("[PlayerAgent] Restarting episode manually");
+        
+        // Trigger level reload via TurnManager or LevelSequencer
+        if (TurnManager.Instance != null && TurnManager.Instance.IsMLAgentActive)
+        {
+            // In ML training mode, let TurnManager handle the restart
+            TurnManager.Instance.HandlePlayerDeathEvent(playerController);
+        }
+        else
+        {
+            // Manual restart - call OnEpisodeBegin directly
+            OnEpisodeBegin();
+        }
     }
     
     //=========================================================================

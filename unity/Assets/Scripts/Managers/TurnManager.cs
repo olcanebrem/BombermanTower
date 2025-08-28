@@ -45,6 +45,18 @@ public class TurnManager : MonoBehaviour
         trainingController = MLAgentsTrainingController.Instance;
         levelSequencer = LevelSequencer.Instance;
         
+        // If LevelSequencer doesn't exist, create it
+        if (levelSequencer == null)
+        {
+            GameObject levelSequencerGO = new GameObject("LevelSequencer");
+            levelSequencer = levelSequencerGO.AddComponent<LevelSequencer>();
+            
+            // Also add HoudiniLevelImporter component
+            levelSequencerGO.AddComponent<HoudiniLevelImporter>();
+            
+            Debug.Log("[TurnManager] Created LevelSequencer and HoudiniLevelImporter GameObjects automatically");
+        }
+        
         // Subscribe to player death event
         PlayerController.OnPlayerDied += HandlePlayerDeathEvent;
         
@@ -363,7 +375,7 @@ public class TurnManager : MonoBehaviour
     /// Handle player death event - triggered by PlayerController.OnPlayerDied
     /// This maintains loose coupling through event system
     /// </summary>
-    private void HandlePlayerDeathEvent(PlayerController deadPlayer)
+    public void HandlePlayerDeathEvent(PlayerController deadPlayer)
     {
         Debug.Log($"[TurnManager] Player {deadPlayer.name} died - handling death sequence");
         

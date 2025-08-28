@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 using Debug = UnityEngine.Debug;
 
 /// <summary>
@@ -59,8 +60,84 @@ public class LevelSequencer : MonoBehaviour
             levelLoader = LevelLoader.instance;
         if (levelImporter == null)
             levelImporter = FindObjectOfType<HoudiniLevelImporter>();
+        
+        // Auto-discover level files if list is empty
+        if (availableLevels.Count == 0)
+        {
+            AutoDiscoverLevelFiles();
+        }
             
         ValidateSetup();
+        
+        // Initialize sequence if enabled
+        if (useMultiLevelSequence && availableLevels.Count > 0)
+        {
+            currentLevelIndex = startLevelIndex;
+            Debug.Log($"[LevelSequencer] Multi-level sequence initialized with {availableLevels.Count} levels, starting at index {startLevelIndex}");
+        }
+    }
+    
+    /// <summary>
+    /// Auto-discover level files from Assets/Levels directory
+    /// </summary>
+    private void AutoDiscoverLevelFiles()
+    {
+        Debug.Log("[LevelSequencer] Auto-discovering level files...");
+        
+        // Load all TextAssets from Levels folder
+        TextAsset[] levelAssets = Resources.LoadAll<TextAsset>("Levels");
+        
+        if (levelAssets.Length == 0)
+        {
+            // Try alternative approach - search all TextAssets in project
+            levelAssets = UnityEngine.Object.FindObjectsOfType<TextAsset>()
+                .Where(asset => asset.name.StartsWith("LEVEL_"))
+                .ToArray();
+        }
+        
+        availableLevels.Clear();
+        
+        foreach (TextAsset asset in levelAssets.OrderBy(a => a.name))
+        {
+            if (asset.name.StartsWith("LEVEL_") && asset.name.Contains(".txt"))
+            {
+                var entry = new LevelFileEntry
+                {
+                    fileName = asset.name,
+                    fullPath = $"Assets/Levels/{asset.name}.txt", // Assumed path
+                    textAsset = asset,
+                    levelNumber = ExtractLevelNumber(asset.name),
+                    version = ExtractVersion(asset.name)
+                };
+                
+                availableLevels.Add(entry);
+                Debug.Log($"[LevelSequencer] Discovered level: {entry.fileName} (Level {entry.levelNumber})");
+            }
+        }
+        
+        Debug.Log($"[LevelSequencer] Auto-discovery complete: Found {availableLevels.Count} level files");
+    }
+    
+    /// <summary>
+    /// Extract level number from filename like "LEVEL_0001_v1.0.0_v4.4.txt"
+    /// </summary>
+    private int ExtractLevelNumber(string filename)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(filename, @"LEVEL_(\d+)");
+        if (match.Success && int.TryParse(match.Groups[1].Value, out int levelNum))
+        {
+            return levelNum;
+        }
+        return 0;
+    }
+    
+    /// <summary>
+    /// Extract version from filename
+    /// </summary>
+    private string ExtractVersion(string filename)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(filename, @"v(\d+\.\d+\.\d+)");
+        return match.Success ? match.Groups[1].Value : "1.0.0";
     }
     
     private void ValidateSetup()
