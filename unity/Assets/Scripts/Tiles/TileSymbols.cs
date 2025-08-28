@@ -50,7 +50,7 @@ public static class TileSymbols
         {
             case TileType.Wall:         return '|';
             case TileType.Empty:        return '-';
-            case TileType.Breakable:    return 'B';
+            case TileType.Breakable:    return '/';
             case TileType.Gate:         return 'G';
             case TileType.PlayerSpawn:  return 'p';
             case TileType.Player:       return 'P';
@@ -74,7 +74,8 @@ public static class TileSymbols
             case '|': return TileType.Wall;         // Wall changed from '#' to '|'
             case '#': return TileType.Wall;         // Legacy support
             case '-': return TileType.Empty;
-            case 'B': return TileType.Breakable;
+            case '/': return TileType.Breakable;
+            case 'B': return TileType.Breakable; // Legacy support
             case 'G': return TileType.Gate;         // Gate uses 'G' symbol
             case 'p': return TileType.PlayerSpawn;
             case 'O': return TileType.Bomb;         // Bomb uses 'O' symbol

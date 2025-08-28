@@ -402,7 +402,11 @@ public class HoudiniLevelParser : MonoBehaviour
                     case 'H':
                         levelData.healthPositions.Add(pos);
                         break;
+                    case '/':
+                        levelData.breakablePositions.Add(pos);
+                        break;
                     case 'B':
+                        // Legacy support for old Breakable format
                         levelData.breakablePositions.Add(pos);
                         break;
                 }
