@@ -105,7 +105,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     [Tooltip("Master training control - controls all ML-Agent behavior")]
     public bool isTraining = true;
     [Tooltip("Enable heuristic mode - agent uses random actions without Python connection")]
-    public bool heuristicMode = true;
+    public bool heuristicMode = false;
     [SerializeField] private bool autoParseResults = true;
     private bool startTrainingOnAwake = false; // Now private and controlled by isTraining
     [SerializeField] private float statusCheckInterval = 10f;

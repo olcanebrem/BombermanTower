@@ -285,7 +285,7 @@ public class PlayerAgent : Agent, ITurnBased
     
     public override void OnActionReceived(ActionBuffers actions)
     {
-        Debug.Log("[PlayerAgent] OnActionReceived CALLED! - Starting action processing");
+        Debug.Log($"[PlayerAgent] 🐍 PYTHON → OnActionReceived CALLED! Episode Step: {episodeSteps + 1} - Starting action processing");
         
         var discreteActions = actions.DiscreteActions;
         
@@ -295,9 +295,15 @@ public class PlayerAgent : Agent, ITurnBased
             return;
         }
         
-        Debug.Log($"[PlayerAgent] OnActionReceived - useMLAgent: {UseMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
+        Debug.Log($"[PlayerAgent] 🐍 Python Raw Actions: [{string.Join(", ", discreteActions)}] - useMLAgent: {UseMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
         
-        if (!UseMLAgent || playerController == null) return;
+        if (!UseMLAgent || playerController == null) 
+        {
+            Debug.LogError($"[PlayerAgent] ❌ EARLY RETURN! UseMLAgent: {UseMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
+            return;
+        }
+        
+        Debug.Log("[PlayerAgent] ✅ Checks passed - continuing to create action...");
         
         episodeSteps++;
         needsDecision = false;
@@ -335,19 +341,22 @@ public class PlayerAgent : Agent, ITurnBased
             if (pendingAction is MoveAction moveActionDebug)
             {
                 LastActionDirection = moveActionDebug.Direction;
+                Debug.Log($"[PlayerAgent] 🏃 Created MoveAction with direction: {moveActionDebug.Direction}");
             }
             else if (pendingAction is PlaceBombAction)
             {
                 LastActionDirection = Vector2Int.zero; // Bomb at current position
+                Debug.Log($"[PlayerAgent] 💣 Created PlaceBombAction");
             }
         }
         else
         {
             CurrentActionType = "None";
             LastActionDirection = Vector2Int.zero;
+            Debug.Log($"[PlayerAgent] ❌ No action created");
         }
         
-        Debug.Log($"[PlayerAgent] PendingAction: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}");
+        Debug.Log($"[PlayerAgent] ⚙️ PendingAction stored: {(pendingAction != null ? pendingAction.GetType().Name : "NULL")}");
         
         // Debug logging
         if (debugActions)
@@ -464,7 +473,7 @@ public class PlayerAgent : Agent, ITurnBased
     {
         var discreteActionsOut = actionsOut.DiscreteActions;
         
-        Debug.Log($"[PlayerAgent] Heuristic called - DiscreteActions length: {discreteActionsOut.Length}");
+        Debug.Log($"[PlayerAgent] 🎯 HEURISTIC → Heuristic called - DiscreteActions length: {discreteActionsOut.Length}");
         
         if (discreteActionsOut.Length == 0) 
         {
@@ -868,11 +877,11 @@ public class PlayerAgent : Agent, ITurnBased
     {
         HasActedThisTurn = false;
         needsDecision = false;
-        // Clear pendingAction from previous turn
+        // DON'T clear pendingAction here - it might be from OnActionReceived
         if (pendingAction != null)
         {
-            Debug.Log($"[PlayerAgent] Clearing unused pendingAction: {pendingAction.GetType().Name}");
-            pendingAction = null;
+            Debug.Log($"[PlayerAgent] ⚠️ WARNING: ResetTurn called but pendingAction exists: {pendingAction.GetType().Name} - keeping it for next GetAction");
+            // pendingAction = null; // COMMENTED OUT
         }
         Debug.Log("[PlayerAgent] Turn reset - HasActedThisTurn = false, needsDecision = false");
     }
@@ -906,11 +915,11 @@ public class PlayerAgent : Agent, ITurnBased
             // Debug action details
             if (action is MoveAction moveAction)
             {
-                Debug.Log($"[PlayerAgent] Returning MoveAction with direction: {moveAction.Direction}");
+                Debug.Log($"[PlayerAgent] ✅ RETURNING MoveAction with direction: {moveAction.Direction} → TurnManager will execute");
             }
             else
             {
-                Debug.Log($"[PlayerAgent] Returning action: {action.GetType().Name}");
+                Debug.Log($"[PlayerAgent] ✅ RETURNING action: {action.GetType().Name} → TurnManager will execute");
             }
             return action;
         }
@@ -923,6 +932,13 @@ public class PlayerAgent : Agent, ITurnBased
             
             // Manual decision request - bypassing DecisionRequester component
             RequestDecision();
+            
+            // Manual Academy step since AutomaticSteppingEnabled = false
+            if (Unity.MLAgents.Academy.Instance != null)
+            {
+                Unity.MLAgents.Academy.Instance.EnvironmentStep();
+                Debug.Log("[PlayerAgent] Academy EnvironmentStep called");
+            }
         }
         
         // Check ML-Agents connection and training status

@@ -86,6 +86,7 @@ Thumbs.db
 .claude
 *.pt
 *.onnx
+python/results/*
 # --- Paket Cache ---
 /Packages/manifest.json
 /Packages/packages-lock.json
