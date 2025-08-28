@@ -83,8 +83,11 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
                        $"{new StackTrace().ToString()}", this.gameObject);
         
         var ll = LevelLoader.instance;
-        ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        ll.tileObjects[X, Y] = null;
+        
+        // Use LevelLoader's RemoveEnemy for proper cleanup
+        ll.RemoveEnemy(gameObject);
+        
+        // Destroy the GameObject
         Destroy(gameObject);
     }
 

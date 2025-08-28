@@ -36,7 +36,7 @@ public class LevelSequencer : MonoBehaviour
     
     [Header("Components")]
     [SerializeField] private LevelLoader levelLoader;
-    [SerializeField] private HoudiniLevelImporter levelImporter;
+    [SerializeField] private LevelImporter levelImporter;
     
     // Events for level sequence management
     public event System.Action<int, int> OnLevelSequenceChanged; // (currentIndex, totalLevels)
@@ -66,12 +66,12 @@ public class LevelSequencer : MonoBehaviour
         if (levelImporter == null)
         {
             // First try to get Singleton Instance
-            levelImporter = HoudiniLevelImporter.Instance;
+            levelImporter = LevelImporter.Instance;
             // If no Instance, search in scene
             if (levelImporter == null)
-                levelImporter = FindObjectOfType<HoudiniLevelImporter>();
+                levelImporter = FindObjectOfType<LevelImporter>();
             
-            Debug.Log($"[LevelSequencer] HoudiniLevelImporter found: {levelImporter != null} (Instance: {HoudiniLevelImporter.Instance != null}, FindObject: {FindObjectOfType<HoudiniLevelImporter>() != null})");
+            Debug.Log($"[LevelSequencer] LevelImporter found: {levelImporter != null} (Instance: {LevelImporter.Instance != null}, FindObject: {FindObjectOfType<LevelImporter>() != null})");
         }
         
         // Auto-discover level files if list is empty
@@ -192,7 +192,7 @@ public class LevelSequencer : MonoBehaviour
         
         if (levelImporter == null)
         {
-            Debug.LogError("[LevelSequencer] HoudiniLevelImporter not found! Please assign or ensure it exists in scene.");
+            Debug.LogError("[LevelSequencer] LevelImporter not found! Please assign or ensure it exists in scene.");
         }
         
         if (availableLevels.Count == 0)
@@ -323,28 +323,30 @@ public class LevelSequencer : MonoBehaviour
             return;
         }
 
-        // Load level data using HoudiniLevelImporter
-        Debug.Log($"[LevelSequencer] Loading level data for: {levelEntry.fileName}");
-        var levelData = levelImporter.LoadLevelData(levelEntry.textAsset);
-        if (levelData != null)
+        // Load level using new organized system
+        Debug.Log($"[LevelSequencer] Loading level: {levelEntry.fileName}");
+        
+        if (levelImporter != null)
         {
-            Debug.Log($"[LevelSequencer] Level data parsed successfully, calling LevelLoader.LoadLevelFromHoudiniData");
-            
-            // Use LevelLoader to actually load the level
-            levelLoader.LoadLevelFromHoudiniData(levelData);
-
-            Debug.Log($"[LevelSequencer] LevelLoader.LoadLevelFromHoudiniData completed");
-
-            // Fire events
-            OnLevelLoaded?.Invoke(levelEntry.fileName);
-            OnLevelStarted?.Invoke(levelEntry);
-
-            Debug.Log($"[LevelSequencer] Successfully loaded level: {levelEntry.fileName}");
+            // Use LevelImporter for organized level loading
+            levelImporter.ImportLevel(levelEntry.textAsset);
+            Debug.Log($"[LevelSequencer] LevelImporter.ImportLevel completed");
         }
         else
         {
-            Debug.LogError($"[LevelSequencer] Failed to parse level data for: {levelEntry.fileName}");
+            Debug.LogWarning("[LevelSequencer] LevelImporter not assigned, falling back to LevelLoader");
+            // Fallback to LevelLoader direct loading
+            if (levelLoader != null)
+            {
+                levelLoader.LoadSelectedLevel();
+            }
         }
+
+        // Fire events
+        OnLevelLoaded?.Invoke(levelEntry.fileName);
+        OnLevelStarted?.Invoke(levelEntry);
+
+        Debug.Log($"[LevelSequencer] Successfully loaded level: {levelEntry.fileName}");
     }
 
     //=========================================================================

@@ -21,10 +21,23 @@ public static class MovementHelper
             return false; // Ölü birim hareket edemez.
         }
         
-        if (ll.tileObjects[mover.X, mover.Y] != mover.gameObject)
+        GameObject currentObjAtPosition = ll.tileObjects[mover.X, mover.Y];
+        if (currentObjAtPosition != mover.gameObject)
         {
-            Debug.LogError($"[MovementHelper] VERİ TUTARSIZLIĞI: {mover.GetType().Name} kendini ({mover.X},{mover.Y}) sanıyor ama nesne haritasında orada değil! Actual object: {ll.tileObjects[mover.X, mover.Y]?.name ?? "NULL"}", mover.gameObject);
-            return false;
+            // Eğer o pozisyonda başka bir aktif obje varsa, bu gerçek bir tutarsızlık
+            if (currentObjAtPosition != null && currentObjAtPosition.activeInHierarchy)
+            {
+                Debug.LogError($"[MovementHelper] VERİ TUTARSIZLIĞI: {mover.GetType().Name} kendini ({mover.X},{mover.Y}) sanıyor ama nesne haritasında '{currentObjAtPosition.name}' var!", mover.gameObject);
+                return false;
+            }
+            else
+            {
+                // Pozisyon boş veya inactive obje var - bu normaldir (level loading, respawn vs.)
+                // Haritayı düzelt ve devam et
+                Debug.LogWarning($"[MovementHelper] Pozisyon tutarsızlığı düzeltiliyor: {mover.GetType().Name} at ({mover.X},{mover.Y}) - haritada: {currentObjAtPosition?.name ?? "NULL"}");
+                ll.tileObjects[mover.X, mover.Y] = mover.gameObject;
+                ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToDataSymbol(mover.TileType);
+            }
         }
 
         // --- 2. HEDEF HESAPLAMA VE SINIR KONTROLÜ ---

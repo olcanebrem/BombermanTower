@@ -122,17 +122,12 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
 
     private void Die()
     {
-        // --- EN ÖNEMLİ KANIT ---
-        // Bu Die() metodunu kimin çağırdığını bize söyleyen bir "intihar notu" yazdır.
-        Debug.LogError($"ENEMYTILE YOK OLUYOR! Konum: ({X},{Y}). Tetikleyici Zinciri (StackTrace):\n" + 
-                       $"{new System.Diagnostics.StackTrace().ToString()}", this.gameObject);
-        // -----------------------
-        // Mantıksal ve nesne haritalarındaki izini temizle.
         var ll = LevelLoader.instance;
-        ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        ll.tileObjects[X, Y] = null;
         
-        // GameObject'i yok et.
+        // Use LevelLoader's RemoveEnemy for proper cleanup
+        ll.RemoveEnemy(gameObject);
+        
+        // Destroy the GameObject
         Destroy(gameObject);
     }
     #endregion

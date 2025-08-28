@@ -37,7 +37,7 @@ public class LevelLoader : MonoBehaviour
     public SpriteDatabase spriteDatabase;
     
     // --- Component References ---
-    private HoudiniLevelImporter levelImporter;
+    private HoudiniLevelParser levelParser;
     
     // --- Level File Management ---
     [SerializeField] private List<LevelFileEntry> availableLevels = new List<LevelFileEntry>();
@@ -47,15 +47,15 @@ public class LevelLoader : MonoBehaviour
     // Multi-level sequence management moved to LevelSequencer.cs
     
     // --- Current Level Data ---
-    private HoudiniLevelData currentLevelData; 
+    public HoudiniLevelData currentLevelData; 
     
-    public int Width { get; private set; }
-    public int Height { get; private set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
     
     public char[,] levelMap;
     public GameObject[,] tileObjects;
     private GameObject playerObject; // Runtime player instance reference
-    private int playerStartX, playerStartY;
+    public int playerStartX, playerStartY;
     
     // ML-Agent support - object tracking
     private List<GameObject> enemies = new List<GameObject>();
@@ -101,24 +101,24 @@ public class LevelLoader : MonoBehaviour
         }
         instance = this;
 
-        // Component references - find HoudiniLevelImporter (Singleton or scene)
-        levelImporter = HoudiniLevelImporter.Instance;
-        if (levelImporter == null)
+        // Component references - find HoudiniLevelParser (Singleton or scene)
+        levelParser = HoudiniLevelParser.Instance;
+        if (levelParser == null)
         {
-            levelImporter = FindObjectOfType<HoudiniLevelImporter>();
-            if (levelImporter == null)
+            levelParser = FindObjectOfType<HoudiniLevelParser>();
+            if (levelParser == null)
             {
-                levelImporter = gameObject.AddComponent<HoudiniLevelImporter>();
-                Debug.Log("[LevelLoader] HoudiniLevelImporter component automatically added to LevelLoader");
+                levelParser = gameObject.AddComponent<HoudiniLevelParser>();
+                Debug.Log("[LevelLoader] HoudiniLevelParser component automatically added to LevelLoader");
             }
             else
             {
-                Debug.Log("[LevelLoader] HoudiniLevelImporter found in scene");
+                Debug.Log("[LevelLoader] HoudiniLevelParser found in scene");
             }
         }
         else
         {
-            Debug.Log("[LevelLoader] HoudiniLevelImporter found via Singleton");
+            Debug.Log("[LevelLoader] HoudiniLevelParser found via Singleton");
         }
 
         // Prefab sözlüğünü doldur - önce otomatik keşif dene
@@ -345,21 +345,31 @@ public class LevelLoader : MonoBehaviour
         
         Debug.Log($"[LevelLoader] Loading level: {selectedLevel.fileName}");
         
-        if (levelImporter == null)
+        // Use LevelImporter for organized level loading
+        if (LevelImporter.Instance != null)
         {
-            Debug.LogError("[LevelLoader] HoudiniLevelImporter component not found!");
-            return;
-        }
-        
-        // HoudiniLevelImporter'dan level data al
-        currentLevelData = levelImporter.LoadLevelData(selectedLevel.textAsset);
-        if (currentLevelData != null)
-        {
-            LoadLevelFromHoudiniData(currentLevelData);
+            Debug.Log("[LevelLoader] Using LevelImporter for organized level loading");
+            LevelImporter.Instance.ImportLevel(selectedLevel.textAsset);
         }
         else
         {
-            Debug.LogError($"[LevelLoader] Failed to parse level data: {selectedLevel.fileName}");
+            // Fallback to direct parsing if LevelImporter not available
+            if (levelParser == null)
+            {
+                Debug.LogError("[LevelLoader] HoudiniLevelParser component not found!");
+                return;
+            }
+            
+            Debug.LogWarning("[LevelLoader] LevelImporter not found - using fallback direct loading");
+            currentLevelData = levelParser.ParseLevelData(selectedLevel.textAsset);
+            if (currentLevelData != null)
+            {
+                LoadLevelFromHoudiniData(currentLevelData);
+            }
+            else
+            {
+                Debug.LogError($"[LevelLoader] Failed to parse level data: {selectedLevel.fileName}");
+            }
         }
     }
     
@@ -772,7 +782,7 @@ public class LevelLoader : MonoBehaviour
     /// <summary>
     /// Clear all existing level objects before loading new level
     /// </summary>
-    private void ClearAllTiles()
+    public void ClearAllTiles()
     {
         Debug.Log("[LevelLoader] ClearAllTiles - destroying existing level objects");
         
@@ -975,6 +985,128 @@ public class LevelLoader : MonoBehaviour
     
     // Multi-level sequence management has been moved to LevelSequencer.cs
     // LevelLoader now focuses solely on level generation and loading
+    
+    /// <summary>
+    /// Create tile at specific position (used by LevelImporter)
+    /// </summary>
+    public bool CreateTileAt(int x, int y, TileType type)
+    {
+        if (x < 0 || x >= Width || y < 0 || y >= Height)
+        {
+            Debug.LogWarning($"[LevelLoader] CreateTileAt position out of bounds: ({x}, {y})");
+            return false;
+        }
+        
+        if (prefabMap.TryGetValue(type, out var tileBasePrefab))
+        {
+            if (tileBasePrefab != null)
+            {
+                Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
+                TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
+                
+                // Setup tile
+                if (spriteDatabase != null)
+                {
+                    newTile.SetVisual(spriteDatabase.GetSprite(type));
+                }
+                (newTile as IInitializable)?.Init(x, y);
+                
+                // Update arrays
+                tileObjects[x, y] = newTile.gameObject;
+                levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
+                
+                // ML-Agent tracking
+                UpdateMLAgentTracking(type, newTile.gameObject);
+                
+                return true;
+            }
+        }
+        
+        Debug.LogWarning($"[LevelLoader] No prefab found for {type} at ({x}, {y})");
+        return false;
+    }
+    
+    /// <summary>
+    /// Create player at spawn position (used by LevelImporter)
+    /// </summary>
+    public void CreatePlayerAtSpawn()
+    {
+        Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
+        
+        if (PlayerController.Instance != null && PlayerController.Instance.gameObject != null)
+        {
+            playerObject = PlayerController.Instance.gameObject;
+            
+            if (!playerObject.activeInHierarchy)
+            {
+                playerObject.SetActive(true);
+                Debug.Log("[LevelLoader] Reactivated existing Singleton Player instance");
+            }
+            
+            playerObject.transform.position = playerPos;
+            Debug.Log("[LevelLoader] Using existing Singleton Player instance and repositioning");
+        }
+        else
+        {
+            if (playerPrefab != null)
+            {
+                Debug.Log("[LevelLoader] Singleton Player not found - creating new instance");
+                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+                Debug.Log("[LevelLoader] New Player instance created");
+            }
+            else
+            {
+                Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
+                return;
+            }
+        }
+        
+        var playerController = playerObject.GetComponent<PlayerController>();
+        var playerTileBase = playerObject.GetComponent<TileBase>();
+        
+        if (playerTileBase != null && spriteDatabase != null)
+        {
+            playerTileBase.SetVisual(spriteDatabase.GetSprite(TileType.Player));
+        }
+        
+        if (playerController != null)
+        {
+            playerController.Init(playerStartX, playerStartY);
+            
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.RegisterPlayer(playerController);
+            }
+            
+            levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
+            tileObjects[playerStartX, playerStartY] = playerObject;
+            
+            Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
+        }
+    }
+    
+    /// <summary>
+    /// Update ML-Agent tracking lists
+    /// </summary>
+    private void UpdateMLAgentTracking(TileType type, GameObject gameObj)
+    {
+        switch (type)
+        {
+            case TileType.Enemy:
+            case TileType.EnemyShooter:
+                enemies.Add(gameObj);
+                break;
+                
+            case TileType.Coin:
+            case TileType.Health:
+                collectibles.Add(gameObj);
+                break;
+                
+            case TileType.Gate:
+                exitObject = gameObj;
+                break;
+        }
+    }
     
     /// <summary>
     /// Otomatik olarak prefab'ları Resource klasöründen keşfeder ve TileType'larına göre eşler

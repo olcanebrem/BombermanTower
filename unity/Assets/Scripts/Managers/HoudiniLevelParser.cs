@@ -73,9 +73,9 @@ public class HoudiniCellType
     }
 }
 
-public class HoudiniLevelImporter : MonoBehaviour
+public class HoudiniLevelParser : MonoBehaviour
 {
-    public static HoudiniLevelImporter Instance { get; private set; }
+    public static HoudiniLevelParser Instance { get; private set; }
     
     [Header("Debug")]
     public bool logParsingDetails = false;
@@ -96,22 +96,22 @@ public class HoudiniLevelImporter : MonoBehaviour
     /// <summary>
     /// TextAsset'ten HoudiniLevelData oluşturur (Component method)
     /// </summary>
-    public HoudiniLevelData LoadLevelData(TextAsset levelFile)
+    public HoudiniLevelData ParseLevelData(TextAsset levelFile)
     {
         if (levelFile == null)
         {
-            Debug.LogError("[HoudiniLevelImporter] Level file is null!");
+            Debug.LogError("[HoudiniLevelParser] Level file is null!");
             return null;
         }
         
-        Debug.Log($"[HoudiniLevelImporter] Parsing level file: {levelFile.name}");
-        return ImportFromText(levelFile.text, true); // Force logging ON for debugging
+        Debug.Log($"[HoudiniLevelParser] Parsing level file: {levelFile.name}");
+        return ParseFromText(levelFile.text, true); // Force logging ON for debugging
     }
     
     /// <summary>
     /// INI formatındaki string'i parse ederek HoudiniLevelData'ya dönüştürür
     /// </summary>
-    public static HoudiniLevelData ImportFromText(string iniContent, bool enableLogging = false)
+    public static HoudiniLevelData ParseFromText(string iniContent, bool enableLogging = false)
     {
         HoudiniLevelData levelData = new HoudiniLevelData();
         
@@ -197,21 +197,21 @@ public class HoudiniLevelImporter : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[HoudiniImporter] Failed to import level: {e.Message}");
+            Debug.LogError($"[HoudiniLevelParser] Failed to parse level: {e.Message}");
             return null;
         }
     }
     
-    public static HoudiniLevelData ImportFromFile(string filePath, bool enableLogging = false)
+    public static HoudiniLevelData ParseFromFile(string filePath, bool enableLogging = false)
     {
         try
         {
             string iniContent = System.IO.File.ReadAllText(filePath);
-            return ImportFromText(iniContent, enableLogging);
+            return ParseFromText(iniContent, enableLogging);
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[HoudiniImporter] Failed to read file {filePath}: {e.Message}");
+            Debug.LogError($"[HoudiniLevelParser] Failed to read file {filePath}: {e.Message}");
             return null;
         }
     }
@@ -328,7 +328,7 @@ public class HoudiniLevelImporter : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"[HoudiniImporter] Failed to parse generation param {key}={value}: {e.Message}");
+            Debug.LogWarning($"[HoudiniLevelParser] Failed to parse generation param {key}={value}: {e.Message}");
         }
     }
     
@@ -451,7 +451,7 @@ public class HoudiniLevelImporter : MonoBehaviour
         #.E.#
         #####";
         
-        HoudiniLevelData testData = ImportFromText(sampleINI, true);
+        HoudiniLevelData testData = ParseFromText(sampleINI, true);
         if (testData != null)
         {
             LogLevelData(testData);

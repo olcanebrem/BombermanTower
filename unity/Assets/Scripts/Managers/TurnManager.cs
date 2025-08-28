@@ -51,10 +51,11 @@ public class TurnManager : MonoBehaviour
             GameObject levelSequencerGO = new GameObject("LevelSequencer");
             levelSequencer = levelSequencerGO.AddComponent<LevelSequencer>();
             
-            // Also add HoudiniLevelImporter component
-            levelSequencerGO.AddComponent<HoudiniLevelImporter>();
+            // Also add components for new system
+            levelSequencerGO.AddComponent<HoudiniLevelParser>();
+            levelSequencerGO.AddComponent<LevelImporter>();
             
-            Debug.Log("[TurnManager] Created LevelSequencer and HoudiniLevelImporter GameObjects automatically");
+            Debug.Log("[TurnManager] Created LevelSequencer, HoudiniLevelParser and LevelImporter GameObjects automatically");
         }
         
         // Subscribe to player death event
@@ -115,7 +116,7 @@ public class TurnManager : MonoBehaviour
             StartCoroutine(ProcessTurn());
         }
 
-        if (debugnow) PrintDebugMap();
+        // PrintDebugMap removed - already called in ProcessTurn()
     }
 
      // --- ANİMASYON KONTROL METODLARI ---
@@ -133,12 +134,20 @@ public class TurnManager : MonoBehaviour
     {
         if (obj == null) return TileType.Empty;
         
-        // Check GameObject name or tag
+        // First, try to get TileType from TileBase component (most reliable)
+        var tileBase = obj.GetComponent<TileBase>();
+        if (tileBase != null)
+        {
+            return tileBase.TileType;
+        }
+        
+        // Fallback: Check GameObject name
         string name = obj.name.ToLower();
         
         if (name.Contains("player")) return TileType.Player;
-        if (name.Contains("enemy")) return TileType.Enemy;
+        // Check EnemyShooter BEFORE Enemy to prevent false matches
         if (name.Contains("shooter")) return TileType.EnemyShooter;
+        if (name.Contains("enemy")) return TileType.Enemy;
         if (name.Contains("bomb")) return TileType.Bomb;
         if (name.Contains("coin")) return TileType.Coin;
         if (name.Contains("health")) return TileType.Health;
@@ -239,7 +248,6 @@ public class TurnManager : MonoBehaviour
             prevTurnStartTime = now;
 
             TurnCount++;
-            PrintDebugMap();
         }
         else
         {
@@ -335,6 +343,9 @@ public class TurnManager : MonoBehaviour
                 Debug.LogError($"Error executing action {currentAction}: {e.Message}");
             }
         }
+
+        // Debug map after all actions are executed
+        if (debugnow) PrintDebugMap();
 
         // Wait for all animations to complete
         while (activeAnimations > 0)
