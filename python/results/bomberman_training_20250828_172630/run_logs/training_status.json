@@ -1,0 +1,29 @@
+{
+    "PlayerAgent": {
+        "checkpoints": [
+            {
+                "steps": 1,
+                "file_path": "results\\bomberman_training_20250828_172630\\PlayerAgent\\PlayerAgent-1.onnx",
+                "reward": 0.0,
+                "creation_time": 1756391319.96102,
+                "auxillary_file_paths": [
+                    "results\\bomberman_training_20250828_172630\\PlayerAgent\\PlayerAgent-1.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 1,
+            "file_path": "results\\bomberman_training_20250828_172630\\PlayerAgent.onnx",
+            "reward": 0.0,
+            "creation_time": 1756391319.96102,
+            "auxillary_file_paths": [
+                "results\\bomberman_training_20250828_172630\\PlayerAgent\\PlayerAgent-1.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.8.0+cpu"
+    }
+}

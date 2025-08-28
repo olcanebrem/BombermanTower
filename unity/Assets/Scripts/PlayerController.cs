@@ -292,7 +292,10 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
         // Harita objesini temizle
         LevelLoader.instance.ClearTile(X, Y);
         
-        Destroy(gameObject);
+        // Singleton pattern için gameObject'i destroy etme, sadece reset et
+        // Yeni level yüklendiğinde LevelLoader yeniden kullanacak
+        gameObject.SetActive(false);
+        Debug.Log("[PlayerController] Player disabled, waiting for next level");
     }
     
     // ML-Agent integration now handled centrally by TurnManager

@@ -101,12 +101,24 @@ public class LevelLoader : MonoBehaviour
         }
         instance = this;
 
-        // Component references - automatically find or create HoudiniLevelImporter
-        levelImporter = GetComponent<HoudiniLevelImporter>();
+        // Component references - find HoudiniLevelImporter (Singleton or scene)
+        levelImporter = HoudiniLevelImporter.Instance;
         if (levelImporter == null)
         {
-            levelImporter = gameObject.AddComponent<HoudiniLevelImporter>();
-            Debug.Log("[LevelLoader] HoudiniLevelImporter component automatically added");
+            levelImporter = FindObjectOfType<HoudiniLevelImporter>();
+            if (levelImporter == null)
+            {
+                levelImporter = gameObject.AddComponent<HoudiniLevelImporter>();
+                Debug.Log("[LevelLoader] HoudiniLevelImporter component automatically added to LevelLoader");
+            }
+            else
+            {
+                Debug.Log("[LevelLoader] HoudiniLevelImporter found in scene");
+            }
+        }
+        else
+        {
+            Debug.Log("[LevelLoader] HoudiniLevelImporter found via Singleton");
         }
 
         // Prefab sözlüğünü doldur - önce otomatik keşif dene
@@ -158,7 +170,8 @@ public class LevelLoader : MonoBehaviour
     {
         ScanForLevelFiles();
         LoadSelectedLevel();
-        CreateMapVisual();
+        // CreateMapVisual(); // Kaldırıldı - zaten LoadLevelFromHoudiniData içinde çağrılıyor
+        Debug.Log("[LevelLoader] Start completed - visual creation handled by LoadLevelFromHoudiniData");
     }
     
     #if UNITY_EDITOR
@@ -312,10 +325,17 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadSelectedLevel()
     {
+        Debug.Log($"[LevelLoader] LoadSelectedLevel called - Available levels: {availableLevels.Count}");
+        
         if (availableLevels.Count == 0)
         {
-            Debug.LogError("[LevelLoader] No level files found!");
-            return;
+            Debug.LogError("[LevelLoader] No level files found! Re-scanning...");
+            ScanForLevelFiles();
+            if (availableLevels.Count == 0)
+            {
+                Debug.LogError("[LevelLoader] Still no level files after re-scan!");
+                return;
+            }
         }
         
         // Index sınırlarını kontrol et
@@ -513,11 +533,18 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadLevelFromHoudiniData(HoudiniLevelData levelData)
     {
+        Debug.Log($"[LevelLoader] LoadLevelFromHoudiniData called");
+        
         if (levelData == null)
         {
             Debug.LogError("[LevelLoader] HoudiniLevelData is null!");
             return;
         }
+
+        Debug.Log($"[LevelLoader] Starting level loading process - clearing existing objects");
+        
+        // Clear existing level objects first
+        ClearAllTiles();
 
         // Set dimensions from Houdini data
         Width = levelData.gridWidth;
@@ -576,6 +603,11 @@ public class LevelLoader : MonoBehaviour
         sb.AppendLine("==============================");
         
         Debug.Log(sb.ToString());
+        
+        // Create visual objects after loading data
+        Debug.Log("[LevelLoader] Creating visual map objects...");
+        CreateMapVisual();
+        Debug.Log("[LevelLoader] LoadLevelFromHoudiniData completed successfully");
     }
     
     
@@ -583,8 +615,12 @@ public class LevelLoader : MonoBehaviour
     // Sadece oyuncu oluşturma mantığını en sona taşıdık.
     void CreateMapVisual()
     {
+        Debug.Log($"[LevelLoader] *** CreateMapVisual CALLED *** - Dimensions: {Width}x{Height}");
+        Debug.Log($"[LevelLoader] Call Stack:\n{System.Environment.StackTrace}");
+        
         // 1. Referans haritalarımızı oluştur.
         tileObjects = new GameObject[Width, Height];
+        Debug.Log($"[LevelLoader] TileObjects array created: {Width}x{Height}");
 
         // 2. JENERİK TILE'LARI OLUŞTURMA DÖNGÜSÜ
         // Bu döngü, oyuncu DIŞINDAKİ her şeyi oluşturur.
@@ -607,7 +643,7 @@ public class LevelLoader : MonoBehaviour
                 {
                     if (tileBasePrefab != null)
                     {
-                        Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name}");
+                        Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name} from symbol '{symbolChar}'");
                         Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
                         TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
                         
@@ -632,8 +668,12 @@ public class LevelLoader : MonoBehaviour
                             exitObject = newTile.gameObject;
                         }
                         
-                        // Tile array'ine ekle
+                        // Tile array'ine ve mantık haritasına ekle
                         tileObjects[x, y] = newTile.gameObject;
+                        // LevelMap'i güncelle - oluşturulan objenin gerçek tipini kullan
+                        levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
+                        
+                        Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(type)}' for {type}");
                     }
                     else
                     {
@@ -651,23 +691,33 @@ public class LevelLoader : MonoBehaviour
         // Tüm jenerik tile'lar oluşturulduktan sonra, oyuncuyu özel olarak ele al.
 
         // a) Oyuncunun başlangıç pozisyonunu hesapla.
-        // Bu 'playerStartX' ve 'playerStartY' değişkenleri LoadLevelFromFile'da doldurulmuştu.
         Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
         
-        // b) Oyuncuyu, hesaplanan bu pozisyonda oluştur.
-        // Singleton pattern: Varsa mevcut player'ı kullan
-        if (PlayerController.Instance != null)
+        // b) Oyuncuyu oluştur veya mevcut olanı kullan
+        // Önce Singleton instance'ı kontrol et
+        if (PlayerController.Instance != null && PlayerController.Instance.gameObject != null)
         {
+            // Mevcut Singleton player'ı kullan
             playerObject = PlayerController.Instance.gameObject;
+            
+            // Eğer player inactive durumda ise (ölümden sonra), aktif hale getir
+            if (!playerObject.activeInHierarchy)
+            {
+                playerObject.SetActive(true);
+                Debug.Log("[LevelLoader] Reactivated existing Singleton Player instance");
+            }
+            
             playerObject.transform.position = playerPos;
-            Debug.Log("[LevelLoader] Using existing Singleton Player instance");
+            Debug.Log("[LevelLoader] Using existing Singleton Player instance and repositioning");
         }
-        else if (playerObject == null)
+        else
         {
+            // Singleton yok veya null, yeni player oluştur
             if (playerPrefab != null)
             {
+                Debug.Log("[LevelLoader] Singleton Player not found or destroyed - creating new instance");
                 playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
-                Debug.Log("[LevelLoader] New Singleton Player created");
+                Debug.Log("[LevelLoader] New Player instance created");
             }
             else
             {
@@ -677,12 +727,6 @@ public class LevelLoader : MonoBehaviour
                 playerObject.transform.position = playerPos;
                 playerObject.transform.SetParent(transform);
             }
-        }
-        else
-        {
-            // Mevcut player'ı yeni pozisyona taşı
-            playerObject.transform.position = playerPos;
-            Debug.Log("[LevelLoader] Existing player repositioned");
         }
         
         // c) Gerekli bileşen referanslarını SADECE BİR KERE al.
@@ -698,17 +742,97 @@ public class LevelLoader : MonoBehaviour
         // e) Oyuncunun mantığını kur ve diğer yöneticilere kaydettir.
         if (playerController != null)
         {
+            // Player'ı reset et ve yeni pozisyonda initialize et
             playerController.Init(playerStartX, playerStartY);
-            GameManager.Instance.RegisterPlayer(playerController);
+            
+            // GameManager'a register et (eğer varsa)
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.RegisterPlayer(playerController);
+            }
 
             // Oyuncunun mantıksal haritasına kaydet.
             levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
             tileObjects[playerStartX, playerStartY] = playerObject;
+            
+            Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }
         
         // f) Oyuncunun referansını, nesne haritasındaki doğru yere koy.
         tileObjects[playerStartX, playerStartY] = playerObject;
+        
+        Debug.Log($"[LevelLoader] CreateMapVisual completed successfully");
+        
+        // Debug: Log TurnManager state after level creation
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.LogAllRegisteredObjects();
+        }
     }
+    /// <summary>
+    /// Clear all existing level objects before loading new level
+    /// </summary>
+    private void ClearAllTiles()
+    {
+        Debug.Log("[LevelLoader] ClearAllTiles - destroying existing level objects");
+        
+        // Clear TurnManager registrations first to prevent null reference issues
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.ClearAllRegistersExceptPlayer();
+        }
+        
+        if (tileObjects != null)
+        {
+            int destroyedCount = 0;
+            for (int y = 0; y < tileObjects.GetLength(1); y++)
+            {
+                for (int x = 0; x < tileObjects.GetLength(0); x++)
+                {
+                    if (tileObjects[x, y] != null)
+                    {
+                        // Check if this is the current Singleton player before destroying
+                        bool isCurrentPlayer = (PlayerController.Instance != null && 
+                                              tileObjects[x, y] == PlayerController.Instance.gameObject);
+                        
+                        if (!isCurrentPlayer)
+                        {
+                            Destroy(tileObjects[x, y]);
+                            destroyedCount++;
+                        }
+                        else
+                        {
+                            // This is the player, don't destroy but clear from tile tracking
+                            Debug.Log("[LevelLoader] Preserving Singleton Player during tile clearing");
+                        }
+                        
+                        tileObjects[x, y] = null;
+                    }
+                }
+            }
+            Debug.Log($"[LevelLoader] Destroyed {destroyedCount} existing objects");
+        }
+        
+        // Clear ML-Agent tracking lists
+        enemies.Clear();
+        collectibles.Clear();
+        exitObject = null;
+        
+        // Clear level map data
+        if (levelMap != null)
+        {
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+                }
+            }
+        }
+        
+        Debug.Log("[LevelLoader] ClearAllTiles completed");
+    }
+    
         public void PlaceBombAt(int x, int y)
     {
         // GÜVENLİK KİLİDİ: Eğer bu kare bir şekilde doluysa, hiçbir şey yapma.

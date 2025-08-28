@@ -692,11 +692,11 @@ public class PlayerAgent : Agent, ITurnBased
             if (rewardSystem != null)
                 rewardSystem.ApplyDeathPenalty();
             
-            if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Player died");
+            Debug.Log("[PlayerAgent] Episode ended: Player died - ending episode only");
             EndEpisode();
             
-            // Manual episode restart due to manual Academy stepping
-            StartCoroutine(RestartEpisodeDelayed());
+            // Note: Level restart will be handled by TurnManager.HandlePlayerDeathEvent
+            // through PlayerController.OnPlayerDied event - no need to restart here
             return;
         }
         
@@ -719,8 +719,11 @@ public class PlayerAgent : Agent, ITurnBased
                     if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Level completed!");
                     EndEpisode();
                     
-                    // Manual episode restart due to manual Academy stepping
-                    StartCoroutine(RestartEpisodeDelayed());
+                    // Load next level for successful completion
+                    if (TurnManager.Instance?.IsMLAgentActive == true)
+                    {
+                        StartCoroutine(LoadNextLevelDelayed());
+                    }
                     return;
                 }
             }
@@ -735,8 +738,11 @@ public class PlayerAgent : Agent, ITurnBased
             if (debugActions) Debug.Log("[PlayerAgent] Episode ended: Timeout");
             EndEpisode();
             
-            // Manual episode restart due to manual Academy stepping
-            StartCoroutine(RestartEpisodeDelayed());
+            // Load next level for timeout (treated like death)
+            if (TurnManager.Instance?.IsMLAgentActive == true)
+            {
+                StartCoroutine(LoadNextLevelDelayed());
+            }
             return;
         }
     }
@@ -809,6 +815,27 @@ public class PlayerAgent : Agent, ITurnBased
     }
     
     /// <summary>
+    /// Load next level with delay for ML training
+    /// </summary>
+    private System.Collections.IEnumerator LoadNextLevelDelayed()
+    {
+        // Wait a frame for EndEpisode to complete
+        yield return null;
+        
+        Debug.Log("[PlayerAgent] Loading next level in training sequence");
+        
+        // Load next level directly through LevelSequencer
+        if (LevelSequencer.Instance != null)
+        {
+            LevelSequencer.Instance.LoadNextLevel();
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerAgent] LevelSequencer not found for next level loading");
+        }
+    }
+    
+    /// <summary>
     /// Restart episode with delay for manual Academy stepping mode
     /// </summary>
     private System.Collections.IEnumerator RestartEpisodeDelayed()
@@ -822,11 +849,13 @@ public class PlayerAgent : Agent, ITurnBased
         if (TurnManager.Instance != null && TurnManager.Instance.IsMLAgentActive)
         {
             // In ML training mode, let TurnManager handle the restart
+            Debug.Log("[PlayerAgent] Calling TurnManager.HandlePlayerDeathEvent");
             TurnManager.Instance.HandlePlayerDeathEvent(playerController);
         }
         else
         {
             // Manual restart - call OnEpisodeBegin directly
+            Debug.Log("[PlayerAgent] Manual restart - calling OnEpisodeBegin");
             OnEpisodeBegin();
         }
     }

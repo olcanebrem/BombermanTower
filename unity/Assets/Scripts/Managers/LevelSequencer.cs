@@ -19,6 +19,11 @@ public class LevelSequencer : MonoBehaviour
     [Tooltip("Available levels for sequence training")]
     [SerializeField] private List<LevelFileEntry> availableLevels = new List<LevelFileEntry>();
     
+    /// <summary>
+    /// Public access to available levels count for debugging
+    /// </summary>
+    public List<LevelFileEntry> AvailableLevels => availableLevels;
+    
     [Tooltip("Start level index (0-based)")]
     [SerializeField] private int startLevelIndex = 0;
     
@@ -59,12 +64,40 @@ public class LevelSequencer : MonoBehaviour
         if (levelLoader == null)
             levelLoader = LevelLoader.instance;
         if (levelImporter == null)
-            levelImporter = FindObjectOfType<HoudiniLevelImporter>();
+        {
+            // First try to get Singleton Instance
+            levelImporter = HoudiniLevelImporter.Instance;
+            // If no Instance, search in scene
+            if (levelImporter == null)
+                levelImporter = FindObjectOfType<HoudiniLevelImporter>();
+            
+            Debug.Log($"[LevelSequencer] HoudiniLevelImporter found: {levelImporter != null} (Instance: {HoudiniLevelImporter.Instance != null}, FindObject: {FindObjectOfType<HoudiniLevelImporter>() != null})");
+        }
         
         // Auto-discover level files if list is empty
         if (availableLevels.Count == 0)
         {
             AutoDiscoverLevelFiles();
+        }
+        
+        // Fallback: Use LevelLoader's available levels if auto-discovery failed
+        var loaderLevels = levelLoader?.GetAvailableLevels();
+        if (availableLevels.Count == 0 && loaderLevels != null && loaderLevels.Count > 0)
+        {
+            Debug.Log("[LevelSequencer] Auto-discovery failed, copying from LevelLoader");
+            foreach (var loaderLevel in loaderLevels)
+            {
+                var entry = new LevelFileEntry
+                {
+                    fileName = loaderLevel.fileName,
+                    fullPath = loaderLevel.fullPath,
+                    textAsset = loaderLevel.textAsset,
+                    levelNumber = ExtractLevelNumber(loaderLevel.fileName),
+                    version = ExtractVersion(loaderLevel.fileName)
+                };
+                availableLevels.Add(entry);
+                Debug.Log($"[LevelSequencer] Copied level from LevelLoader: {entry.fileName}");
+            }
         }
             
         ValidateSetup();
@@ -86,25 +119,31 @@ public class LevelSequencer : MonoBehaviour
         
         // Load all TextAssets from Levels folder
         TextAsset[] levelAssets = Resources.LoadAll<TextAsset>("Levels");
+        Debug.Log($"[LevelSequencer] Resources.LoadAll found {levelAssets.Length} TextAssets in 'Levels' folder");
         
         if (levelAssets.Length == 0)
         {
             // Try alternative approach - search all TextAssets in project
+            Debug.Log("[LevelSequencer] Trying FindObjectsOfType fallback...");
             levelAssets = UnityEngine.Object.FindObjectsOfType<TextAsset>()
                 .Where(asset => asset.name.StartsWith("LEVEL_"))
                 .ToArray();
+            Debug.Log($"[LevelSequencer] FindObjectsOfType found {levelAssets.Length} LEVEL_ TextAssets");
         }
         
         availableLevels.Clear();
         
         foreach (TextAsset asset in levelAssets.OrderBy(a => a.name))
         {
-            if (asset.name.StartsWith("LEVEL_") && asset.name.Contains(".txt"))
+            Debug.Log($"[LevelSequencer] Processing asset: '{asset.name}', StartsWith LEVEL_: {asset.name.StartsWith("LEVEL_")}, Contains .txt: {asset.name.Contains(".txt")}");
+            
+            // Fix: TextAsset.name doesn't include .txt extension in Resources
+            if (asset.name.StartsWith("LEVEL_"))
             {
                 var entry = new LevelFileEntry
                 {
                     fileName = asset.name,
-                    fullPath = $"Assets/Levels/{asset.name}.txt", // Assumed path
+                    fullPath = $"Assets/Resources/Levels/{asset.name}.txt", // Correct path
                     textAsset = asset,
                     levelNumber = ExtractLevelNumber(asset.name),
                     version = ExtractVersion(asset.name)
@@ -112,6 +151,10 @@ public class LevelSequencer : MonoBehaviour
                 
                 availableLevels.Add(entry);
                 Debug.Log($"[LevelSequencer] Discovered level: {entry.fileName} (Level {entry.levelNumber})");
+            }
+            else
+            {
+                Debug.Log($"[LevelSequencer] Skipped asset: {asset.name} (doesn't match LEVEL_ pattern)");
             }
         }
         
@@ -281,11 +324,16 @@ public class LevelSequencer : MonoBehaviour
         }
 
         // Load level data using HoudiniLevelImporter
+        Debug.Log($"[LevelSequencer] Loading level data for: {levelEntry.fileName}");
         var levelData = levelImporter.LoadLevelData(levelEntry.textAsset);
         if (levelData != null)
         {
+            Debug.Log($"[LevelSequencer] Level data parsed successfully, calling LevelLoader.LoadLevelFromHoudiniData");
+            
             // Use LevelLoader to actually load the level
             levelLoader.LoadLevelFromHoudiniData(levelData);
+
+            Debug.Log($"[LevelSequencer] LevelLoader.LoadLevelFromHoudiniData completed");
 
             // Fire events
             OnLevelLoaded?.Invoke(levelEntry.fileName);
@@ -295,7 +343,7 @@ public class LevelSequencer : MonoBehaviour
         }
         else
         {
-            Debug.LogError($"[LevelSequencer] Failed to load level data from {levelEntry.fileName}");
+            Debug.LogError($"[LevelSequencer] Failed to parse level data for: {levelEntry.fileName}");
         }
     }
 

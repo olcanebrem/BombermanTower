@@ -246,21 +246,32 @@ public class TurnManager : MonoBehaviour
             TurnCount++;
         }
 
-        // Reset turns for all valid objects
+        // Reset turns for all valid objects and clean up invalid ones
+        var objectsToRemove = new List<ITurnBased>();
         foreach (var obj in turnBasedObjects.ToList())
         {
-            if (obj != null && (obj as MonoBehaviour) != null)
+            if (obj == null || (obj as MonoBehaviour) == null || (obj as MonoBehaviour).gameObject == null)
             {
-                try
-                {
-                    obj.ResetTurn();
-                }
-                catch (System.Exception e)
-                {
-                    Debug.LogError($"Error resetting turn for {obj}: {e.Message}");
-                    turnBasedObjects.Remove(obj);
-                }
+                Debug.LogWarning($"[TurnManager] Found null or destroyed object in turnBasedObjects, removing: {obj?.GetType().Name ?? "NULL"}");
+                objectsToRemove.Add(obj);
+                continue;
             }
+            
+            try
+            {
+                obj.ResetTurn();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[TurnManager] Error resetting turn for {obj}: {e.Message}");
+                objectsToRemove.Add(obj);
+            }
+        }
+        
+        // Remove invalid objects from the list
+        foreach (var obj in objectsToRemove)
+        {
+            turnBasedObjects.Remove(obj);
         }
 
         // --- AŞAMA 1.5: ML-Agent Step ---
@@ -338,12 +349,73 @@ public class TurnManager : MonoBehaviour
 
     public void Register(ITurnBased obj)
     {
-        if (!turnBasedObjects.Contains(obj)) turnBasedObjects.Add(obj);
+        if (!turnBasedObjects.Contains(obj))
+        {
+            turnBasedObjects.Add(obj);
+            string objName = (obj as MonoBehaviour)?.gameObject?.name ?? "Unknown";
+            Debug.Log($"[TurnManager] Registered {obj.GetType().Name} ({objName}) - Total: {turnBasedObjects.Count}");
+        }
+        else
+        {
+            string objName = (obj as MonoBehaviour)?.gameObject?.name ?? "Unknown";
+            Debug.LogWarning($"[TurnManager] Attempted to register duplicate {obj.GetType().Name} ({objName})");
+        }
     }
 
     public void Unregister(ITurnBased obj)
     {
-        if (turnBasedObjects.Contains(obj)) turnBasedObjects.Remove(obj);
+        if (turnBasedObjects.Contains(obj))
+        {
+            turnBasedObjects.Remove(obj);
+            string objName = (obj as MonoBehaviour)?.gameObject?.name ?? "Unknown";
+            Debug.Log($"[TurnManager] Unregistered {obj.GetType().Name} ({objName}) - Total: {turnBasedObjects.Count}");
+        }
+    }
+    
+    /// <summary>
+    /// Clear all registered turn-based objects except ML-Agent and Player
+    /// Used when loading new levels to clean up old objects
+    /// </summary>
+    public void ClearAllRegistersExceptPlayer()
+    {
+        Debug.Log($"[TurnManager] ClearAllRegistersExceptPlayer - Before: {turnBasedObjects.Count} objects");
+        
+        // Log all objects before clearing
+        for (int i = 0; i < turnBasedObjects.Count; i++)
+        {
+            var obj = turnBasedObjects[i];
+            if (obj != null)
+            {
+                Debug.Log($"[TurnManager] Object {i}: {obj.GetType().Name} (GameObject: {(obj as MonoBehaviour)?.gameObject?.name ?? "NULL"})");
+            }
+            else
+            {
+                Debug.Log($"[TurnManager] Object {i}: NULL");
+            }
+        }
+        
+        // Sadece Player ve ML-Agent'ı koru, diğerlerini temizle
+        int removedCount = turnBasedObjects.RemoveAll(obj => 
+        {
+            if (obj == null || (obj as MonoBehaviour) == null || (obj as MonoBehaviour).gameObject == null)
+            {
+                Debug.Log("[TurnManager] Removing null/destroyed object from turnBasedObjects");
+                return true; // Null objeleri temizle
+            }
+            
+            // Player ve PlayerAgent'ı koru
+            if (obj is PlayerController || obj is PlayerAgent)
+            {
+                Debug.Log($"[TurnManager] Preserving {obj.GetType().Name}");
+                return false; // Koru
+            }
+            
+            // Diğer tüm objeleri temizle (Enemy, Bomb, vb.)
+            Debug.Log($"[TurnManager] Removing {obj.GetType().Name} ({(obj as MonoBehaviour).gameObject?.name}) from turnBasedObjects");
+            return true; // Temizle
+        });
+        
+        Debug.Log($"[TurnManager] ClearAllRegistersExceptPlayer - Removed {removedCount} objects, After: {turnBasedObjects.Count} objects");
     }
     
     // Sıralamayı belirleyen merkezi kural motoru.
@@ -364,10 +436,16 @@ public class TurnManager : MonoBehaviour
     {
         get
         {
-            return trainingController != null && 
-                   trainingController.IsTraining && 
-                   mlAgent != null && 
-                   mlAgent.UseMLAgent;
+            bool tcExists = trainingController != null;
+            bool tcTraining = tcExists && trainingController.IsTraining;
+            bool agentExists = mlAgent != null;
+            bool agentUseML = agentExists && mlAgent.UseMLAgent;
+            
+            bool isActive = tcExists && tcTraining && agentExists && agentUseML;
+            
+            Debug.Log($"[TurnManager] IsMLAgentActive check - TC:{tcExists}, Training:{tcTraining}, Agent:{agentExists}, UseML:{agentUseML}, Result:{isActive}");
+            
+            return isActive;
         }
     }
     
@@ -400,6 +478,8 @@ public class TurnManager : MonoBehaviour
     /// </summary>
     private void LoadNextLevelInTrainingSequence()
     {
+        Debug.Log($"[TurnManager] LoadNextLevelInTrainingSequence - LevelSequencer: {levelSequencer != null}, IsSequenceActive: {levelSequencer?.IsSequenceActive()}");
+        
         if (levelSequencer != null && levelSequencer.IsSequenceActive())
         {
             Debug.Log("[TurnManager] Loading next level in training sequence...");
@@ -407,7 +487,7 @@ public class TurnManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[TurnManager] LevelSequencer not found or sequence disabled");
+            Debug.LogWarning($"[TurnManager] LevelSequencer not found or sequence disabled. LevelSequencer null: {levelSequencer == null}, Available levels: {levelSequencer?.AvailableLevels.Count}");
         }
     }
     
@@ -472,6 +552,32 @@ public class TurnManager : MonoBehaviour
     public System.Collections.Generic.List<ITurnBased> GetTurnBasedObjects()
     {
         return new System.Collections.Generic.List<ITurnBased>(turnBasedObjects);
+    }
+    
+    /// <summary>
+    /// Debug method to log all currently registered objects
+    /// </summary>
+    public void LogAllRegisteredObjects()
+    {
+        Debug.Log($"[TurnManager] Currently registered objects: {turnBasedObjects.Count}");
+        for (int i = 0; i < turnBasedObjects.Count; i++)
+        {
+            var obj = turnBasedObjects[i];
+            if (obj != null && (obj as MonoBehaviour) != null)
+            {
+                string gameObjName = (obj as MonoBehaviour).gameObject?.name ?? "NULL";
+                string position = "";
+                if (obj is IMovable movable)
+                {
+                    position = $" at ({movable.X}, {movable.Y})";
+                }
+                Debug.Log($"[TurnManager] {i}: {obj.GetType().Name} ({gameObjName}){position}");
+            }
+            else
+            {
+                Debug.Log($"[TurnManager] {i}: NULL or destroyed object");
+            }
+        }
     }
     
     /// <summary>

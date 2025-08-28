@@ -10,14 +10,18 @@ public class CoinTile : TileBase, ICollectible, IInitializable
     {
         Debug.Log($"[CoinTile] OnCollect called by: {collector?.name}");
         
-        if (collector.GetComponent<PlayerController>() != null)
+        // PlayerController veya PlayerAgent tarafından toplanabilir
+        bool isPlayer = collector.GetComponent<PlayerController>() != null;
+        bool isPlayerAgent = collector.GetComponent<PlayerAgent>() != null;
+        
+        if (isPlayer || isPlayerAgent)
         {
-            Debug.Log("[CoinTile] Collected by player - will be destroyed");
+            Debug.Log("[CoinTile] Collected by player/agent - will be destroyed");
             GameManager.Instance.CollectCoin();
             return true; // Evet, ben toplandım ve yok edilmeliyim.
         }
         
-        Debug.Log("[CoinTile] Not collected by player - staying");
+        Debug.Log("[CoinTile] Not collected by player/agent - staying");
         return false; // Başka bir şey toplarsa, yok edilme.
     }
     

@@ -485,7 +485,7 @@ MonoBehaviour:
   summaryFreq: 50000
   checkpointInterval: 100000
   keepCheckpoints: 5
-  isTraining: 0
+  isTraining: 1
   heuristicMode: 0
   autoParseResults: 1
   statusCheckInterval: 10
@@ -543,10 +543,11 @@ Transform:
   - {fileID: 2122158501}
   - {fileID: 778810547}
   - {fileID: 1168086239}
-  - {fileID: 380877714}
   - {fileID: 599021166}
+  - {fileID: 380877714}
   - {fileID: 104523216}
   - {fileID: 1965126726}
+  - {fileID: 1702393166}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &582686562
@@ -1279,6 +1280,51 @@ RectTransform:
   m_AnchoredPosition: {x: 425, y: 1044.3331}
   m_SizeDelta: {x: 200, y: 249.3337}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1702393165
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1702393166}
+  - component: {fileID: 1702393167}
+  m_Layer: 0
+  m_Name: LevelImporter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1702393166
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1702393165}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -546.06665, y: -565.2356, z: 252.41469}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 400170550}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1702393167
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1702393165}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e9155fe061747b4d8407f58ae521ef4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  logParsingDetails: 0
 --- !u!1 &1766726523
 GameObject:
   m_ObjectHideFlags: 0
@@ -1515,7 +1561,7 @@ MonoBehaviour:
   currentLevelIndex: 0
   cyclesCompleted: 0
   levelLoader: {fileID: 1936635823}
-  levelImporter: {fileID: 0}
+  levelImporter: {fileID: 1702393167}
   showDebugInfo: 1
 --- !u!1 &1992962428
 GameObject:

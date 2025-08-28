@@ -146,7 +146,12 @@ public static class MovementHelper
                 return true;
             case TileType.Coin:
             case TileType.Health:
-                return (mover is PlayerController);
+                // Player veya PlayerAgent collectible'ları toplayabilir
+                return (mover is PlayerController) || (mover.gameObject?.GetComponent<PlayerAgent>() != null);
+            case TileType.Breakable:
+                return false; // Breakable tile'lar geçilemez
+            case TileType.Wall:
+                return false; // Duvarlar geçilemez
             default:
                 return false;
         }
