@@ -204,7 +204,7 @@ GameObject:
   - component: {fileID: 104523218}
   - component: {fileID: 104523217}
   m_Layer: 0
-  m_Name: RL TRAINING PARAMETERS
+  m_Name: RL_TRAINING_PARAMETERS
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -218,12 +218,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 104523215}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 552.609, y: 546.72943, z: -252.70547}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 400170550}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &104523217
 MonoBehaviour:
@@ -257,7 +257,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af84bf3f67d697343ac7b183be2675c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxStepsPerEpisode: 3000
+  MaxStepsPerEpisode: 1000
   levelManager: {fileID: 1936635824}
   levelLoader: {fileID: 1936635823}
 --- !u!114 &104523219
@@ -545,7 +545,6 @@ Transform:
   - {fileID: 1168086239}
   - {fileID: 599021166}
   - {fileID: 380877714}
-  - {fileID: 104523216}
   - {fileID: 1965126726}
   - {fileID: 1702393166}
   m_Father: {fileID: 0}
@@ -1289,7 +1288,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1702393166}
-  - component: {fileID: 1702393167}
   m_Layer: 0
   m_Name: LevelImporter
   m_TagString: Untagged
@@ -1312,19 +1310,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 400170550}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1702393167
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1702393165}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5e9155fe061747b4d8407f58ae521ef4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  logParsingDetails: 0
 --- !u!1 &1766726523
 GameObject:
   m_ObjectHideFlags: 0
@@ -1493,6 +1478,35 @@ MonoBehaviour:
     version: 1.0.0
   selectedLevelIndex: 0
   levelsDirectoryPath: Assets/Levels
+  currentLevelData:
+    levelName: 
+    levelId: 
+    version: 
+    formatVersion: 
+    gridWidth: 0
+    gridHeight: 0
+    houdiniSeed: 0
+    roomCount: 0
+    enemyDensity: 0
+    lootDensity: 0
+    coinDensity: 0
+    healthDensity: 0
+    breakableDensity: 0
+    edgeWallBias: 0
+    noiseScale: 0
+    noiseThreshold: 0
+    minRoomSize: 0
+    maxRoomSize: 0
+    minPlayerExitDist: 0
+    playerSpawn: {x: 0, y: 0}
+    exitPosition: {x: 0, y: 0}
+    enemyPositions: []
+    enemyShooterPositions: []
+    coinPositions: []
+    healthPositions: []
+    breakablePositions: []
+  playerStartX: 0
+  playerStartY: 0
 --- !u!114 &1936635824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1561,7 +1575,7 @@ MonoBehaviour:
   currentLevelIndex: 0
   cyclesCompleted: 0
   levelLoader: {fileID: 1936635823}
-  levelImporter: {fileID: 1702393167}
+  levelImporter: {fileID: 0}
   showDebugInfo: 1
 --- !u!1 &1992962428
 GameObject:
@@ -1881,3 +1895,4 @@ SceneRoots:
   - {fileID: 1254606225}
   - {fileID: 1262185611}
   - {fileID: 400170550}
+  - {fileID: 104523216}
