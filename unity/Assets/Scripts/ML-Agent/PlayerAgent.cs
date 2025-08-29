@@ -385,9 +385,9 @@ public class PlayerAgent : Agent, ITurnBased
         // Priority: Bomb action > Move action > No action
         if (bombActionIndex >= 1)
         {
-            // Place bomb at current position
-            Vector2Int bombDirection = Vector2Int.zero;
-            Debug.Log($"[PlayerAgent] Creating PlaceBombAction at current position");
+            // Place bomb at nearby empty position (not on player)
+            Vector2Int bombDirection = FindBombPlacement();
+            Debug.Log($"[PlayerAgent] Creating PlaceBombAction with direction: {bombDirection}");
             return new PlaceBombAction(playerController, bombDirection);
         }
         
@@ -399,6 +399,31 @@ public class PlayerAgent : Agent, ITurnBased
         
         // "No movement" is also a valid action - create MoveAction with zero vector
         return new MoveAction(playerController, Vector2Int.zero);
+    }
+    
+    private Vector2Int FindBombPlacement()
+    {
+        // Check adjacent tiles for empty space to place bomb
+        Vector2Int[] directions = { Vector2Int.zero, Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        
+        foreach (var dir in directions)
+        {
+            int targetX = playerController.X + dir.x;
+            int targetY = playerController.Y + dir.y;
+            
+            var ll = LevelLoader.instance;
+            if (ll != null && targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height)
+            {
+                if (TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
+                {
+                    Debug.Log($"[PlayerAgent] Found empty space for bomb at direction: {dir}");
+                    return dir;
+                }
+            }
+        }
+        
+        Debug.Log("[PlayerAgent] No empty space found for bomb, using current position");
+        return Vector2Int.zero; // Fallback to current position
     }
     
     public override void CollectObservations(VectorSensor sensor)
