@@ -231,6 +231,13 @@ public class PlayerAgent : Agent, ITurnBased
             envManager.ResetEnvironment();
         }
         
+        // Re-find RewardSystem if lost during scene lifecycle
+        if (rewardSystem == null)
+        {
+            rewardSystem = FindObjectOfType<RewardSystem>();
+            Debug.Log($"[PlayerAgent] RewardSystem re-found in OnEpisodeBegin: {(rewardSystem != null ? "SUCCESS" : "FAILED")}");
+        }
+        
         // Reset reward system
         if (rewardSystem != null)
         {
@@ -658,7 +665,16 @@ public class PlayerAgent : Agent, ITurnBased
     
     private void ApplyStepRewards()
     {
-        if (rewardSystem == null) return;
+        // Ensure RewardSystem is always available
+        if (rewardSystem == null)
+        {
+            rewardSystem = FindObjectOfType<RewardSystem>();
+            if (rewardSystem == null)
+            {
+                Debug.LogWarning("[PlayerAgent] RewardSystem not found during ApplyStepRewards!");
+                return;
+            }
+        }
         
         // Update distance-based rewards
         rewardSystem.UpdateRewards();
@@ -754,6 +770,26 @@ public class PlayerAgent : Agent, ITurnBased
             }
             return;
         }
+    }
+    
+    /// <summary>
+    /// Ensures RewardSystem is always available, finds it if lost
+    /// </summary>
+    private RewardSystem GetRewardSystem()
+    {
+        if (rewardSystem == null)
+        {
+            rewardSystem = FindObjectOfType<RewardSystem>();
+            if (rewardSystem != null)
+            {
+                Debug.Log("[PlayerAgent] RewardSystem re-found and reconnected!");
+            }
+            else
+            {
+                Debug.LogError("[PlayerAgent] RewardSystem NOT FOUND in scene!");
+            }
+        }
+        return rewardSystem;
     }
     
     //=========================================================================
@@ -888,7 +924,8 @@ public class PlayerAgent : Agent, ITurnBased
     
     public IGameAction GetAction()
     {
-        Debug.Log($"[PlayerAgent] GetAction called - UseMLAgent: {UseMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
+        Debug.Log($"[PlayerAgent] ⚡ GetAction called - UseMLAgent: {UseMLAgent}, playerController: {(playerController != null ? "OK" : "NULL")}");
+        Debug.Log($"[PlayerAgent] Is registered with TurnManager: {(TurnManager.Instance != null && TurnManager.Instance.GetTurnBasedObjects().Contains(this))}");
         
         if (!UseMLAgent || playerController == null)
         {

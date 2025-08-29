@@ -54,6 +54,13 @@ public class RewardSystem : MonoBehaviour
     private int lastCollectibleCount;
     private int lastHealth;
     
+    private void Awake()
+    {
+        DontDestroyOnLoad(this.gameObject);
+        Debug.Log("[RewardSystem] Made persistent across scene loads");
+    }
+    
+    
     private void Start()
     {
         agent = GetComponent<PlayerAgent>();
@@ -125,22 +132,28 @@ public class RewardSystem : MonoBehaviour
     // Positive Reward Methods
     public void ApplyLevelCompleteReward()
     {
-        float bonus = 1f + (envManager.GetRemainingEnemyCount() * 0.5f); // Bonus for clearing enemies
-        agent.AddReward(levelCompleteReward * bonus);
-        LogReward("Level Complete", levelCompleteReward * bonus);
+        if (EnsureAgentReference())
+        {
+            float bonus = 1f + (envManager.GetRemainingEnemyCount() * 0.5f); // Bonus for clearing enemies
+            agent.AddReward(levelCompleteReward * bonus);
+            LogReward("Level Complete", levelCompleteReward * bonus);
+        }
     }
     
     public void ApplyEnemyKillReward()
     {
-        agent.AddReward(enemyKillReward);
-        LogReward("Enemy Killed", enemyKillReward);
-        
-        // Check if all enemies are cleared
-        if (envManager.GetRemainingEnemyCount() == 0)
+        if (EnsureAgentReference())
         {
-            float allEnemiesClearedBonus = 3f;
-            agent.AddReward(allEnemiesClearedBonus);
-            LogReward("All Enemies Cleared Bonus", allEnemiesClearedBonus);
+            agent.AddReward(enemyKillReward);
+            LogReward("Enemy Killed", enemyKillReward);
+            
+            // Check if all enemies are cleared
+            if (envManager.GetRemainingEnemyCount() == 0)
+            {
+                float allEnemiesClearedBonus = 3f;
+                agent.AddReward(allEnemiesClearedBonus);
+                LogReward("All Enemies Cleared Bonus", allEnemiesClearedBonus);
+            }
         }
     }
     
@@ -166,26 +179,38 @@ public class RewardSystem : MonoBehaviour
                 break;
         }
         
-        agent.AddReward(reward);
-        LogReward(rewardName, reward);
+        if (EnsureAgentReference())
+        {
+            agent.AddReward(reward);
+            LogReward(rewardName, reward);
+        }
     }
     
     public void ApplyBombPlacedReward()
     {
-        agent.AddReward(bombPlacedReward);
-        LogReward("Bomb Placed", bombPlacedReward);
+        if (EnsureAgentReference())
+        {
+            agent.AddReward(bombPlacedReward);
+            LogReward("Bomb Placed", bombPlacedReward);
+        }
     }
     
     public void ApplyWallDestroyReward()
     {
-        agent.AddReward(wallDestroyReward);
-        LogReward("Wall Destroyed", wallDestroyReward);
+        if (EnsureAgentReference())
+        {
+            agent.AddReward(wallDestroyReward);
+            LogReward("Wall Destroyed", wallDestroyReward);
+        }
     }
     
     public void ApplyExplorationReward()
     {
-        agent.AddReward(explorationReward);
-        LogReward("Exploration", explorationReward);
+        if (EnsureAgentReference())
+        {
+            agent.AddReward(explorationReward);
+            LogReward("Exploration", explorationReward);
+        }
     }
     
     // Negative Penalty Methods
@@ -336,9 +361,30 @@ public class RewardSystem : MonoBehaviour
         // This can help with learning progression
     }
     
+    /// <summary>
+    /// Ensures agent reference is valid, finds it if lost during scene changes
+    /// </summary>
+    private bool EnsureAgentReference()
+    {
+        if (agent == null)
+        {
+            agent = FindObjectOfType<PlayerAgent>();
+            if (agent != null)
+            {
+                Debug.Log("[RewardSystem] PlayerAgent reference restored!");
+            }
+            else
+            {
+                Debug.LogWarning("[RewardSystem] PlayerAgent not found - reward skipped!");
+                return false;
+            }
+        }
+        return true;
+    }
+    
     private void LogReward(string rewardType, float rewardValue)
     {
-        if (rewardValue != 0)
+        if (rewardValue != 0 && agent != null)
         {
             Debug.Log($"[Reward] {rewardType}: {rewardValue:F3} | Total: {agent.GetCumulativeReward():F3}");
         }

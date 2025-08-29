@@ -7,6 +7,13 @@ using Unity.MLAgents.Sensors;
 
 public class EnvManager : MonoBehaviour
 {
+    private void Awake()
+    {
+        // Make this GameObject persistent across scene loads
+        DontDestroyOnLoad(this.gameObject);
+        
+        Debug.Log("[EnvManager] Made persistent across scene loads");
+    }
     [Header("ML-Agent Settings")]
     public int MaxStepsPerEpisode = 3000;
     

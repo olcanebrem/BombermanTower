@@ -68,6 +68,8 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
         }
 
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
+        Debug.Log($"[ExplosionWave] Creating at ({x},{y}) with parent: {ll.transform.gameObject.name}");
+        // Parent to the scene's Game GameObject (proper LevelLoader), not RL_TRAINING_PARAMETERS
         GameObject waveGO = Instantiate(prefab, pos, Quaternion.identity, ll.transform);
         ExplosionWave wave = waveGO.GetComponent<ExplosionWave>();
         

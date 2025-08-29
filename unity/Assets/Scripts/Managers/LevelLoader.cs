@@ -67,7 +67,6 @@ public class LevelLoader : MonoBehaviour
     public event System.Action OnCollectibleListChanged;
     
     // Level loading events (sequence events moved to LevelSequencer)
-    public event System.Action<string> OnLevelLoaded; // levelName
     public void DebugPrintMap()
     {
         // TurnManager'dan o anki tur sayısını alarak log'u daha bilgilendirici yapalım.
@@ -100,6 +99,7 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         instance = this;
+        Debug.Log($"[LevelLoader] Singleton instance set to: {this.gameObject.name}");
 
         // Component references - find HoudiniLevelParser (Singleton or scene)
         levelParser = HoudiniLevelParser.Instance;
@@ -680,6 +680,7 @@ public class LevelLoader : MonoBehaviour
                         
                         // Tile array'ine ve mantık haritasına ekle
                         tileObjects[x, y] = newTile.gameObject;
+                        Debug.Log($"[LevelLoader] Added to tileObjects[{x},{y}]: {newTile.gameObject.name}");
                         // LevelMap'i güncelle - oluşturulan objenin gerçek tipini kullan
                         levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
                         
@@ -764,6 +765,7 @@ public class LevelLoader : MonoBehaviour
             // Oyuncunun mantıksal haritasına kaydet.
             levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
             tileObjects[playerStartX, playerStartY] = playerObject;
+            Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
             
             Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }
@@ -785,7 +787,6 @@ public class LevelLoader : MonoBehaviour
     public void ClearAllTiles()
     {
         Debug.Log("[LevelLoader] ClearAllTiles - destroying existing level objects");
-        
         // Clear TurnManager registrations first to prevent null reference issues
         if (TurnManager.Instance != null)
         {
@@ -805,10 +806,17 @@ public class LevelLoader : MonoBehaviour
                         bool isCurrentPlayer = (PlayerController.Instance != null && 
                                               tileObjects[x, y] == PlayerController.Instance.gameObject);
                         
-                        if (!isCurrentPlayer)
+                        // Check if this is RL_TRAINING_PARAMETERS - don't destroy ML-Agent components
+                        bool isMLTrainingComponents = (tileObjects[x, y].name == "RL_TRAINING_PARAMETERS");
+                        
+                        if (!isCurrentPlayer && !isMLTrainingComponents)
                         {
                             Destroy(tileObjects[x, y]);
                             destroyedCount++;
+                        }
+                        else if (isMLTrainingComponents)
+                        {
+                            Debug.Log("[LevelLoader] Preserving RL_TRAINING_PARAMETERS during level clear");
                         }
                         else
                         {
@@ -870,6 +878,7 @@ public class LevelLoader : MonoBehaviour
             
             // Haritaları GÜNCELLE
             tileObjects[x, y] = newBomb.gameObject; // Nesne haritasını güncelle
+            Debug.Log($"[LevelLoader] PlaceBombAt - Added to tileObjects[{x},{y}]: {newBomb.gameObject.name}");
             levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb); // Mantıksal haritayı güncelle
             
             Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(TileType.Bomb)}'");
@@ -1080,6 +1089,7 @@ public class LevelLoader : MonoBehaviour
             
             levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
             tileObjects[playerStartX, playerStartY] = playerObject;
+            Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
             
             Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }

@@ -73,11 +73,7 @@ public class MLAgentsTrainingController : MonoBehaviour
     [SerializeField, Range(-1f, 0.1f), Tooltip("Target KL divergence (-1 to disable)")]
     private float targetKl = -1f;
     
-    [SerializeField, Tooltip("Learning rate schedule type")]
-    private string learningRateSchedule = "linear";
     
-    [SerializeField, Tooltip("Beta schedule type")]  
-    private string betaSchedule = "constant";
     
     [SerializeField, Tooltip("Epsilon schedule type")]
     private string epsilonSchedule = "linear";
@@ -85,18 +81,12 @@ public class MLAgentsTrainingController : MonoBehaviour
     [SerializeField, Tooltip("Visual encoder type")]
     private string visEncodeType = "simple";
     
-    [SerializeField, Tooltip("Reward signal strength")]
-    private float rewardStrength = 1.0f;
     
     [Header("Training Schedule")]
     [SerializeField, Range(100000, 10000000), Tooltip("Total training timesteps")]
     private int maxSteps = 2000000;
     
-    [SerializeField, Range(10000, 100000), Tooltip("Frequency of TensorBoard logging")]
-    private int summaryFreq = 50000;
     
-    [SerializeField, Range(50000, 500000), Tooltip("Frequency of model checkpoints")]
-    private int checkpointInterval = 100000;
     
     [SerializeField, Range(1, 10), Tooltip("Number of checkpoints to keep")]
     private int keepCheckpoints = 5;

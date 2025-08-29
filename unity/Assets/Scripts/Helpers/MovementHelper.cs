@@ -32,10 +32,18 @@ public static class MovementHelper
             }
             else
             {
+                // Check if mover still exists before fixing map
+                if (mover == null || mover.gameObject == null)
+                {
+                    Debug.LogWarning("[MovementHelper] Mover destroyed during movement, skipping");
+                    return false;
+                }
+                
                 // Pozisyon boş veya inactive obje var - bu normaldir (level loading, respawn vs.)
                 // Haritayı düzelt ve devam et
                 Debug.LogWarning($"[MovementHelper] Pozisyon tutarsızlığı düzeltiliyor: {mover.GetType().Name} at ({mover.X},{mover.Y}) - haritada: {currentObjAtPosition?.name ?? "NULL"}");
                 ll.tileObjects[mover.X, mover.Y] = mover.gameObject;
+                Debug.Log($"[MovementHelper] Position fix - Added to tileObjects[{mover.X},{mover.Y}]: {mover.gameObject.name}");
                 ll.levelMap[mover.X, mover.Y] = TileSymbols.TypeToDataSymbol(mover.TileType);
             }
         }
@@ -125,6 +133,7 @@ public static class MovementHelper
 
         ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(mover.TileType);
         ll.tileObjects[newX, newY] = mover.gameObject;
+        Debug.Log($"[MovementHelper] Movement - Added to tileObjects[{newX},{newY}]: {mover.gameObject.name}");
         
         mover.OnMoved(newX, newY);
         

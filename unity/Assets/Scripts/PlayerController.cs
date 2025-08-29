@@ -240,6 +240,8 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             Debug.Log("[PlayerController] LevelLoader.instance is null!");
             return false;
         }
+        
+        Debug.Log($"[PlayerController] Using LevelLoader from GameObject: {ll.gameObject.name}");
 
         // Sadece verilen direction yönüne bomba koymayı dene.
         int targetX = X + direction.x;
