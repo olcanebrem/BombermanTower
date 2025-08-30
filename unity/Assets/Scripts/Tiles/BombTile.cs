@@ -1,107 +1,162 @@
 using UnityEngine;
-using System.Collections;
+using System;
 
-public class BombTile : TileBase, ITurnBased, IInitializable, IMovable
+public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
 {
+    [Header("Bomb Settings")]
+    public int explosionRange = 4;
+    public int turnsToExplode = 3;
+    public GameObject explosionPrefab;
+    
     public int X { get; set; }
     public int Y { get; set; }
     public override TileType TileType => TileType.Bomb;
-    public new GameObject gameObject => base.gameObject;
     public bool HasActedThisTurn { get; set; }
-    private int turnCounter = 0;
-    private int turnsToExplode = 3;
-    public int explosionRange = 4;
-    public GameObject explosionPrefab;          
-    private Vector2Int lastFacingDirection;
     
-    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
-    void OnDisable() { if (TurnManager.Instance != null) TurnManager.Instance.Unregister(this); }
-    public void Init(int x, int y) { this.X = x; this.Y = y; }
-    public void OnMoved(int newX, int newY) { this.X = newX; this.Y = newY; }
-    public void StartMoveAnimation(Vector3 targetPosition) { /* Bombs don't animate movement */ }
-    public void ResetTurn() => HasActedThisTurn = false;
-
+    // IDamageable implementation
+    public int CurrentHealth { get; private set; } = 1;
+    public int MaxHealth => 1;
+    public event Action OnHealthChanged;
+    
+    private int turnCounter = 0;
+    private bool hasExploded = false;  // Çifte patlama koruması
+    
+    void OnEnable()
+    {
+        if (TurnManager.Instance != null)
+            TurnManager.Instance.Register(this);
+    }
+    
+    public void Init(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+    
+    public void ResetTurn()
+    {
+        HasActedThisTurn = false;
+    }
+    
+    public void TakeDamage(int damageAmount)
+    {
+        if (hasExploded || CurrentHealth <= 0) return;
+        
+        CurrentHealth = 0;
+        OnHealthChanged?.Invoke();
+        Debug.Log($"[BombTile] Bomb at ({X},{Y}) triggered by damage!");
+        
+        Explode();
+    }
+    
     public IGameAction GetAction()
     {
-        if (HasActedThisTurn) return null;
+        if (HasActedThisTurn || hasExploded) return null;
         
-        HasActedThisTurn = true; // Düşman her tur bir şey yapmaya çalışır.
-
+        HasActedThisTurn = true;
         turnCounter++;
+        
         if (turnCounter >= turnsToExplode)
         {
-            turnCounter = 0;
+            Debug.Log($"[BombTile] Bomb at ({X},{Y}) timer expired!");
             Explode();
         }
-        return null; // Pas geçti.
+        
+        return null;
     }
-
-    void Explode()
+    
+    private void Explode()
     {
-        // Güvenlik için, menzilin pozitif olduğundan emin ol.
-        if (explosionRange <= 0)
-        {
-            Debug.LogWarning($"Bomb at ({X},{Y}) has zero or negative range. Only exploding at center.");
-            DealDamageAt(X, Y);
-            Die();
-            return;
-        }
-
-        Debug.Log($"Bomb at ({X},{Y}) exploded with range {explosionRange}!");
-
-        // 1. "Ölüm Turunu" Hesapla
-        int currentTurn = TurnManager.Instance.TurnCount;
-        // Patlama, menzili kadar tur sürecek.
-        int deathTurn = currentTurn + explosionRange;
-
-        // Patlamanın merkezindeki nesneye hasar ver.
-        DealDamageAt(X, Y);
-
-        // 2. Dört ana yöne doğru İLK patlama dalgalarını ateşle.
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-        foreach (var dir in directions)
-        {
-            int startX = X + dir.x;
-            int startY = Y + dir.y;
-            
-            // --- EN ÖNEMLİ DÜZELTME ---
-            // İlk dalgaya, kalan menzili ver.
-            // Eğer toplam menzil 4 ise, ilk dalganın 3 adımı kalmıştır.
-            ExplosionWave.Spawn(explosionPrefab, startX, startY, dir, explosionRange -1, deathTurn);
-        }
-
-        // Bombanın kendisini sistemden temizle.
+        if (hasExploded) return;  // Çifte patlama koruması
+        hasExploded = true;
+        
+        CurrentHealth = 0;
+        Debug.Log($"[BombTile] Bomb at ({X},{Y}) exploding with range {explosionRange}!");
+        
+        // Create explosions in all directions
+        CreateExplosionAt(X, Y); // Center explosion
+        CreateExplosionInDirection(Vector2Int.up);
+        CreateExplosionInDirection(Vector2Int.down);
+        CreateExplosionInDirection(Vector2Int.left);
+        CreateExplosionInDirection(Vector2Int.right);
+        
         Die();
     }
-
-    /// <summary>
-    /// Belirtilen koordinattaki IDamageable bir nesneye hasar verir.
-    /// </summary>
-    public void DealDamageAt(int x, int y)
+    
+    private void CreateExplosionInDirection(Vector2Int direction)
     {
         var ll = LevelLoader.instance;
-
-        // Koordinatların geçerli olduğundan emin ol.
-        if (x < 0 || x >= ll.Width || y < 0 || y >= ll.Height) return;
-
-        // O koordinattaki GameObject'i bul.
-        GameObject targetObject = ll.tileObjects[x, y];
-        if (targetObject != null)
+        if (ll == null) return;
+        
+        for (int i = 1; i <= explosionRange; i++)
         {
-            // Üzerinde IDamageable arayüzü var mı diye bak.
-            var damageable = targetObject.GetComponent<IDamageable>();
-            if (damageable != null)
+            int targetX = X + (direction.x * i);
+            int targetY = Y + (direction.y * i);
+            
+            // Bounds check
+            if (targetX < 0 || targetX >= ll.Width || targetY < 0 || targetY >= ll.Height)
+                break;
+            
+            // Create explosion at this position first
+            CreateExplosionAt(targetX, targetY);
+            
+            // Then check if we should continue (passable check)
+            TileType tileType = TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]);
+            
+            // Safe passable check - just use tileType directly
+            bool passable = true;
+            try 
             {
-                // Varsa, hasar ver!
-                damageable.TakeDamage(1); // Örnek olarak 1 hasar
+                passable = MovementHelper.IsTilePassable(null, tileType);
             }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[BombTile] IsTilePassable failed at ({targetX},{targetY}): {e.Message}");
+                passable = false;
+            }
+            
+            if (!passable)
+                break; // Hit wall/obstacle, stop explosion
         }
     }
     
-    public void Die()
+    private void CreateExplosionAt(int x, int y)
     {
-        LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        LevelLoader.instance.tileObjects[X, Y] = null;
+        var ll = LevelLoader.instance;
+        if (ll == null || explosionPrefab == null) return;
+        
+        Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
+        // Use same parent logic as player for consistency
+        Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
+        
+        GameObject explosionGO = Instantiate(explosionPrefab, pos, Quaternion.identity, effectsParent);
+        ExplosionTile explosion = explosionGO.GetComponent<ExplosionTile>();
+        
+        if (explosion != null)
+        {
+            explosion.Init(x, y);
+        }
+        
+        Debug.Log($"[BombTile] Created explosion at ({x},{y})");
+    }
+    
+    private void Die()
+    {
+        Debug.Log($"[BombTile] Bomb at ({X},{Y}) dying...");
+        
+        var ll = LevelLoader.instance;
+        if (ll != null && X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height)
+        {
+            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            ll.tileObjects[X, Y] = null;
+        }
+        
+        // Manual unregister to avoid OnDisable double call
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.Unregister(this);
+        }
+        
         Destroy(gameObject);
     }
 }

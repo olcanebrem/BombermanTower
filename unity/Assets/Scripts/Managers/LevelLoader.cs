@@ -177,6 +177,9 @@ public class LevelLoader : MonoBehaviour
         {
             Debug.LogWarning("[LevelLoader] spriteDatabase is null! Please assign SpriteDatabase in Inspector.");
         }
+        
+        // Initialize level content containers EARLY - before any Start() methods can call LoadLevel
+        InitializeLevelContainers();
     }
 
     void Start()
@@ -185,9 +188,6 @@ public class LevelLoader : MonoBehaviour
         // Level loading is now handled by LevelManager - don't auto-load here
         // LoadSelectedLevel(); // Removed - causes duplicate loading
         Debug.Log("[LevelLoader] Start completed - level loading handled by LevelManager");
-        
-        // Initialize level content containers
-        InitializeLevelContainers();
     }
     
     /// <summary>
@@ -204,7 +204,12 @@ public class LevelLoader : MonoBehaviour
                 levelContentGO = new GameObject("[LEVEL CONTENT]");
                 Debug.Log("[LevelLoader] Created [LEVEL CONTENT] container");
             }
+            else
+            {
+                Debug.Log("[LevelLoader] Found existing [LEVEL CONTENT] container");
+            }
             levelContentParent = levelContentGO.transform;
+            Debug.Log($"[LevelLoader] Level content parent set to: {levelContentParent.name}");
         }
         
         // Create grid parent
@@ -213,6 +218,7 @@ public class LevelLoader : MonoBehaviour
             GameObject gridGO = new GameObject("GridParent");
             gridGO.transform.SetParent(levelContentParent);
             gridParent = gridGO.transform;
+            Debug.Log($"[LevelLoader] Created GridParent under: {levelContentParent.name}");
         }
         
         // Create dynamic content parent  
@@ -221,6 +227,7 @@ public class LevelLoader : MonoBehaviour
             GameObject dynamicGO = new GameObject("Dynamic Content");
             dynamicGO.transform.SetParent(levelContentParent);
             dynamicParent = dynamicGO.transform;
+            Debug.Log($"[LevelLoader] Created Dynamic Content under: {levelContentParent.name}");
         }
         
         // Create tile type containers under grid
@@ -235,6 +242,25 @@ public class LevelLoader : MonoBehaviour
         CreateTileContainer(ref projectilesContainer, "Projectiles", dynamicParent);
         
         Debug.Log("[LevelLoader] Level containers initialized");
+    }
+    
+    /// <summary>
+    /// Helper method to get full hierarchy path for debugging
+    /// </summary>
+    private string GetFullPath(Transform transform)
+    {
+        if (transform == null) return "NULL";
+        
+        string path = transform.name;
+        Transform parent = transform.parent;
+        
+        while (parent != null)
+        {
+            path = parent.name + "/" + path;
+            parent = parent.parent;
+        }
+        
+        return path;
     }
     
     /// <summary>
@@ -793,6 +819,7 @@ public class LevelLoader : MonoBehaviour
                         Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name} from symbol '{symbolChar}'");
                         Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
                         Transform parentContainer = GetContainerForTileType(type);
+                        Debug.Log($"[LevelLoader] {type} will be created under parent: {parentContainer?.name ?? "NULL"} (full path: {GetFullPath(parentContainer)})");
                         TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
                         
                         // Yeni oluşturulan tile'ı kur.
@@ -849,6 +876,7 @@ public class LevelLoader : MonoBehaviour
         {
             Debug.Log("[LevelLoader] No existing player found, creating new Player instance");
             Transform playerParent = dynamicParent ?? levelContentParent;
+            Debug.Log($"[LevelLoader] Player will be created under parent: {playerParent?.name ?? "NULL"} (full path: {GetFullPath(playerParent)})");
             if (playerPrefab != null)
             {
                 playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
@@ -1009,7 +1037,8 @@ public class LevelLoader : MonoBehaviour
             Debug.Log($"[LevelLoader] Bomb prefab TileType property: {bombTilePrefab?.TileType}");
             
             Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-            Transform bombParent = effectsContainer ?? dynamicParent ?? levelContentParent;
+            // Use same parent logic as player for consistency
+            Transform bombParent = dynamicParent ?? levelContentParent;
             TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, bombParent);
 
             // Bombayı kur
