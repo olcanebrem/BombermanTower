@@ -58,7 +58,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 19d7c54653acd73428b022bb952f8be2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  visualImage: {fileID: 0}
+  visualImage: {fileID: 6861842750202187761}
   explosionDuration: 1
   explosionTurns: 2
 --- !u!1 &5498896334228920611

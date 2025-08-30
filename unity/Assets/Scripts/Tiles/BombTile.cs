@@ -7,6 +7,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
     public int explosionRange = 4;
     public int turnsToExplode = 3;
     public GameObject explosionPrefab;
+    public GameObject movingExplosionPrefab;
     
     public int X { get; set; }
     public int Y { get; set; }
@@ -73,17 +74,17 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         CurrentHealth = 0;
         Debug.Log($"[BombTile] Bomb at ({X},{Y}) exploding with range {explosionRange}!");
         
+        // Create center explosion immediately
+        CreateExplosionAt(X, Y);
+        
         // Die FIRST to clear this bomb from tileObjects
         Die();
         
-        // Then create explosions in all directions
-        CreateExplosionInDirection(Vector2Int.up);
-        CreateExplosionInDirection(Vector2Int.down);
-        CreateExplosionInDirection(Vector2Int.left);
-        CreateExplosionInDirection(Vector2Int.right);
-        
-        // Center explosion to damage anything that might be at the bomb's position
-        CreateExplosionAt(X, Y);
+        // Then create moving explosions in all directions
+        CreateMovingExplosionInDirection(Vector2Int.up);
+        CreateMovingExplosionInDirection(Vector2Int.down);
+        CreateMovingExplosionInDirection(Vector2Int.left);
+        CreateMovingExplosionInDirection(Vector2Int.right);
     }
     
     private void CreateExplosionInDirection(Vector2Int direction)
@@ -120,6 +121,61 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
             
             if (!passable)
                 break; // Hit wall/obstacle, stop explosion
+        }
+    }
+    
+    private void CreateMovingExplosionInDirection(Vector2Int direction)
+    {
+        Debug.Log($"[BombTile] CreateMovingExplosionInDirection called for direction {direction}");
+        
+        var ll = LevelLoader.instance;
+        if (ll == null) 
+        {
+            Debug.LogError("[BombTile] LevelLoader.instance is null!");
+            return;
+        }
+        
+        if (movingExplosionPrefab == null) 
+        {
+            Debug.LogError("[BombTile] movingExplosionPrefab is null! Please assign it in the Inspector.");
+            return;
+        }
+        
+        Debug.Log($"[BombTile] LevelLoader and prefab OK, creating moving explosion...");
+        
+        // Starting position is one step in the direction from bomb
+        int startX = X + direction.x;
+        int startY = Y + direction.y;
+        
+        // Check bounds for starting position
+        if (startX < 0 || startX >= ll.Width || startY < 0 || startY >= ll.Height)
+        {
+            Debug.Log($"[BombTile] MovingExplosion start position out of bounds: ({startX},{startY})");
+            return;
+        }
+        
+        Vector3 pos = new Vector3(startX * ll.tileSize, (ll.Height - startY - 1) * ll.tileSize, 0);
+        Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
+        
+        GameObject movingExplosionGO = Instantiate(movingExplosionPrefab, pos, Quaternion.identity, effectsParent);
+        MovingExplosion movingExplosion = movingExplosionGO.GetComponent<MovingExplosion>();
+        
+        if (movingExplosion == null)
+        {
+            Debug.LogWarning($"[BombTile] MovingExplosion component not found, adding it to {movingExplosionGO.name}");
+            movingExplosion = movingExplosionGO.AddComponent<MovingExplosion>();
+            movingExplosion.explosionTilePrefab = explosionPrefab; // Give it reference to explosion tile prefab
+        }
+        
+        if (movingExplosion != null)
+        {
+            // Initialize with remaining steps (explosionRange - 1 because we already moved one step)
+            movingExplosion.InitMovingExplosion(startX, startY, direction, explosionRange - 1);
+            Debug.Log($"[BombTile] Successfully created MovingExplosion at ({startX},{startY}) moving {direction} for {explosionRange - 1} steps");
+        }
+        else
+        {
+            Debug.LogError($"[BombTile] Failed to get MovingExplosion component from instantiated prefab!");
         }
     }
     
