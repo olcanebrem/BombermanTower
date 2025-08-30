@@ -444,7 +444,7 @@ public class TurnManager : MonoBehaviour
         if (IsMLAgentActive && unit is PlayerAgent) return -1;
         if (unit is PlayerController) return 0;
         if (unit is EnemyShooterTile || unit is EnemyTile) return 1;
-        if (unit is ExplosionWave) return 2; // YENİ SIRA
+        if (unit is ExplosionTile) return 2; // New explosion system
         if (unit is Projectile) return 3;
         if (unit is BombTile) return 4;
         return 100;

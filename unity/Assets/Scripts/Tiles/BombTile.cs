@@ -73,14 +73,17 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         CurrentHealth = 0;
         Debug.Log($"[BombTile] Bomb at ({X},{Y}) exploding with range {explosionRange}!");
         
-        // Create explosions in all directions
-        CreateExplosionAt(X, Y); // Center explosion
+        // Die FIRST to clear this bomb from tileObjects
+        Die();
+        
+        // Then create explosions in all directions
         CreateExplosionInDirection(Vector2Int.up);
         CreateExplosionInDirection(Vector2Int.down);
         CreateExplosionInDirection(Vector2Int.left);
         CreateExplosionInDirection(Vector2Int.right);
         
-        Die();
+        // Center explosion to damage anything that might be at the bomb's position
+        CreateExplosionAt(X, Y);
     }
     
     private void CreateExplosionInDirection(Vector2Int direction)
@@ -123,21 +126,51 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
     private void CreateExplosionAt(int x, int y)
     {
         var ll = LevelLoader.instance;
-        if (ll == null || explosionPrefab == null) return;
+        if (ll == null) 
+        {
+            Debug.LogError("[BombTile] LevelLoader.instance is null!");
+            return;
+        }
+        
+        if (explosionPrefab == null) 
+        {
+            Debug.LogError("[BombTile] explosionPrefab is null!");
+            return;
+        }
+        
+        Debug.Log($"[BombTile] Creating explosion at ({x},{y})");
         
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
-        // Use same parent logic as player for consistency
         Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
+        
+        Debug.Log($"[BombTile] Instantiating explosion prefab: {explosionPrefab.name} at position: {pos} under parent: {effectsParent?.name}");
         
         GameObject explosionGO = Instantiate(explosionPrefab, pos, Quaternion.identity, effectsParent);
         ExplosionTile explosion = explosionGO.GetComponent<ExplosionTile>();
         
+        if (explosion == null)
+        {
+            Debug.LogWarning($"[BombTile] ExplosionTile component not found, adding it to {explosionGO.name}");
+            
+            // Remove old ExplosionWave if exists
+            var oldExplosion = explosionGO.GetComponent<ExplosionWave>();
+            if (oldExplosion != null)
+            {
+                Debug.Log($"[BombTile] Removing old ExplosionWave component");
+                DestroyImmediate(oldExplosion);
+            }
+            
+            // Add new ExplosionTile
+            explosion = explosionGO.AddComponent<ExplosionTile>();
+        }
+        
         if (explosion != null)
         {
+            Debug.Log($"[BombTile] ExplosionTile component ready, calling Init({x},{y})");
             explosion.Init(x, y);
         }
         
-        Debug.Log($"[BombTile] Created explosion at ({x},{y})");
+        Debug.Log($"[BombTile] Explosion creation completed at ({x},{y})");
     }
     
     private void Die()
