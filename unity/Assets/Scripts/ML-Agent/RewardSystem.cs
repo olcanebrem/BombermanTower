@@ -266,7 +266,7 @@ public class RewardSystem : MonoBehaviour
     // Distance-based rewards (called each frame/step)
     public void UpdateDistanceRewards()
     {
-        if (!useDistanceRewards || agent == null) return;
+        if (!useDistanceRewards || agent == null || envManager == null) return;
         
         // Enemy proximity reward
         float currentEnemyDistance = GetNearestEnemyDistance();
@@ -308,6 +308,7 @@ public class RewardSystem : MonoBehaviour
     // Helper methods for distance calculations
     private float GetNearestEnemyDistance()
     {
+        if (envManager == null) return 0f;
         Vector2 nearestEnemy = envManager.GetNearestEnemyPosition(transform.position);
         if (nearestEnemy == Vector2.zero) return 0f;
         return Vector2.Distance(transform.position, nearestEnemy);
@@ -315,12 +316,14 @@ public class RewardSystem : MonoBehaviour
     
     private float GetExitDistance()
     {
+        if (envManager == null) return 0f;
         Vector2 exitPos = envManager.GetExitPosition();
         return Vector2.Distance(transform.position, exitPos);
     }
     
     private float GetNearestCollectibleDistance()
     {
+        if (envManager == null) return 0f;
         Vector2 nearestCollectible = envManager.GetNearestCollectiblePosition(transform.position);
         if (nearestCollectible == Vector2.zero) return 0f;
         return Vector2.Distance(transform.position, nearestCollectible);
@@ -329,6 +332,8 @@ public class RewardSystem : MonoBehaviour
     // Progressive rewards based on game state
     public void ApplyProgressiveRewards()
     {
+        if (agent == null || envManager == null) return;
+        
         // Reward for reducing enemy count
         int currentEnemyCount = envManager.GetRemainingEnemyCount();
         if (currentEnemyCount < lastEnemyCount)

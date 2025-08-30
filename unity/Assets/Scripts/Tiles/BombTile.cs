@@ -97,6 +97,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IMovable
             }
         }
     }
+    
     public void Die()
     {
         LevelLoader.instance.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);

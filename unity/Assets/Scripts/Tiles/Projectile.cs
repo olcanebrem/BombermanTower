@@ -61,8 +61,9 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         var ll = LevelLoader.instance;
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
         
-        // 1. Fiziksel nesneyi oluştur.
-        GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, ll.transform);
+        // 1. Fiziksel nesneyi oluştur - doğru container'a yerleştir.
+        Transform projectileParent = ll.GetProjectilesContainer();
+        GameObject projectileGO = Instantiate(prefabToSpawn, pos, Quaternion.identity, projectileParent);
         Projectile proj = projectileGO.GetComponent<Projectile>();
 
         if (proj == null)

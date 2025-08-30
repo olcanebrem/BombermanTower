@@ -8,8 +8,6 @@ using Debug = UnityEngine.Debug;
 
 public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, IDamageable
 {
-    // --- SINGLETON PATTERN ---
-    public static PlayerController Instance { get; private set; }
     
     // ML-Agent reference removed - now handled centrally by TurnManager
     // --- Arayüzler ve Değişkenler ---
@@ -24,8 +22,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     public int CurrentHealth { get; set; }
     public event Action OnHealthChanged;
     
-    // Event for player death - anyone can listen
-    public static event Action<PlayerController> OnPlayerDied;
+    // Player death handled directly via PlayerAgent -> TurnManager
     private bool isAnimating = false;
     // --- YENİ ÇAPRAZ HAREKET TAMPONU DEĞİŞKENLERİ ---
     private Vector2Int bufferedMove; // Tamponlanan ilk hareket
@@ -43,23 +40,22 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     
     private void Awake()
     {
-        // Singleton pattern implementation
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            Debug.Log("[PlayerController] Singleton instance created");
-        }
-        else if (Instance != this)
-        {
-            Debug.Log("[PlayerController] Duplicate instance destroyed");
-            Destroy(gameObject);
-            return;
-        }
+        Debug.Log("[PlayerController] Player instance created");
     }
     
     public void ResetTurn() => HasActedThisTurn = false;
-    void OnEnable() { if (TurnManager.Instance != null) TurnManager.Instance.Register(this); }
+    void OnEnable() 
+    { 
+        if (TurnManager.Instance != null) 
+        {
+            TurnManager.Instance.Register(this); 
+            Debug.Log("[PlayerController] Registered with TurnManager");
+        }
+        else
+        {
+            Debug.LogError("[PlayerController] TurnManager.Instance is null during OnEnable");
+        }
+    }
     void OnDisable()
     {
         // Eğer bu nesne, bir animasyonun ortasındayken yok edilirse...
@@ -90,21 +86,42 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     
     void Update()
     {
+        // Debug Update calls
+        if (Time.frameCount % 60 == 0) // Every second
+        {
+            Debug.Log($"[PlayerController] Update called - IsMLAgentActive: {(TurnManager.Instance?.IsMLAgentActive ?? false)}");
+        }
 
         // Skip input if ML-Agent is controlling - handled by TurnManager
-        if (TurnManager.Instance != null && TurnManager.Instance.IsMLAgentActive) return;
+        if (TurnManager.Instance != null && TurnManager.Instance.IsMLAgentActive) 
+        {
+            return;
+        }
           
         int horizontal = 0;
         int vertical = 0;
-        if (Input.GetKey(KeyCode.W)) vertical = -1;
-        if (Input.GetKey(KeyCode.S)) vertical = 1;
-        if (Input.GetKey(KeyCode.A)) horizontal = -1;
-        if (Input.GetKey(KeyCode.D)) horizontal = 1;
+        if (Input.GetKey(KeyCode.W)) vertical = -1; // Up
+        if (Input.GetKey(KeyCode.S)) vertical = 1;  // Down  
+        if (Input.GetKey(KeyCode.A)) horizontal = -1; // Left
+        if (Input.GetKey(KeyCode.D)) horizontal = 1;  // Right
+        
+        // Debug input
+        if (horizontal != 0 || vertical != 0)
+        {
+            Debug.Log($"[PlayerController] Input detected - H:{horizontal}, V:{vertical}, Keys: W:{Input.GetKey(KeyCode.W)}, A:{Input.GetKey(KeyCode.A)}, S:{Input.GetKey(KeyCode.S)}, D:{Input.GetKey(KeyCode.D)}");
+        }
 
 
 
         if (Input.GetKeyDown(KeyCode.Space)) bombIntent = true;
-        moveIntent = new Vector2Int(horizontal, vertical);
+        
+        // Only update moveIntent if there's actual input (don't reset to zero)
+        if (horizontal != 0 || vertical != 0)
+        {
+            moveIntent = new Vector2Int(horizontal, vertical);
+            Debug.Log($"[PlayerController] moveIntent set to: {moveIntent}");
+        }
+        // Don't reset moveIntent to zero here - let GetAction handle it
     }
 
     //=========================================================================
@@ -121,18 +138,21 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             Debug.Log("[PlayerController] ML-Agent is active - PlayerController yielding control");
             return null;
         }
-
-        // 1. O anki en mantıklı yönü belirle:
-        //    Eğer bir hareket tuşuna basılıyorsa, o yöndür.
-        //    Değilse, en son hareket edilen yöndür.
-        Vector2Int actionDirection = moveIntent != Vector2Int.zero ? moveIntent : lastMoveDirection;
+        
+        Debug.Log($"[PlayerController] GetAction - moveIntent: {moveIntent}, bombIntent: {bombIntent}");
 
         // 3. Hareket niyetini kontrol et.
         if (moveIntent != Vector2Int.zero)
         {
             HasActedThisTurn = true;
-            return new MoveAction(this, moveIntent);
+            Vector2Int moveDirection = moveIntent;
+            moveIntent = Vector2Int.zero; // Clear intent after using
+            Debug.Log($"[PlayerController] Creating MoveAction with direction: {moveDirection}");
+            return new MoveAction(this, moveDirection);
         }
+        
+        // 1. Bomba için en mantıklı yönü belirle (en son hareket yönü)
+        Vector2Int bombDirection = lastMoveDirection;
         // 2. Bomba niyetini kontrol et.
         if (bombIntent)
         {
@@ -140,7 +160,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             bombIntent = false;
             
             // PlaceBombAction'ı, az önce belirlediğimiz en mantıklı yönle oluştur.
-            return new PlaceBombAction(this, actionDirection);
+            return new PlaceBombAction(this, bombDirection);
         }
         
         
@@ -288,17 +308,17 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     {
         Debug.LogError("OYUNCU ÖLDÜ!");
         
-        // Olay yayınla, kim dinlerse aksiyon alsın
-        OnPlayerDied?.Invoke(this);
+        // Death handling is done directly via PlayerAgent -> TurnManager
+        // No events needed
         
         // Harita objesini temizle
         LevelLoader.instance.ClearTile(X, Y);
         
-        // Singleton pattern için gameObject'i destroy etme, sadece reset et
-        // Yeni level yüklendiğinde LevelLoader yeniden kullanacak
+        // Player deaktive et
         gameObject.SetActive(false);
-        Debug.Log("[PlayerController] Player disabled, waiting for next level");
+        Debug.Log("[PlayerController] Player disabled");
     }
+    
     
     // ML-Agent integration now handled centrally by TurnManager
     // All ML-Agent actions flow through ITurnBased/IGameAction system

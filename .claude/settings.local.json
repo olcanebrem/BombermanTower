@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python)",
+      "Bash(mlagents-learn:*)",
+      "Bash(python test:*)",
+      "Bash(pip --version)",
+      "Bash(pip install:*)",
+      "Bash(py:*)",
+      "Bash(winget install:*)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "E:\\e\\UNITY\\BombermanTower"
+    ]
+  }
+}

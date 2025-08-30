@@ -328,9 +328,15 @@ public class LevelSequencer : MonoBehaviour
         
         if (levelImporter != null)
         {
-            // Use LevelImporter for organized level loading
-            levelImporter.ImportLevel(levelEntry.textAsset);
+            // Use LevelImporter for data import only
+            var levelData = levelImporter.ImportLevel(levelEntry.textAsset);
             Debug.Log($"[LevelSequencer] LevelImporter.ImportLevel completed");
+            
+            if (levelData != null && levelLoader != null)
+            {
+                levelLoader.LoadFromLevelData(levelData);
+                Debug.Log($"[LevelSequencer] LevelLoader.LoadFromLevelData completed");
+            }
         }
         else
         {

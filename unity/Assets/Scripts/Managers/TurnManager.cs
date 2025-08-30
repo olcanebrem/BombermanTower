@@ -58,8 +58,7 @@ public class TurnManager : MonoBehaviour
             Debug.Log("[TurnManager] Created LevelSequencer, HoudiniLevelParser and LevelImporter GameObjects automatically");
         }
         
-        // Subscribe to player death event
-        PlayerController.OnPlayerDied += HandlePlayerDeathEvent;
+        // Player death handling is now done directly via PlayerAgent
         
         // Start coroutine to find PlayerAgent after level loads
         StartCoroutine(DelayedPlayerAgentSearch());
@@ -103,8 +102,7 @@ public class TurnManager : MonoBehaviour
     
     void OnDestroy()
     {
-        // Unsubscribe from events
-        PlayerController.OnPlayerDied -= HandlePlayerDeathEvent;
+        // No event unsubscription needed - direct handling via PlayerAgent
     }
 
     void Update()
@@ -183,7 +181,7 @@ public class TurnManager : MonoBehaviour
     private void PrintDebugMap()
     {
         var ll = LevelLoader.instance;
-        if (ll == null) return;
+        if (ll == null || ll.levelMap == null) return;
 
         
         // Create a grid to represent the map
@@ -212,8 +210,11 @@ public class TurnManager : MonoBehaviour
             }
         }
         
-        // Debug: Print a few levelMap samples
-        Debug.Log($"[DEBUG] levelMap samples - [0,0]='{ll.levelMap[0,0]}' [5,5]='{ll.levelMap[5,5]}' [10,10]='{ll.levelMap[10,10]}'");
+        // Debug: Print a few levelMap samples (with bounds check)
+        string sample00 = (ll.Width > 0 && ll.Height > 0) ? ll.levelMap[0,0].ToString() : "N/A";
+        string sample55 = (ll.Width > 5 && ll.Height > 5) ? ll.levelMap[5,5].ToString() : "N/A";
+        string sample1010 = (ll.Width > 10 && ll.Height > 10) ? ll.levelMap[10,10].ToString() : "N/A";
+        Debug.Log($"[DEBUG] levelMap samples - [0,0]='{sample00}' [5,5]='{sample55}' [10,10]='{sample1010}'");
         
         // Build the entire map as a single string
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
@@ -333,9 +334,16 @@ public class TurnManager : MonoBehaviour
                 Debug.LogWarning($"[TurnManager] Skipping action {currentAction.GetType().Name} - Actor is null");
                 continue;
             }
+            
+            // Check if Actor GameObject is destroyed (Unity-specific check)
+            if (ReferenceEquals(currentAction.Actor, null) || currentAction.Actor == null)
+            {
+                Debug.LogWarning($"[TurnManager] Skipping action {currentAction.GetType().Name} - Actor GameObject destroyed");
+                continue;
+            }
+            
             try
             {
-                Debug.Log($"[TurnManager] Executing {currentAction.GetType().Name} from actor {currentAction.Actor.name}");
                 currentAction.Execute();
             }
             catch (System.Exception e)
@@ -454,7 +462,6 @@ public class TurnManager : MonoBehaviour
             
             bool isActive = tcExists && tcTraining && agentExists && agentUseML;
             
-            Debug.Log($"[TurnManager] IsMLAgentActive check - TC:{tcExists}, Training:{tcTraining}, Agent:{agentExists}, UseML:{agentUseML}, Result:{isActive}");
             
             return isActive;
         }

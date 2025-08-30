@@ -57,6 +57,19 @@ public class LevelLoader : MonoBehaviour
     private GameObject playerObject; // Runtime player instance reference
     public int playerStartX, playerStartY;
     
+    // --- Runtime Container References ---
+    [Header("Level Content Containers")]
+    public Transform levelContentParent; // [LEVEL CONTENT] container
+    public Transform gridParent;         // Grid tiles container  
+    public Transform dynamicParent;      // Dynamic objects container
+    public Transform wallsContainer;     // Walls container
+    public Transform breakablesContainer; // Breakables container
+    public Transform gatesContainer;     // Gates container
+    public Transform enemiesContainer;   // Enemies container
+    public Transform collectiblesContainer; // Collectibles container
+    public Transform effectsContainer;   // Effects container
+    public Transform projectilesContainer; // Projectiles container
+    
     // ML-Agent support - object tracking
     private List<GameObject> enemies = new List<GameObject>();
     private List<GameObject> collectibles = new List<GameObject>();
@@ -169,9 +182,116 @@ public class LevelLoader : MonoBehaviour
     void Start()
     {
         ScanForLevelFiles();
-        LoadSelectedLevel();
-        // CreateMapVisual(); // Kaldırıldı - zaten LoadLevelFromHoudiniData içinde çağrılıyor
-        Debug.Log("[LevelLoader] Start completed - visual creation handled by LoadLevelFromHoudiniData");
+        // Level loading is now handled by LevelManager - don't auto-load here
+        // LoadSelectedLevel(); // Removed - causes duplicate loading
+        Debug.Log("[LevelLoader] Start completed - level loading handled by LevelManager");
+        
+        // Initialize level content containers
+        InitializeLevelContainers();
+    }
+    
+    /// <summary>
+    /// Initialize or find level content containers
+    /// </summary>
+    private void InitializeLevelContainers()
+    {
+        // Find or create [LEVEL CONTENT] parent
+        if (levelContentParent == null)
+        {
+            GameObject levelContentGO = GameObject.Find("[LEVEL CONTENT]");
+            if (levelContentGO == null)
+            {
+                levelContentGO = new GameObject("[LEVEL CONTENT]");
+                Debug.Log("[LevelLoader] Created [LEVEL CONTENT] container");
+            }
+            levelContentParent = levelContentGO.transform;
+        }
+        
+        // Create grid parent
+        if (gridParent == null)
+        {
+            GameObject gridGO = new GameObject("GridParent");
+            gridGO.transform.SetParent(levelContentParent);
+            gridParent = gridGO.transform;
+        }
+        
+        // Create dynamic content parent  
+        if (dynamicParent == null)
+        {
+            GameObject dynamicGO = new GameObject("Dynamic Content");
+            dynamicGO.transform.SetParent(levelContentParent);
+            dynamicParent = dynamicGO.transform;
+        }
+        
+        // Create tile type containers under grid
+        CreateTileContainer(ref wallsContainer, "Walls", gridParent);
+        CreateTileContainer(ref breakablesContainer, "Breakables", gridParent);
+        CreateTileContainer(ref gatesContainer, "Gates", gridParent);
+        
+        // Create dynamic containers
+        CreateTileContainer(ref enemiesContainer, "Enemies", dynamicParent);
+        CreateTileContainer(ref collectiblesContainer, "Collectibles", dynamicParent);
+        CreateTileContainer(ref effectsContainer, "Effects", dynamicParent);
+        CreateTileContainer(ref projectilesContainer, "Projectiles", dynamicParent);
+        
+        Debug.Log("[LevelLoader] Level containers initialized");
+    }
+    
+    /// <summary>
+    /// Helper to create container if it doesn't exist
+    /// </summary>
+    private void CreateTileContainer(ref Transform container, string containerName, Transform parent)
+    {
+        if (container == null)
+        {
+            GameObject containerGO = new GameObject(containerName + " Container");
+            containerGO.transform.SetParent(parent);
+            container = containerGO.transform;
+        }
+    }
+    
+    /// <summary>
+    /// Get appropriate container for tile type
+    /// </summary>
+    private Transform GetContainerForTileType(TileType tileType)
+    {
+        switch (tileType)
+        {
+            case TileType.Wall:
+                return wallsContainer ?? gridParent;
+                
+            case TileType.Breakable:
+                return breakablesContainer ?? gridParent;
+                
+            case TileType.Gate:
+                return gatesContainer ?? gridParent;
+                
+            case TileType.Enemy:
+            case TileType.EnemyShooter:
+                return enemiesContainer ?? dynamicParent;
+                
+            case TileType.Coin:
+            case TileType.Health:
+                return collectiblesContainer ?? dynamicParent;
+                
+            case TileType.Player:
+            case TileType.PlayerSpawn:
+                return dynamicParent ?? levelContentParent;
+                
+            case TileType.Projectile:
+                return projectilesContainer ?? dynamicParent;
+                
+            default:
+                return gridParent ?? levelContentParent;
+        }
+    }
+    
+    /// <summary>
+    /// Get projectiles container for external classes (like Projectile.Spawn)
+    /// </summary>
+    public Transform GetProjectilesContainer()
+    {
+        return projectilesContainer ?? dynamicParent ?? levelContentParent;
     }
     
     #if UNITY_EDITOR
@@ -348,8 +468,17 @@ public class LevelLoader : MonoBehaviour
         // Use LevelImporter for organized level loading
         if (LevelImporter.Instance != null)
         {
-            Debug.Log("[LevelLoader] Using LevelImporter for organized level loading");
-            LevelImporter.Instance.ImportLevel(selectedLevel.textAsset);
+            Debug.Log("[LevelLoader] Using LevelImporter for data import");
+            currentLevelData = LevelImporter.Instance.ImportLevel(selectedLevel.textAsset);
+            
+            if (currentLevelData == null)
+            {
+                Debug.LogError("[LevelLoader] LevelImporter returned null data!");
+                return;
+            }
+            
+            // Now handle level creation ourselves
+            LoadFromLevelData(currentLevelData);
         }
         else
         {
@@ -620,6 +749,14 @@ public class LevelLoader : MonoBehaviour
         Debug.Log("[LevelLoader] LoadLevelFromHoudiniData completed successfully");
     }
     
+    /// <summary>
+    /// Wrapper method for LoadLevelFromHoudiniData - maintains API compatibility
+    /// </summary>
+    public void LoadFromLevelData(HoudiniLevelData levelData)
+    {
+        LoadLevelFromHoudiniData(levelData);
+    }
+    
     
     // CreateMapVisual metodunuz neredeyse hiç değişmeden çalışmaya devam edecek!
     // Sadece oyuncu oluşturma mantığını en sona taşıdık.
@@ -655,7 +792,8 @@ public class LevelLoader : MonoBehaviour
                     {
                         Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name} from symbol '{symbolChar}'");
                         Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-                        TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
+                        Transform parentContainer = GetContainerForTileType(type);
+                        TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
                         
                         // Yeni oluşturulan tile'ı kur.
                         if (spriteDatabase != null)
@@ -704,30 +842,16 @@ public class LevelLoader : MonoBehaviour
         // a) Oyuncunun başlangıç pozisyonunu hesapla.
         Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
         
-        // b) Oyuncuyu oluştur veya mevcut olanı kullan
-        // Önce Singleton instance'ı kontrol et
-        if (PlayerController.Instance != null && PlayerController.Instance.gameObject != null)
+        // b) Check if player already exists (to avoid duplicates)
+        // Also check scene for existing player
+        var existingPlayer = FindObjectOfType<PlayerController>();
+        if (playerObject == null && existingPlayer == null)
         {
-            // Mevcut Singleton player'ı kullan
-            playerObject = PlayerController.Instance.gameObject;
-            
-            // Eğer player inactive durumda ise (ölümden sonra), aktif hale getir
-            if (!playerObject.activeInHierarchy)
-            {
-                playerObject.SetActive(true);
-                Debug.Log("[LevelLoader] Reactivated existing Singleton Player instance");
-            }
-            
-            playerObject.transform.position = playerPos;
-            Debug.Log("[LevelLoader] Using existing Singleton Player instance and repositioning");
-        }
-        else
-        {
-            // Singleton yok veya null, yeni player oluştur
+            Debug.Log("[LevelLoader] No existing player found, creating new Player instance");
+            Transform playerParent = dynamicParent ?? levelContentParent;
             if (playerPrefab != null)
             {
-                Debug.Log("[LevelLoader] Singleton Player not found or destroyed - creating new instance");
-                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
                 Debug.Log("[LevelLoader] New Player instance created");
             }
             else
@@ -736,8 +860,32 @@ public class LevelLoader : MonoBehaviour
                 // Create empty GameObject as fallback
                 playerObject = new GameObject("Player (Missing Prefab)");
                 playerObject.transform.position = playerPos;
-                playerObject.transform.SetParent(transform);
+                playerObject.transform.SetParent(playerParent);
             }
+        }
+        else if (existingPlayer != null)
+        {
+            Debug.Log("[LevelLoader] Found existing PlayerController in scene, using it");
+            playerObject = existingPlayer.gameObject;
+            
+            // Move to correct parent and position
+            Transform playerParent = dynamicParent ?? levelContentParent;
+            if (playerObject.transform.parent != playerParent)
+            {
+                playerObject.transform.SetParent(playerParent);
+            }
+            playerObject.transform.position = playerPos;
+        }
+        else
+        {
+            Debug.Log("[LevelLoader] Player already exists, reusing existing instance");
+            // Move existing player to correct parent and position
+            Transform playerParent = dynamicParent ?? levelContentParent;
+            if (playerObject.transform.parent != playerParent)
+            {
+                playerObject.transform.SetParent(playerParent);
+            }
+            playerObject.transform.position = playerPos;
         }
         
         // c) Gerekli bileşen referanslarını SADECE BİR KERE al.
@@ -802,26 +950,17 @@ public class LevelLoader : MonoBehaviour
                 {
                     if (tileObjects[x, y] != null)
                     {
-                        // Check if this is the current Singleton player before destroying
-                        bool isCurrentPlayer = (PlayerController.Instance != null && 
-                                              tileObjects[x, y] == PlayerController.Instance.gameObject);
-                        
                         // Check if this is RL_TRAINING_PARAMETERS - don't destroy ML-Agent components
                         bool isMLTrainingComponents = (tileObjects[x, y].name == "RL_TRAINING_PARAMETERS");
                         
-                        if (!isCurrentPlayer && !isMLTrainingComponents)
+                        if (!isMLTrainingComponents)
                         {
                             Destroy(tileObjects[x, y]);
                             destroyedCount++;
                         }
                         else if (isMLTrainingComponents)
                         {
-                            Debug.Log("[LevelLoader] Preserving RL_TRAINING_PARAMETERS during level clear");
-                        }
-                        else
-                        {
-                            // This is the player, don't destroy but clear from tile tracking
-                            Debug.Log("[LevelLoader] Preserving Singleton Player during tile clearing");
+                            Debug.Log("[LevelLoader] Preserving ML-Agent components during level clear");
                         }
                         
                         tileObjects[x, y] = null;
@@ -835,6 +974,9 @@ public class LevelLoader : MonoBehaviour
         enemies.Clear();
         collectibles.Clear();
         exitObject = null;
+        
+        // Clear player reference so new player can be created
+        playerObject = null;
         
         // Clear level map data
         if (levelMap != null)
@@ -867,7 +1009,8 @@ public class LevelLoader : MonoBehaviour
             Debug.Log($"[LevelLoader] Bomb prefab TileType property: {bombTilePrefab?.TileType}");
             
             Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-            TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, transform);
+            Transform bombParent = effectsContainer ?? dynamicParent ?? levelContentParent;
+            TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, bombParent);
 
             // Bombayı kur
             newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
@@ -1011,7 +1154,8 @@ public class LevelLoader : MonoBehaviour
             if (tileBasePrefab != null)
             {
                 Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-                TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, transform);
+                Transform parentContainer = GetContainerForTileType(type);
+                TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
                 
                 // Setup tile
                 if (spriteDatabase != null)
@@ -1042,25 +1186,32 @@ public class LevelLoader : MonoBehaviour
     {
         Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
         
-        if (PlayerController.Instance != null && PlayerController.Instance.gameObject != null)
+        if (playerObject != null)
         {
-            playerObject = PlayerController.Instance.gameObject;
-            
             if (!playerObject.activeInHierarchy)
             {
                 playerObject.SetActive(true);
-                Debug.Log("[LevelLoader] Reactivated existing Singleton Player instance");
+                Debug.Log("[LevelLoader] Reactivated existing Player instance");
+            }
+            
+            // Move player to correct parent in level hierarchy
+            Transform playerParent = dynamicParent ?? levelContentParent;
+            if (playerObject.transform.parent != playerParent)
+            {
+                playerObject.transform.SetParent(playerParent);
+                Debug.Log($"[LevelLoader] Moved player to correct parent: {playerParent.name}");
             }
             
             playerObject.transform.position = playerPos;
-            Debug.Log("[LevelLoader] Using existing Singleton Player instance and repositioning");
+            Debug.Log("[LevelLoader] Using existing Player instance and repositioning");
         }
         else
         {
             if (playerPrefab != null)
             {
                 Debug.Log("[LevelLoader] Singleton Player not found - creating new instance");
-                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, transform);
+                Transform playerParent = dynamicParent ?? levelContentParent;
+                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
                 Debug.Log("[LevelLoader] New Player instance created");
             }
             else

@@ -17,18 +17,37 @@ public static class MovementHelper
         // --- 1. GÜVENLİK KİLİDİ: "Ben Kimim ve Neredeyim?" ---
         if (mover == null || mover.gameObject == null) 
         {
-            Debug.Log("[MovementHelper] FAILED - Mover is null or gameObject is null");
+            Debug.LogError("[MovementHelper] FAILED - Mover is null or gameObject is null");
             return false; // Ölü birim hareket edemez.
         }
         
         GameObject currentObjAtPosition = ll.tileObjects[mover.X, mover.Y];
+        
+        // Check for destroyed GameObject references
+        if (currentObjAtPosition != null && currentObjAtPosition.Equals(null))
+        {
+            Debug.LogWarning($"[MovementHelper] Destroyed GameObject found at ({mover.X},{mover.Y}), clearing reference");
+            ll.tileObjects[mover.X, mover.Y] = null;
+            currentObjAtPosition = null;
+        }
+        
         if (currentObjAtPosition != mover.gameObject)
         {
-            // Eğer o pozisyonda başka bir aktif obje varsa, bu gerçek bir tutarsızlık
-            if (currentObjAtPosition != null && currentObjAtPosition.activeInHierarchy)
+            // Eğer o pozisyonda başka bir aktif obje varsa kontrol et
+            if (currentObjAtPosition != null && !currentObjAtPosition.Equals(null) && currentObjAtPosition.activeInHierarchy)
             {
-                Debug.LogError($"[MovementHelper] VERİ TUTARSIZLIĞI: {mover.GetType().Name} kendini ({mover.X},{mover.Y}) sanıyor ama nesne haritasında '{currentObjAtPosition.name}' var!", mover.gameObject);
-                return false;
+                // Aynı türde obje ise (duplicate), güncel olanı kullan
+                var currentTileBase = currentObjAtPosition.GetComponent<TileBase>();
+                if (currentTileBase != null && currentTileBase.GetType() == mover.GetType())
+                {
+                    Debug.LogWarning($"[MovementHelper] Duplicate {mover.GetType().Name} detected at ({mover.X},{mover.Y}), using map reference");
+                    return false; // Hareket engelle, mevcut objeyi koru
+                }
+                else
+                {
+                    Debug.LogError($"[MovementHelper] Position conflict: {mover.GetType().Name} vs {currentObjAtPosition.name} at ({mover.X},{mover.Y})", mover.gameObject);
+                    return false;
+                }
             }
             else
             {

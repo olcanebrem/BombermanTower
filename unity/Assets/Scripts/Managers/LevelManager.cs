@@ -77,6 +77,13 @@ public class LevelManager : MonoBehaviour
     
     private void Start()
     {
+        // Only main instance should load level
+        if (Instance != this)
+        {
+            Debug.Log("[LevelManager] Non-primary instance, skipping Start()");
+            return;
+        }
+        
         LoadCurrentLevel();
     }
     

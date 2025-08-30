@@ -25,23 +25,42 @@ public class MoveAction : IGameAction
         Debug.Log($"[MoveAction] Execute called - Direction: {direction}");
         
         // Check if the mover is still valid before trying to use it
-        if (mover == null || (mover is MonoBehaviour mono && mono == null))
+        if (mover == null)
         {
-            Debug.LogWarning("Trying to execute MoveAction with a destroyed mover");
+            Debug.LogWarning("Trying to execute MoveAction with a null mover");
+            return;
+        }
+        
+        // Check if the mover's GameObject is destroyed (Unity-specific)
+        MonoBehaviour moverMono = mover as MonoBehaviour;
+        if (moverMono == null || moverMono.gameObject == null)
+        {
+            Debug.LogWarning("Trying to execute MoveAction with a destroyed mover GameObject");
             return;
         }
 
         Debug.Log($"[MoveAction] Mover valid: {mover.GetType().Name} at ({mover.X}, {mover.Y})");
         
         // Execute the movement if possible
-        if (MovementHelper.TryMove(mover, direction, out Vector3 targetPos))
+        try
         {
-            Debug.Log($"[MoveAction] TryMove SUCCESS - Target position: {targetPos}");
-            mover.StartMoveAnimation(targetPos);
+            Debug.Log($"[MoveAction] Calling MovementHelper.TryMove with direction: {direction}");
+            bool moveSuccessful = MovementHelper.TryMove(mover, direction, out Vector3 targetPos);
+            Debug.Log($"[MoveAction] MovementHelper.TryMove returned: {moveSuccessful}, targetPos: {targetPos}");
+            
+            if (moveSuccessful)
+            {
+                Debug.Log($"[MoveAction] Starting animation to: {targetPos}");
+                mover.StartMoveAnimation(targetPos);
+            }
+            else
+            {
+                Debug.Log("[MoveAction] Movement failed - no animation started");
+            }
         }
-        else
+        catch (System.Exception e)
         {
-            Debug.Log($"[MoveAction] TryMove FAILED - Direction: {direction}, Current position: ({mover.X}, {mover.Y})");
+            Debug.LogError($"[MoveAction] MovementHelper.TryMove failed: {e.Message}");
         }
     }
 }

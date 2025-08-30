@@ -22,7 +22,7 @@ public class ExplosionWave : TileBase, ITurnBased, IInitializable
         if (HasActedThisTurn) return null;
         HasActedThisTurn = true;
         
-        if (TurnManager.Instance.TurnCount >= deathTurn)
+        if (TurnManager.Instance != null && TurnManager.Instance.TurnCount >= deathTurn)
         {
             Die();
             return null;

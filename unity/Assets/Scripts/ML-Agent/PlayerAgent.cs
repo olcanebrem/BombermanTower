@@ -144,7 +144,6 @@ public class PlayerAgent : Agent, ITurnBased
         }
         
         // Setup ML-Agent integration - now centralized through TurnManager
-        Debug.Log($"[PlayerAgent] UseMLAgent: {UseMLAgent}, MLAgentsTrainingController found: {MLAgentsTrainingController.Instance != null}");
         
         if (UseMLAgent)
         {
@@ -382,7 +381,16 @@ public class PlayerAgent : Agent, ITurnBased
     {
         Debug.Log($"[PlayerAgent] CreateGameAction - Move: {moveActionIndex}, Bomb: {bombActionIndex}");
         
-        // Priority: Bomb action > Move action > No action
+        // Priority: Move action > Bomb action > No action (Movement first!)
+        Vector2Int moveDirection = ConvertMoveAction(moveActionIndex);
+        Debug.Log($"[PlayerAgent] ConvertMoveAction({moveActionIndex}) returned: {moveDirection}");
+        
+        if (moveDirection != Vector2Int.zero)
+        {
+            Debug.Log($"[PlayerAgent] Creating MoveAction with direction: {moveDirection}");
+            return new MoveAction(playerController, moveDirection);
+        }
+        
         if (bombActionIndex >= 1)
         {
             // Place bomb at nearby empty position (not on player)
@@ -391,13 +399,8 @@ public class PlayerAgent : Agent, ITurnBased
             return new PlaceBombAction(playerController, bombDirection);
         }
         
-        Vector2Int moveDirection = ConvertMoveAction(moveActionIndex);
-        if (moveDirection != Vector2Int.zero)
-        {
-            return new MoveAction(playerController, moveDirection);
-        }
-        
         // "No movement" is also a valid action - create MoveAction with zero vector
+        Debug.Log("[PlayerAgent] No movement or bomb action - creating MoveAction with zero vector");
         return new MoveAction(playerController, Vector2Int.zero);
     }
     
@@ -1062,7 +1065,13 @@ public class PlayerAgent : Agent, ITurnBased
             bool heuristicMode = trainingController != null && trainingController.HeuristicMode;
             
             bool useML = isTraining || heuristicMode;
-            Debug.Log($"[PlayerAgent] UseMLAgent check - IsTraining: {isTraining}, HeuristicMode: {heuristicMode}, Result: {useML}");
+            
+            // Debug only when state changes
+            if (Time.frameCount % 60 == 0) // Every 60 frames (~1 second)
+            {
+                Debug.Log($"[PlayerAgent] UseMLAgent status - IsTraining: {isTraining}, HeuristicMode: {heuristicMode}, Result: {useML}");
+            }
+            
             return useML;
         }
     }

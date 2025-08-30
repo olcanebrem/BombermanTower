@@ -1,44 +1,8 @@
-# Unity
-unity/Assets/Assets.meta
-unity/Assets/AssetStoreTools*
-unity/Library/
-unity/Temp/
-unity/Obj/
-unity/Logs/
-unity/Build/
-unity/*.csproj
-unity/*.sln
-unity/*.user
-unity/*.pidb
-unity/*.unityproj
-unity/*.userprefs
-unity/*.opendb
-unity/*.VC.db
-unity/*.vs
-unity/*.vsconfig
-unity/ProjectSettings/ProjectVersion.txt
-unity/UserSettings/EditorUserSettings.asset
-unity/UserSettings/EditorUserSettings.asset.meta
-unity/UserSettings/Layouts/*
-unity/UserSettings/Search.index
+# =============== #
+# Unity Projesi   #
+# =============== #
 
-# Houdini (cache ve oturum dosyaları)
-houdini/__pycache__/
-houdini/*.hipautosave
-houdini/export/*.lock
-
-# Python
-python/__pycache__/
-python/*.pyc
-python/.env
-
-# Genel
-.DS_Store
-*.log
-.env
-# Unity'nin kendi meta ve ayar dosyaları hariç, tüm derlenmiş ve geçici dosyaları dışlar
-
-# --- Unity oluşturma dosyaları ---
+# --- Geçici klasörler ---
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -46,8 +10,19 @@ python/.env
 [Bb]uilds/
 [Ll]ogs/
 [Mm]emoryCaptures/
+UserSettings/
+MemoryCaptures/
 
-# --- Visual Studio / JetBrains Rider gibi editör dosyaları ---
+# --- Cache dosyaları ---
+*.stacktrace
+*.log
+*.booproj
+*.pidb
+*.svd
+*.pdb
+*.mdb
+
+# --- IDE dosyaları ---
 .vscode/
 .idea/
 *.csproj
@@ -57,18 +32,20 @@ python/.env
 *.tmp
 *.user
 *.userprefs
-*.pidb
-*.booproj
+*.sln.iml
 
 # --- OS / sistem dosyaları ---
 .DS_Store
 Thumbs.db
 
-# --- Crash / Debug / Profiler dosyaları ---
+# --- Crash / debug ---
 *.stacktrace
-*.log
+*.dmp
 
-# --- Auto-generated Android / Xcode build klasörleri ---
+# --- Rider özel ---
+*.DotSettings
+
+# --- Android / iOS / Xcode build klasörleri ---
 *.apk
 *.aab
 *.ipa
@@ -77,22 +54,32 @@ Thumbs.db
 *.xcuserstate
 *.xcuserdata/
 
-# --- Rider özel dosyaları ---
-*.idea/
-*.sln.iml
-
-# --- Unity Collaborate (kullanmıyorsan) ---
-.collab/
-.claude
+# =============== #
+# Python / ML      #
+# =============== #
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 *.pt
 *.onnx
-python/results/*
-# --- Paket Cache ---
-/Packages/manifest.json
-/Packages/packages-lock.json
-unity/Packages/manifest.json
-unity/Packages/packages-lock.json
-Unity/ProjectSettings/McpUnitySettings.json
-unity/Packages/manifest.json
+.env
+python/results/
+python/.env
+nul
+# =============== #
+# Houdini         #
+# =============== #
+houdini/__pycache__/
+houdini/*.hipautosave
+houdini/export/*.lock
 
-Python/nul
+# =============== #
+# Önemli NOT:      #
+# =============== #
+# Aşağıdaki klasörler ve meta dosyaları **kesinlikle takip edilmeli**
+!Assets/
+!ProjectSettings/
+!Packages/
+!*.meta
+Unity/ProjectSettings/McpUnitySettings.json
