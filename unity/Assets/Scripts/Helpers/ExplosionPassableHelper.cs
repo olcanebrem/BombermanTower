@@ -106,7 +106,7 @@ public static class ExplosionPassableHelper
         // They should remain intact and collectible by players
         if (tileType == TileType.Coin || tileType == TileType.Health)
         {
-            Debug.Log($"[ExplosionPassableHelper] Not creating explosion tile on collectible: {tileType}");
+            // Debug.Log($"[ExplosionPassableHelper] Not creating explosion tile on collectible: {tileType}");
             return false;
         }
         

@@ -71,27 +71,18 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
                         // If target was destroyed, mark the position
                         if (willBeDestroyed)
                         {
-                            Debug.Log($"[ExplosionTile] Target {existingTarget.name} at ({x},{y}) was destroyed by explosion");
+                            // Debug.Log($"[ExplosionTile] Target {existingTarget.name} at ({x},{y}) was destroyed by explosion");
                             targetWasDestroyed = true;
                             
                             // The target object should handle its own cleanup (RemoveEnemy, etc.)
                             // We just need to prepare the space for explosion
                         }
                     }
-                    else
-                    {
-                        Debug.Log($"[ExplosionTile] Target {existingTarget.name} at ({x},{y}) should be damageable but has no IDamageable component");
-                    }
+                    // else - Target doesn't have IDamageable but should
                 }
-                else
-                {
-                    Debug.Log($"[ExplosionTile] Target {existingTarget.name} at ({x},{y}) is not damageable by explosions");
-                }
+                // else - Target is not damageable by explosions (normal)
             }
-            else
-            {
-                Debug.Log($"[ExplosionTile] No existing target at ({x},{y}) to damage");
-            }
+            // else - No existing target at position (normal)
             
             // Register this explosion in LevelLoader's tracking systems
             // ONLY update levelMap if no undamaged object remains at this position
@@ -103,7 +94,7 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
                 if (!ExplosionPassableHelper.IsExplosionDamageable(currentTileType) || !targetWasDestroyed)
                 {
                     shouldRegisterInMap = false;
-                    Debug.Log($"[ExplosionTile] Not registering explosion in levelMap - undamaged {currentTileType} remains at ({x},{y})");
+                    // Debug.Log($"[ExplosionTile] Not registering explosion in levelMap - undamaged {currentTileType} remains at ({x},{y})");
                 }
             }
             
@@ -111,17 +102,12 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
             {
                 ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Explosion);
                 ll.tileObjects[x, y] = gameObject;
-                Debug.Log($"[ExplosionTile] Registered explosion in LevelLoader maps at ({x},{y})");
+                // Debug.Log($"[ExplosionTile] Registered explosion in LevelLoader maps at ({x},{y})");
             }
-            else
-            {
-                // Explosion exists visually but doesn't override logic map
-                // Don't register in tileObjects array to avoid conflicts
-                Debug.Log($"[ExplosionTile] Explosion created visually but not registered in logic maps at ({x},{y})");
-            }
+            // else - Explosion exists visually but doesn't override logic map
         }
 
-        Debug.Log($"[ExplosionTile] Spawned at ({X},{Y}) - will be active for {explosionTurns} turns");
+        // Debug.Log($"[ExplosionTile] Spawned at ({X},{Y}) - will be active for {explosionTurns} turns");
     }
     
     public void ResetTurn()

@@ -127,7 +127,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
     
     private void CreateMovingExplosionInDirection(Vector2Int direction)
     {
-        Debug.Log($"[BombTile] CreateMovingExplosionInDirection called for direction {direction}");
+        // Debug.Log($"[BombTile] CreateMovingExplosionInDirection called for direction {direction}");
         
         var ll = LevelLoader.instance;
         if (ll == null) 
@@ -142,7 +142,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
             return;
         }
         
-        Debug.Log($"[BombTile] LevelLoader and prefab OK, creating moving explosion...");
+        // Debug.Log($"[BombTile] LevelLoader and prefab OK, creating moving explosion...");
         
         // Starting position is one step in the direction from bomb
         int startX = X + direction.x;
@@ -151,7 +151,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         // Check bounds for starting position
         if (startX < 0 || startX >= ll.Width || startY < 0 || startY >= ll.Height)
         {
-            Debug.Log($"[BombTile] MovingExplosion start position out of bounds: ({startX},{startY})");
+            // Debug.Log($"[BombTile] MovingExplosion start position out of bounds: ({startX},{startY})");
             return;
         }
         
@@ -163,7 +163,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         
         if (movingExplosion == null)
         {
-            Debug.LogWarning($"[BombTile] MovingExplosion component not found, adding it to {movingExplosionGO.name}");
+            // Debug.LogWarning($"[BombTile] MovingExplosion component not found, adding it to {movingExplosionGO.name}");
             movingExplosion = movingExplosionGO.AddComponent<MovingExplosion>();
             movingExplosion.explosionTilePrefab = explosionPrefab; // Give it reference to explosion tile prefab
         }
@@ -172,7 +172,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         {
             // Initialize with remaining steps (explosionRange - 1 because we already moved one step)
             movingExplosion.InitMovingExplosion(startX, startY, direction, explosionRange - 1);
-            Debug.Log($"[BombTile] Successfully created MovingExplosion at ({startX},{startY}) moving {direction} for {explosionRange - 1} steps");
+            // Debug.Log($"[BombTile] Successfully created MovingExplosion at ({startX},{startY}) moving {direction} for {explosionRange - 1} steps");
         }
         else
         {
@@ -243,7 +243,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
             }
         }
         
-        Debug.Log($"[BombTile] Creating explosion at ({x},{y}) - current tile type: {currentTileType}");
+        // Debug.Log($"[BombTile] Creating explosion at ({x},{y}) - current tile type: {currentTileType}");
         
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
         Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
@@ -255,13 +255,13 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         
         if (explosion == null)
         {
-            Debug.LogWarning($"[BombTile] ExplosionTile component not found, adding it to {explosionGO.name}");
+            // Debug.LogWarning($"[BombTile] ExplosionTile component not found, adding it to {explosionGO.name}");
             
             // Remove old ExplosionWave if exists
             var oldExplosion = explosionGO.GetComponent<ExplosionWave>();
             if (oldExplosion != null)
             {
-                Debug.Log($"[BombTile] Removing old ExplosionWave component");
+                // Debug.Log($"[BombTile] Removing old ExplosionWave component");
                 DestroyImmediate(oldExplosion);
             }
             

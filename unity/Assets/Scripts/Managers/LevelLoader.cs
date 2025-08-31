@@ -1285,7 +1285,7 @@ public class LevelLoader : MonoBehaviour
                 Transform parentContainer = GetContainerForTileType(type);
                 TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
                 
-                Debug.Log($"[LevelLoader] CreateTileAt - Created {type} at ({x}, {y}): {newTile.name}");
+                // Debug.Log($"[LevelLoader] CreateTileAt - Created {type} at ({x}, {y}): {newTile.name}");
                 
                 // Setup tile visual
                 if (spriteDatabase != null)
@@ -1303,7 +1303,7 @@ public class LevelLoader : MonoBehaviour
                 // ML-Agent and special tracking
                 UpdateMLAgentTracking(type, newTile.gameObject);
                 
-                Debug.Log($"[LevelLoader] CreateTileAt - Successfully created and registered {type} at ({x}, {y})");
+                // Debug.Log($"[LevelLoader] CreateTileAt - Successfully created and registered {type} at ({x}, {y})");
                 return true;
             }
         }
@@ -1332,7 +1332,7 @@ public class LevelLoader : MonoBehaviour
         }
         
         TileType tileType = TileSymbols.DataSymbolToType(levelMap[x, y]);
-        Debug.Log($"[LevelLoader] DestroyTileAt - Destroying {tileType} at ({x}, {y}): {tileObject.name}");
+        // Debug.Log($"[LevelLoader] DestroyTileAt - Destroying {tileType} at ({x}, {y}): {tileObject.name}");
         
         // Remove from appropriate tracking lists
         switch (tileType)
@@ -1343,7 +1343,7 @@ public class LevelLoader : MonoBehaviour
                 {
                     enemies.Remove(tileObject);
                     OnEnemyListChanged?.Invoke();
-                    Debug.Log($"[LevelLoader] DestroyTileAt - Removed from enemies list");
+                    // Debug.Log($"[LevelLoader] DestroyTileAt - Removed from enemies list");
                 }
                 break;
                 
@@ -1353,7 +1353,7 @@ public class LevelLoader : MonoBehaviour
                 {
                     collectibles.Remove(tileObject);
                     OnCollectibleListChanged?.Invoke();
-                    Debug.Log($"[LevelLoader] DestroyTileAt - Removed from collectibles list");
+                    // Debug.Log($"[LevelLoader] DestroyTileAt - Removed from collectibles list");
                 }
                 break;
                 
@@ -1361,7 +1361,7 @@ public class LevelLoader : MonoBehaviour
                 if (exitObject == tileObject)
                 {
                     exitObject = null;
-                    Debug.Log($"[LevelLoader] DestroyTileAt - Cleared exit object reference");
+                    // Debug.Log($"[LevelLoader] DestroyTileAt - Cleared exit object reference");
                 }
                 break;
         }
@@ -1373,7 +1373,7 @@ public class LevelLoader : MonoBehaviour
         // Destroy the visual GameObject
         Destroy(tileObject);
         
-        Debug.Log($"[LevelLoader] DestroyTileAt - Successfully destroyed {tileType} at ({x}, {y})");
+        // Debug.Log($"[LevelLoader] DestroyTileAt - Successfully destroyed {tileType} at ({x}, {y})");
         return true;
     }
     

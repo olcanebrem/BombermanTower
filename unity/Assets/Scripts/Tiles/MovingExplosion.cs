@@ -40,7 +40,7 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         remainingSteps = steps;
         lastFacingDirection = moveDirection;
         
-        Debug.Log($"[MovingExplosion] Started at ({X},{Y}) moving {direction} for {remainingSteps} steps");
+        // Debug.Log($"[MovingExplosion] Started at ({X},{Y}) moving {direction} for {remainingSteps} steps");
         
         // Create explosion at starting position immediately
         // This covers the first tile adjacent to the bomb
@@ -72,7 +72,7 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         // Check bounds
         if (nextX < 0 || nextX >= ll.Width || nextY < 0 || nextY >= ll.Height)
         {
-            Debug.Log($"[MovingExplosion] Hit boundary at ({nextX},{nextY}), stopping");
+            // Debug.Log($"[MovingExplosion] Hit boundary at ({nextX},{nextY}), stopping");
             Die();
             return null;
         }
@@ -90,7 +90,7 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         // If we cannot create explosion at next position, stop here
         if (!canCreateExplosion)
         {
-            Debug.Log($"[MovingExplosion] Cannot create explosion at ({nextX},{nextY}), stopping at current position ({X},{Y})");
+            // Debug.Log($"[MovingExplosion] Cannot create explosion at ({nextX},{nextY}), stopping at current position ({X},{Y})");
             Die();
             return null;
         }
@@ -109,7 +109,7 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         // If we should not continue after this tile, stop here
         if (!shouldContinue)
         {
-            Debug.Log($"[MovingExplosion] Should not continue after tile at ({X},{Y}), stopping after creating explosion");
+            // Debug.Log($"[MovingExplosion] Should not continue after tile at ({X},{Y}), stopping after creating explosion");
             Die();
             return null;
         }
@@ -117,7 +117,7 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         // Check if finished
         if (remainingSteps <= 0)
         {
-            Debug.Log($"[MovingExplosion] Finished at ({X},{Y})");
+            // Debug.Log($"[MovingExplosion] Finished at ({X},{Y})");
             Die();
         }
         
@@ -143,7 +143,7 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         // Use ExplosionPassableHelper to check if explosion should be created here
         if (!ExplosionPassableHelper.ShouldCreateExplosionTile(currentTileType, currentObject))
         {
-            Debug.Log($"[MovingExplosion] Should not create explosion at ({x},{y}) for tile type {currentTileType}");
+            // Debug.Log($"[MovingExplosion] Should not create explosion at ({x},{y}) for tile type {currentTileType}");
             return;
         }
         
