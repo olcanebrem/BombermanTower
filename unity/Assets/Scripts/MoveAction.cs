@@ -22,7 +22,7 @@ public class MoveAction : IGameAction
 
     public void Execute()
     {
-        Debug.Log($"[MoveAction] Execute called - Direction: {direction}");
+        // Debug.Log($"[MoveAction] Execute called - Direction: {direction}");
         
         // Check if the mover is still valid before trying to use it
         if (mover == null)
@@ -39,24 +39,21 @@ public class MoveAction : IGameAction
             return;
         }
 
-        Debug.Log($"[MoveAction] Mover valid: {mover.GetType().Name} at ({mover.X}, {mover.Y})");
+        // Debug.Log($"[MoveAction] Mover valid: {mover.GetType().Name} at ({mover.X}, {mover.Y})");
         
         // Execute the movement if possible
         try
         {
-            Debug.Log($"[MoveAction] Calling MovementHelper.TryMove with direction: {direction}");
+            // Debug.Log($"[MoveAction] Calling MovementHelper.TryMove with direction: {direction}");
             bool moveSuccessful = MovementHelper.TryMove(mover, direction, out Vector3 targetPos);
-            Debug.Log($"[MoveAction] MovementHelper.TryMove returned: {moveSuccessful}, targetPos: {targetPos}");
+            // Debug.Log($"[MoveAction] MovementHelper.TryMove returned: {moveSuccessful}, targetPos: {targetPos}");
             
             if (moveSuccessful)
             {
-                Debug.Log($"[MoveAction] Starting animation to: {targetPos}");
+                // Debug.Log($"[MoveAction] Starting animation to: {targetPos}");
                 mover.StartMoveAnimation(targetPos);
             }
-            else
-            {
-                Debug.Log("[MoveAction] Movement failed - no animation started");
-            }
+            // else - Movement failed, no animation
         }
         catch (System.Exception e)
         {

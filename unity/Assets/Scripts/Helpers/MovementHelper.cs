@@ -12,7 +12,7 @@ public static class MovementHelper
         var ll = LevelLoader.instance;
         targetWorldPos = Vector3.zero;
         
-        Debug.Log($"[MovementHelper] TryMove - {mover.GetType().Name} at ({mover.X}, {mover.Y}) trying to move {direction}");
+        // Debug.Log($"[MovementHelper] TryMove - {mover.GetType().Name} at ({mover.X}, {mover.Y}) trying to move {direction}");
 
         // --- 1. GÜVENLİK KİLİDİ: "Ben Kimim ve Neredeyim?" ---
         if (mover == null || mover.gameObject == null) 
@@ -71,7 +71,7 @@ public static class MovementHelper
         int newX = mover.X + direction.x;
         int newY = mover.Y + direction.y;
         
-        Debug.Log($"[MovementHelper] Target position: ({newX}, {newY}), Map bounds: {ll.Width}x{ll.Height}");
+        // Debug.Log($"[MovementHelper] Target position: ({newX}, {newY}), Map bounds: {ll.Width}x{ll.Height}");
 
         if (newX < 0 || newX >= ll.Width || newY < 0 || newY >= ll.Height)
         {
@@ -83,7 +83,7 @@ public static class MovementHelper
         GameObject targetObject = ll.tileObjects[newX, newY];
         TileType targetType = TileSymbols.DataSymbolToType(ll.levelMap[newX, newY]);
         
-        Debug.Log($"[MovementHelper] Target tile: {targetType}, Object: {targetObject?.name ?? "NULL"}");
+        // Debug.Log($"[MovementHelper] Target tile: {targetType}, Object: {targetObject?.name ?? "NULL"}");
 
         // a) Hedefte bir BİRİM var mı?
         if (IsUnit(targetType))
@@ -120,7 +120,7 @@ public static class MovementHelper
         // b) Eğer hedef bir birim değilse, GEÇİLEBİLİR Mİ?
         else if (!IsTilePassable(mover, targetType))
         {
-            Debug.Log($"[MovementHelper] FAILED - Tile not passable: {targetType} for {mover.GetType().Name}");
+            // Debug.Log($"[MovementHelper] FAILED - Tile not passable: {targetType} for {mover.GetType().Name}");
             return false;
         }
         
@@ -136,7 +136,7 @@ public static class MovementHelper
         // Eğer bir şey toplandıysa, onu haritadan kaldır
         if (wasCollected && targetObject != null)
         {
-            Debug.Log($"[MovementHelper] Collectible was collected: {targetObject.name}, removing via LevelLoader");
+            // Debug.Log($"[MovementHelper] Collectible was collected: {targetObject.name}, removing via LevelLoader");
             
             // LevelLoader's RemoveCollectible metodunu kullan - bu hem visual hem logical cleanup yapar
             ll.RemoveCollectible(targetObject);
@@ -151,7 +151,7 @@ public static class MovementHelper
 
         ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(mover.TileType);
         ll.tileObjects[newX, newY] = mover.gameObject;
-        Debug.Log($"[MovementHelper] Movement - Added to tileObjects[{newX},{newY}]: {mover.gameObject.name}");
+        // Debug.Log($"[MovementHelper] Movement - Added to tileObjects[{newX},{newY}]: {mover.gameObject.name}");
         
         mover.OnMoved(newX, newY);
         

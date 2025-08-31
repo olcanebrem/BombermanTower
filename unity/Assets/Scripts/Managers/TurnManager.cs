@@ -223,7 +223,7 @@ public class TurnManager : MonoBehaviour
         string sample00 = (ll.Width > 0 && ll.Height > 0) ? ll.levelMap[0,0].ToString() : "N/A";
         string sample55 = (ll.Width > 5 && ll.Height > 5) ? ll.levelMap[5,5].ToString() : "N/A";
         string sample1010 = (ll.Width > 10 && ll.Height > 10) ? ll.levelMap[10,10].ToString() : "N/A";
-        Debug.Log($"[DEBUG] levelMap samples - [0,0]='{sample00}' [5,5]='{sample55}' [10,10]='{sample1010}'");
+        // Debug.Log($"[DEBUG] levelMap samples - [0,0]='{sample00}' [5,5]='{sample55}' [10,10]='{sample1010}'");
         
         // Build the entire map as a single string
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
@@ -310,22 +310,19 @@ public class TurnManager : MonoBehaviour
             .ToList();
 
         // First, collect all actions without executing them
-        Debug.Log($"[TurnManager] Processing {unitsToPlay.Count} turn-based objects this turn");
+        // Debug.Log($"[TurnManager] Processing {unitsToPlay.Count} turn-based objects this turn");
         foreach (var unit in unitsToPlay)
         {
             try
             {
-                Debug.Log($"[TurnManager] Getting action from {unit.GetType().Name} (execution order: {GetExecutionOrder(unit)})");
+                // Debug.Log($"[TurnManager] Getting action from {unit.GetType().Name} (execution order: {GetExecutionOrder(unit)})");
                 IGameAction action = unit.GetAction();
                 if (action != null)
                 {
-                    Debug.Log($"[TurnManager] {unit.GetType().Name} provided action: {action.GetType().Name}");
+                    // Debug.Log($"[TurnManager] {unit.GetType().Name} provided action: {action.GetType().Name}");
                     actionQueue.Enqueue(action);
                 }
-                else
-                {
-                    Debug.Log($"[TurnManager] {unit.GetType().Name} returned NULL action");
-                }
+                // else - Unit returned NULL action (normal, no movement this turn)
             }
             catch (System.Exception e)
             {
@@ -334,7 +331,7 @@ public class TurnManager : MonoBehaviour
         }
 
         // Then execute all actions without waiting between them
-        Debug.Log($"[TurnManager] Executing {actionQueue.Count} actions");
+        // Debug.Log($"[TurnManager] Executing {actionQueue.Count} actions");
         while (actionQueue.Count > 0)
         {
             IGameAction currentAction = actionQueue.Dequeue();
@@ -396,7 +393,7 @@ public class TurnManager : MonoBehaviour
         {
             turnBasedObjects.Remove(obj);
             string objName = (obj as MonoBehaviour)?.gameObject?.name ?? "Unknown";
-            Debug.Log($"[TurnManager] Unregistered {obj.GetType().Name} ({objName}) - Total: {turnBasedObjects.Count}");
+            // Debug.Log($"[TurnManager] Unregistered {obj.GetType().Name} ({objName}) - Total: {turnBasedObjects.Count}");
         }
     }
     

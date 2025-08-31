@@ -1083,10 +1083,10 @@ public class PlayerAgent : Agent, ITurnBased
             bool useML = isTraining || heuristicMode;
             
             // Debug only when state changes
-            if (Time.frameCount % 60 == 0) // Every 60 frames (~1 second)
-            {
-                Debug.Log($"[PlayerAgent] UseMLAgent status - IsTraining: {isTraining}, HeuristicMode: {heuristicMode}, Result: {useML}");
-            }
+            // if (Time.frameCount % 60 == 0) // Every 60 frames (~1 second)
+            // {
+            //     Debug.Log($"[PlayerAgent] UseMLAgent status - IsTraining: {isTraining}, HeuristicMode: {heuristicMode}, Result: {useML}");
+            // }
             
             return useML;
         }

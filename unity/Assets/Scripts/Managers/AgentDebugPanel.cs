@@ -27,6 +27,10 @@ public class AgentDebugPanel : MonoBehaviour
     private GUIStyle labelStyle;
     private GUIStyle headerStyle;
     
+    // Cache values to reduce debug log spam
+    private bool cachedIsMLActive;
+    private float lastMLActiveCheck;
+    
     void Start()
     {
         // Auto-find components if not assigned
@@ -94,7 +98,14 @@ public class AgentDebugPanel : MonoBehaviour
             yOffset += lineHeight + 5;
 
             bool isTraining = trainingController != null && trainingController.IsTraining;
-            bool isMLActive = turnManager != null && turnManager.IsMLAgentActive;
+            
+            // Cache ML Active status to reduce debug log spam
+            if (Time.time - lastMLActiveCheck > 0.5f) // Update every 0.5 seconds instead of every frame
+            {
+                cachedIsMLActive = turnManager != null && turnManager.IsMLAgentActive;
+                lastMLActiveCheck = Time.time;
+            }
+            bool isMLActive = cachedIsMLActive;
             
             GUI.Label(new Rect(panelRect.x + 15, panelRect.y + yOffset, panelSize.x - 30, lineHeight),
                       $"Training: {(isTraining ? "🟢 ACTIVE" : "🔴 INACTIVE")}", labelStyle);

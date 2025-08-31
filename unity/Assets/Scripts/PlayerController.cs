@@ -88,10 +88,10 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     void Update()
     {
         // Debug Update calls
-        if (Time.frameCount % 60 == 0) // Every second
-        {
-            Debug.Log($"[PlayerController] Update called - IsMLAgentActive: {(TurnManager.Instance?.IsMLAgentActive ?? false)}");
-        }
+        // if (Time.frameCount % 60 == 0) // Every second
+        // {
+        //     Debug.Log($"[PlayerController] Update called - IsMLAgentActive: {(TurnManager.Instance?.IsMLAgentActive ?? false)}");
+        // }
 
         // Skip input if ML-Agent is controlling - handled by TurnManager
         if (TurnManager.Instance != null && TurnManager.Instance.IsMLAgentActive) 
@@ -140,7 +140,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
             return null;
         }
         
-        Debug.Log($"[PlayerController] GetAction - moveIntent: {moveIntent}, bombIntent: {bombIntent}");
+        // Debug.Log($"[PlayerController] GetAction - moveIntent: {moveIntent}, bombIntent: {bombIntent}");
 
         // 3. Hareket niyetini kontrol et.
         if (moveIntent != Vector2Int.zero)
