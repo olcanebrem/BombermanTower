@@ -1085,13 +1085,17 @@ public class LevelLoader : MonoBehaviour
     public int GetCollectibleCount() => (currentLevelData?.coinPositions?.Count ?? 0) + (currentLevelData?.healthPositions?.Count ?? 0);
     public Vector2Int GetExitPosition() => currentLevelData?.exitPosition ?? Vector2Int.zero;
     
+    /// <summary>
+    /// DEPRECATED: Use RemoveTileAt() instead for centralized tile management
+    /// </summary>
+    [System.Obsolete("Use RemoveTileAt() for centralized tile management")]
     public void RemoveEnemy(GameObject enemy)
     {
+        // Debug.LogWarning("[LevelLoader] RemoveEnemy is deprecated. Use RemoveTileAt() instead.");
+        
         if (enemies.Contains(enemy))
         {
-            enemies.Remove(enemy);
-            
-            // Get enemy's logical grid position from its component
+            // Get position and delegate to centralized method
             var enemyTile = enemy.GetComponent<EnemyTile>();
             var enemyShooterTile = enemy.GetComponent<EnemyShooterTile>();
             
@@ -1099,41 +1103,18 @@ public class LevelLoader : MonoBehaviour
             if (enemyTile != null)
             {
                 gridPos = new Vector2Int(enemyTile.X, enemyTile.Y);
-                Debug.Log($"[LevelLoader] RemoveEnemy - EnemyTile at logical position ({enemyTile.X}, {enemyTile.Y})");
             }
             else if (enemyShooterTile != null)
             {
                 gridPos = new Vector2Int(enemyShooterTile.X, enemyShooterTile.Y);
-                Debug.Log($"[LevelLoader] RemoveEnemy - EnemyShooterTile at logical position ({enemyShooterTile.X}, {enemyShooterTile.Y})");
             }
             else
             {
-                // Fallback to world position conversion
                 gridPos = WorldToGrid(enemy.transform.position);
-                Debug.LogWarning($"[LevelLoader] RemoveEnemy - No enemy tile component found, using world position conversion: ({gridPos.x}, {gridPos.y})");
             }
             
-            // Remove from grid tracking
-            if (gridPos.x >= 0 && gridPos.x < Width && gridPos.y >= 0 && gridPos.y < Height)
-            {
-                if (tileObjects[gridPos.x, gridPos.y] == enemy)
-                {
-                    tileObjects[gridPos.x, gridPos.y] = null;
-                    levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-                    Debug.Log($"[LevelLoader] RemoveEnemy - Cleared grid position ({gridPos.x}, {gridPos.y}) from enemy removal");
-                }
-                else
-                {
-                    Debug.LogWarning($"[LevelLoader] RemoveEnemy - Grid position ({gridPos.x}, {gridPos.y}) doesn't match enemy object in tileObjects array");
-                }
-            }
-            else
-            {
-                Debug.LogError($"[LevelLoader] RemoveEnemy - Invalid grid position ({gridPos.x}, {gridPos.y}) - out of bounds");
-            }
-            
-            // Notify listeners that enemy list changed
-            OnEnemyListChanged?.Invoke();
+            // Use centralized removal method
+            RemoveTileAt(gridPos.x, gridPos.y);
         }
         else
         {
@@ -1141,27 +1122,39 @@ public class LevelLoader : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// DEPRECATED: Use RemoveTileAt() instead for centralized tile management
+    /// </summary>
+    [System.Obsolete("Use RemoveTileAt() for centralized tile management")]
     public void RemoveCollectible(GameObject collectible)
     {
-        if (collectibles.Contains(collectible))
+        // Debug.LogWarning("[LevelLoader] RemoveCollectible is deprecated. Use RemoveTileAt() instead.");
+        
+        if (collectible == null)
         {
-            collectibles.Remove(collectible);
-            // Remove from grid tracking too
-            Vector2Int gridPos = WorldToGrid(collectible.transform.position);
-            if (tileObjects[gridPos.x, gridPos.y] == collectible)
-            {
-                tileObjects[gridPos.x, gridPos.y] = null;
-                levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-            }
-            
-            // Notify listeners that collectible list changed
-            OnCollectibleListChanged?.Invoke();
+            Debug.LogWarning("[LevelLoader] RemoveCollectible - collectible is null!");
+            return;
         }
+        
+        // Get position and delegate to centralized method
+        Vector2Int gridPos = WorldToGrid(collectible.transform.position);
+        RemoveTileAt(gridPos.x, gridPos.y);
+    }
+    
+    /// <summary>
+    /// LEGACY METHOD: Use DestroyTileAt() instead
+    /// </summary>
+    [System.Obsolete("Use DestroyTileAt() instead")]
+    public void RemoveTileAt(int x, int y)
+    {
+        // Debug.LogWarning("[LevelLoader] RemoveTileAt is deprecated. Use DestroyTileAt() instead.");
+        DestroyTileAt(x, y);
     }
     
     /// <summary>
     /// Clear tile at specified grid position - removes from both levelMap and tileObjects
     /// Used for clean tile removal operations (e.g., player death, object destruction)
+    /// NOTE: This only clears logical data, does not destroy GameObjects
     /// </summary>
     public void ClearTile(int x, int y)
     {
@@ -1179,6 +1172,66 @@ public class LevelLoader : MonoBehaviour
         {
             Debug.LogWarning($"[LevelLoader] ClearTile called with invalid coordinates ({x}, {y})");
         }
+    }
+    
+    /// <summary>
+    /// Clean up null references in containers - removes destroyed GameObjects from hierarchy
+    /// </summary>
+    public void CleanupNullReferences()
+    {
+        Debug.Log("[LevelLoader] CleanupNullReferences - Starting cleanup");
+        
+        int cleanedObjects = 0;
+        
+        // Clean collectibles container
+        if (collectiblesContainer != null)
+        {
+            for (int i = collectiblesContainer.childCount - 1; i >= 0; i--)
+            {
+                Transform child = collectiblesContainer.GetChild(i);
+                if (child == null || child.gameObject == null)
+                {
+                    Debug.Log($"[LevelLoader] Found null child at index {i} in collectibles container");
+                    cleanedObjects++;
+                }
+            }
+        }
+        
+        // Clean enemies container
+        if (enemiesContainer != null)
+        {
+            for (int i = enemiesContainer.childCount - 1; i >= 0; i--)
+            {
+                Transform child = enemiesContainer.GetChild(i);
+                if (child == null || child.gameObject == null)
+                {
+                    Debug.Log($"[LevelLoader] Found null child at index {i} in enemies container");
+                    cleanedObjects++;
+                }
+            }
+        }
+        
+        // Clean other containers as needed
+        Transform[] containers = { effectsContainer, projectilesContainer };
+        string[] containerNames = { "effects", "projectiles" };
+        
+        for (int c = 0; c < containers.Length; c++)
+        {
+            if (containers[c] != null)
+            {
+                for (int i = containers[c].childCount - 1; i >= 0; i--)
+                {
+                    Transform child = containers[c].GetChild(i);
+                    if (child == null || child.gameObject == null)
+                    {
+                        Debug.Log($"[LevelLoader] Found null child at index {i} in {containerNames[c]} container");
+                        cleanedObjects++;
+                    }
+                }
+            }
+        }
+        
+        Debug.Log($"[LevelLoader] CleanupNullReferences completed - cleaned {cleanedObjects} null references");
     }
     
     public Vector2Int WorldToGrid(Vector3 worldPosition)
@@ -1206,13 +1259,21 @@ public class LevelLoader : MonoBehaviour
     // LevelLoader now focuses solely on level generation and loading
     
     /// <summary>
-    /// Create tile at specific position (used by LevelImporter)
+    /// CENTRALIZED TILE CREATION - Create any tile type at specified position
+    /// This is the main method for creating tiles in the game
     /// </summary>
     public bool CreateTileAt(int x, int y, TileType type)
     {
         if (x < 0 || x >= Width || y < 0 || y >= Height)
         {
             Debug.LogWarning($"[LevelLoader] CreateTileAt position out of bounds: ({x}, {y})");
+            return false;
+        }
+        
+        // Check if position is occupied
+        if (tileObjects[x, y] != null)
+        {
+            Debug.LogWarning($"[LevelLoader] CreateTileAt position ({x}, {y}) is already occupied by: {tileObjects[x, y].name}");
             return false;
         }
         
@@ -1224,26 +1285,96 @@ public class LevelLoader : MonoBehaviour
                 Transform parentContainer = GetContainerForTileType(type);
                 TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
                 
-                // Setup tile
+                Debug.Log($"[LevelLoader] CreateTileAt - Created {type} at ({x}, {y}): {newTile.name}");
+                
+                // Setup tile visual
                 if (spriteDatabase != null)
                 {
                     newTile.SetVisual(spriteDatabase.GetSprite(type));
                 }
+                
+                // Initialize tile with position
                 (newTile as IInitializable)?.Init(x, y);
                 
-                // Update arrays
+                // Update tracking arrays
                 tileObjects[x, y] = newTile.gameObject;
                 levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
                 
-                // ML-Agent tracking
+                // ML-Agent and special tracking
                 UpdateMLAgentTracking(type, newTile.gameObject);
                 
+                Debug.Log($"[LevelLoader] CreateTileAt - Successfully created and registered {type} at ({x}, {y})");
                 return true;
             }
         }
         
         Debug.LogWarning($"[LevelLoader] No prefab found for {type} at ({x}, {y})");
         return false;
+    }
+    
+    /// <summary>
+    /// CENTRALIZED TILE DESTRUCTION - Remove any tile type at specified position
+    /// This is the main method for destroying tiles in the game
+    /// </summary>
+    public bool DestroyTileAt(int x, int y)
+    {
+        if (x < 0 || x >= Width || y < 0 || y >= Height)
+        {
+            Debug.LogWarning($"[LevelLoader] DestroyTileAt position out of bounds: ({x}, {y})");
+            return false;
+        }
+        
+        GameObject tileObject = tileObjects[x, y];
+        if (tileObject == null)
+        {
+            Debug.Log($"[LevelLoader] DestroyTileAt - No tile to destroy at ({x}, {y})");
+            return true; // Not an error, position is already empty
+        }
+        
+        TileType tileType = TileSymbols.DataSymbolToType(levelMap[x, y]);
+        Debug.Log($"[LevelLoader] DestroyTileAt - Destroying {tileType} at ({x}, {y}): {tileObject.name}");
+        
+        // Remove from appropriate tracking lists
+        switch (tileType)
+        {
+            case TileType.Enemy:
+            case TileType.EnemyShooter:
+                if (enemies.Contains(tileObject))
+                {
+                    enemies.Remove(tileObject);
+                    OnEnemyListChanged?.Invoke();
+                    Debug.Log($"[LevelLoader] DestroyTileAt - Removed from enemies list");
+                }
+                break;
+                
+            case TileType.Coin:
+            case TileType.Health:
+                if (collectibles.Contains(tileObject))
+                {
+                    collectibles.Remove(tileObject);
+                    OnCollectibleListChanged?.Invoke();
+                    Debug.Log($"[LevelLoader] DestroyTileAt - Removed from collectibles list");
+                }
+                break;
+                
+            case TileType.Gate:
+                if (exitObject == tileObject)
+                {
+                    exitObject = null;
+                    Debug.Log($"[LevelLoader] DestroyTileAt - Cleared exit object reference");
+                }
+                break;
+        }
+        
+        // Clear logical data first
+        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        tileObjects[x, y] = null;
+        
+        // Destroy the visual GameObject
+        Destroy(tileObject);
+        
+        Debug.Log($"[LevelLoader] DestroyTileAt - Successfully destroyed {tileType} at ({x}, {y})");
+        return true;
     }
     
     /// <summary>

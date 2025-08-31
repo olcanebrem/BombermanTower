@@ -1,10 +1,14 @@
 using UnityEngine;
 
+/// <summary>
+/// CoinTile - Collectible tile that gets destroyed by LevelLoader when collected
+/// NOTE: No Die() method needed - LevelLoader.DestroyTileAt() handles destruction
+/// </summary>
 public class CoinTile : TileBase, ICollectible, IInitializable
 {
     public override TileType TileType => TileType.Coin;
     
-    public void Init(int x, int y) { } // Artık X,Y tutmasına gerek yok.
+    public void Init(int x, int y) { } // Position tracking handled by LevelLoader
     
     public bool OnCollect(GameObject collector)
     {

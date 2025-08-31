@@ -248,7 +248,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
         Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
         
-        Debug.Log($"[BombTile] Instantiating explosion prefab: {explosionPrefab.name} at position: {pos} under parent: {effectsParent?.name}");
+        // Debug.Log($"[BombTile] Instantiating explosion prefab: {explosionPrefab.name} at position: {pos} under parent: {effectsParent?.name}");
         
         GameObject explosionGO = Instantiate(explosionPrefab, pos, Quaternion.identity, effectsParent);
         ExplosionTile explosion = explosionGO.GetComponent<ExplosionTile>();
@@ -271,11 +271,11 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         
         if (explosion != null)
         {
-            Debug.Log($"[BombTile] ExplosionTile component ready, calling Init({x},{y})");
+            // Debug.Log($"[BombTile] ExplosionTile component ready, calling Init({x},{y})");
             explosion.Init(x, y);
         }
         
-        Debug.Log($"[BombTile] Explosion creation completed at ({x},{y})");
+        // Debug.Log($"[BombTile] Explosion creation completed at ({x},{y})");
     }
     
     private void Die()

@@ -136,11 +136,10 @@ public static class MovementHelper
         // Eğer bir şey toplandıysa, onu haritadan kaldır
         if (wasCollected && targetObject != null)
         {
-            // Hedef nesneyi yok et
-            Object.Destroy(targetObject);
-            // Harita güncellemelerini yap
-            ll.levelMap[newX, newY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-            ll.tileObjects[newX, newY] = null;
+            Debug.Log($"[MovementHelper] Collectible was collected: {targetObject.name}, removing via LevelLoader");
+            
+            // LevelLoader's RemoveCollectible metodunu kullan - bu hem visual hem logical cleanup yapar
+            ll.RemoveCollectible(targetObject);
         }
         
         // Eğer hareket eden nesne hala haritadaysa, eski konumunu temizle

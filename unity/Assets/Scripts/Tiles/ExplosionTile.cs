@@ -29,24 +29,63 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
         timer = 0f;
         turnsActive = 0;
 
-        // Deal damage to whatever was at this position BEFORE registering ourselves
+        // Deal damage and handle tile destruction BEFORE registering ourselves
         var ll = LevelLoader.instance;
         if (ll != null && x >= 0 && x < ll.Width && y >= 0 && y < ll.Height)
         {
-            // Check for existing objects at this position and damage them
+            // Get current tile information
+            TileType currentTileType = TileSymbols.DataSymbolToType(ll.levelMap[x, y]);
             GameObject existingTarget = ll.tileObjects[x, y];
+            
+            // Debug.Log($"[ExplosionTile] Analyzing position ({x},{y}) - current tile: {currentTileType}, object: {existingTarget?.name ?? "NULL"}");
+            
+            // Check if explosion should be created at this position
+            if (!ExplosionPassableHelper.ShouldCreateExplosionTile(currentTileType, existingTarget))
+            {
+                Debug.Log($"[ExplosionTile] Should not create explosion at ({x},{y}) for tile type {currentTileType}");
+                // Destroy this explosion tile as it shouldn't exist
+                Destroy(gameObject);
+                return;
+            }
+            
+            bool targetWasDestroyed = false;
+            
+            // Handle existing objects at this position
             if (existingTarget != null && existingTarget != gameObject)
             {
-                Debug.Log($"[ExplosionTile] Found existing target at ({x},{y}): {existingTarget.name}");
+                // Debug.Log($"[ExplosionTile] Found existing target at ({x},{y}): {existingTarget.name} (type: {currentTileType})");
                 
-                if (existingTarget.TryGetComponent(out IDamageable dmg))
+                // Check if we can damage this target
+                if (ExplosionPassableHelper.IsExplosionDamageable(currentTileType))
                 {
-                    Debug.Log($"[ExplosionTile] Damaging existing target {existingTarget.name} at ({x},{y})");
-                    dmg.TakeDamage(1);
+                    if (existingTarget.TryGetComponent(out IDamageable dmg))
+                    {
+                        // Debug.Log($"[ExplosionTile] Damaging existing target {existingTarget.name} at ({x},{y})");
+                        
+                        // Check if target will be destroyed
+                        bool willBeDestroyed = ExplosionPassableHelper.WillTileBeDestroyed(currentTileType, existingTarget);
+                        
+                        // Deal damage
+                        dmg.TakeDamage(1);
+                        
+                        // If target was destroyed, mark the position
+                        if (willBeDestroyed)
+                        {
+                            Debug.Log($"[ExplosionTile] Target {existingTarget.name} at ({x},{y}) was destroyed by explosion");
+                            targetWasDestroyed = true;
+                            
+                            // The target object should handle its own cleanup (RemoveEnemy, etc.)
+                            // We just need to prepare the space for explosion
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log($"[ExplosionTile] Target {existingTarget.name} at ({x},{y}) should be damageable but has no IDamageable component");
+                    }
                 }
                 else
                 {
-                    Debug.Log($"[ExplosionTile] Existing target {existingTarget.name} at ({x},{y}) does not have IDamageable component");
+                    Debug.Log($"[ExplosionTile] Target {existingTarget.name} at ({x},{y}) is not damageable by explosions");
                 }
             }
             else
@@ -54,11 +93,32 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
                 Debug.Log($"[ExplosionTile] No existing target at ({x},{y}) to damage");
             }
             
-            // Now register this explosion in LevelLoader's tracking systems
-            ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Explosion);
-            ll.tileObjects[x, y] = gameObject;
+            // Register this explosion in LevelLoader's tracking systems
+            // ONLY update levelMap if no undamaged object remains at this position
+            bool shouldRegisterInMap = true;
             
-            Debug.Log($"[ExplosionTile] Registered explosion in LevelLoader maps at ({x},{y})");
+            if (existingTarget != null && existingTarget != gameObject)
+            {
+                // If there's an existing object that wasn't destroyed, don't overwrite levelMap
+                if (!ExplosionPassableHelper.IsExplosionDamageable(currentTileType) || !targetWasDestroyed)
+                {
+                    shouldRegisterInMap = false;
+                    Debug.Log($"[ExplosionTile] Not registering explosion in levelMap - undamaged {currentTileType} remains at ({x},{y})");
+                }
+            }
+            
+            if (shouldRegisterInMap)
+            {
+                ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Explosion);
+                ll.tileObjects[x, y] = gameObject;
+                Debug.Log($"[ExplosionTile] Registered explosion in LevelLoader maps at ({x},{y})");
+            }
+            else
+            {
+                // Explosion exists visually but doesn't override logic map
+                // Don't register in tileObjects array to avoid conflicts
+                Debug.Log($"[ExplosionTile] Explosion created visually but not registered in logic maps at ({x},{y})");
+            }
         }
 
         Debug.Log($"[ExplosionTile] Spawned at ({X},{Y}) - will be active for {explosionTurns} turns");
@@ -78,7 +138,7 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
         
         // No need to deal damage each turn - damage is dealt once on creation
         // Explosion just exists visually for multiple turns
-        Debug.Log($"[ExplosionTile] Explosion at ({X},{Y}) active turn {turnsActive}/{explosionTurns}");
+        // Debug.Log($"[ExplosionTile] Explosion at ({X},{Y}) active turn {turnsActive}/{explosionTurns}");
         
         // Check if should die after this turn
         if (turnsActive >= explosionTurns)

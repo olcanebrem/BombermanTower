@@ -79,16 +79,19 @@ public class EnemyTile : TileBase, IMovable, ITurnBased, IInitializable, IDamage
 
     private void Die()
     {
-        UnityEngine.Debug.LogError($"ENEMYTILE ÖLÜYOR! Konum: ({X},{Y}). Tetikleyici Zinciri:\n" + 
-                       $"{new StackTrace().ToString()}", this.gameObject);
+        UnityEngine.Debug.LogError($"ENEMYTILE ÖLÜYOR! Konum: ({X},{Y}). LevelLoader'a cleanup delegating...", this.gameObject);
         
         var ll = LevelLoader.instance;
-        
-        // Use LevelLoader's RemoveEnemy for proper cleanup
-        ll.RemoveEnemy(gameObject);
-        
-        // Destroy the GameObject
-        Destroy(gameObject);
+        if (ll != null)
+        {
+            // Use centralized tile destruction - LevelLoader handles everything
+            ll.DestroyTileAt(X, Y);
+        }
+        else
+        {
+            Debug.LogError("[EnemyTile] LevelLoader instance not found! Manual cleanup fallback.");
+            Destroy(gameObject);
+        }
     }
 
     private IEnumerator SmoothMove(Vector3 targetPosition)

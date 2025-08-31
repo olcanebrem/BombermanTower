@@ -122,13 +122,19 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
 
     private void Die()
     {
+        Debug.Log($"[EnemyShooterTile] EnemyShooter at ({X},{Y}) dying. LevelLoader'a cleanup delegating...");
+        
         var ll = LevelLoader.instance;
-        
-        // Use LevelLoader's RemoveEnemy for proper cleanup
-        ll.RemoveEnemy(gameObject);
-        
-        // Destroy the GameObject
-        Destroy(gameObject);
+        if (ll != null)
+        {
+            // Use centralized tile destruction - LevelLoader handles everything
+            ll.DestroyTileAt(X, Y);
+        }
+        else
+        {
+            Debug.LogError("[EnemyShooterTile] LevelLoader instance not found! Manual cleanup fallback.");
+            Destroy(gameObject);
+        }
     }
     #endregion
 
