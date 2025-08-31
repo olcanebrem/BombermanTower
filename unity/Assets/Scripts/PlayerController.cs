@@ -21,6 +21,7 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     public int MaxHealth { get; set; }
     public int CurrentHealth { get; set; }
     public event Action OnHealthChanged;
+    public static event Action<PlayerController> OnPlayerDeath;
     
     // Player death handled directly via PlayerAgent -> TurnManager
     private bool isAnimating = false;
@@ -307,16 +308,17 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
     private void Die()
     {
         Debug.LogError("OYUNCU ÖLDÜ!");
-        
-        // Death handling is done directly via PlayerAgent -> TurnManager
-        // No events needed
-        
-        // Harita objesini temizle
-        LevelLoader.instance.ClearTile(X, Y);
-        
-        // Player deaktive et
+
+          // Haritadan tek seferde sil
+        if (LevelLoader.instance != null)
+            LevelLoader.instance.ClearTile(X, Y);
+
+        // Player disable
         gameObject.SetActive(false);
         Debug.Log("[PlayerController] Player disabled");
+
+        // Event tetikle
+        OnPlayerDeath?.Invoke(this);
     }
     
     

@@ -1090,16 +1090,54 @@ public class LevelLoader : MonoBehaviour
         if (enemies.Contains(enemy))
         {
             enemies.Remove(enemy);
-            // Remove from grid tracking too
-            Vector2Int gridPos = WorldToGrid(enemy.transform.position);
-            if (tileObjects[gridPos.x, gridPos.y] == enemy)
+            
+            // Get enemy's logical grid position from its component
+            var enemyTile = enemy.GetComponent<EnemyTile>();
+            var enemyShooterTile = enemy.GetComponent<EnemyShooterTile>();
+            
+            Vector2Int gridPos;
+            if (enemyTile != null)
             {
-                tileObjects[gridPos.x, gridPos.y] = null;
-                levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+                gridPos = new Vector2Int(enemyTile.X, enemyTile.Y);
+                Debug.Log($"[LevelLoader] RemoveEnemy - EnemyTile at logical position ({enemyTile.X}, {enemyTile.Y})");
+            }
+            else if (enemyShooterTile != null)
+            {
+                gridPos = new Vector2Int(enemyShooterTile.X, enemyShooterTile.Y);
+                Debug.Log($"[LevelLoader] RemoveEnemy - EnemyShooterTile at logical position ({enemyShooterTile.X}, {enemyShooterTile.Y})");
+            }
+            else
+            {
+                // Fallback to world position conversion
+                gridPos = WorldToGrid(enemy.transform.position);
+                Debug.LogWarning($"[LevelLoader] RemoveEnemy - No enemy tile component found, using world position conversion: ({gridPos.x}, {gridPos.y})");
+            }
+            
+            // Remove from grid tracking
+            if (gridPos.x >= 0 && gridPos.x < Width && gridPos.y >= 0 && gridPos.y < Height)
+            {
+                if (tileObjects[gridPos.x, gridPos.y] == enemy)
+                {
+                    tileObjects[gridPos.x, gridPos.y] = null;
+                    levelMap[gridPos.x, gridPos.y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+                    Debug.Log($"[LevelLoader] RemoveEnemy - Cleared grid position ({gridPos.x}, {gridPos.y}) from enemy removal");
+                }
+                else
+                {
+                    Debug.LogWarning($"[LevelLoader] RemoveEnemy - Grid position ({gridPos.x}, {gridPos.y}) doesn't match enemy object in tileObjects array");
+                }
+            }
+            else
+            {
+                Debug.LogError($"[LevelLoader] RemoveEnemy - Invalid grid position ({gridPos.x}, {gridPos.y}) - out of bounds");
             }
             
             // Notify listeners that enemy list changed
             OnEnemyListChanged?.Invoke();
+        }
+        else
+        {
+            Debug.LogWarning($"[LevelLoader] RemoveEnemy - Enemy {enemy.name} not found in enemies list");
         }
     }
     

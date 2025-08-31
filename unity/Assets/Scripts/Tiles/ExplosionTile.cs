@@ -29,8 +29,37 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
         timer = 0f;
         turnsActive = 0;
 
-        // First damage immediately
-        DealDamageAtPosition();
+        // Deal damage to whatever was at this position BEFORE registering ourselves
+        var ll = LevelLoader.instance;
+        if (ll != null && x >= 0 && x < ll.Width && y >= 0 && y < ll.Height)
+        {
+            // Check for existing objects at this position and damage them
+            GameObject existingTarget = ll.tileObjects[x, y];
+            if (existingTarget != null && existingTarget != gameObject)
+            {
+                Debug.Log($"[ExplosionTile] Found existing target at ({x},{y}): {existingTarget.name}");
+                
+                if (existingTarget.TryGetComponent(out IDamageable dmg))
+                {
+                    Debug.Log($"[ExplosionTile] Damaging existing target {existingTarget.name} at ({x},{y})");
+                    dmg.TakeDamage(1);
+                }
+                else
+                {
+                    Debug.Log($"[ExplosionTile] Existing target {existingTarget.name} at ({x},{y}) does not have IDamageable component");
+                }
+            }
+            else
+            {
+                Debug.Log($"[ExplosionTile] No existing target at ({x},{y}) to damage");
+            }
+            
+            // Now register this explosion in LevelLoader's tracking systems
+            ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Explosion);
+            ll.tileObjects[x, y] = gameObject;
+            
+            Debug.Log($"[ExplosionTile] Registered explosion in LevelLoader maps at ({x},{y})");
+        }
 
         Debug.Log($"[ExplosionTile] Spawned at ({X},{Y}) - will be active for {explosionTurns} turns");
     }
@@ -47,8 +76,9 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
         HasActedThisTurn = true;
         turnsActive++;
         
-        // Deal damage each turn
-        DealDamageAtPosition();
+        // No need to deal damage each turn - damage is dealt once on creation
+        // Explosion just exists visually for multiple turns
+        Debug.Log($"[ExplosionTile] Explosion at ({X},{Y}) active turn {turnsActive}/{explosionTurns}");
         
         // Check if should die after this turn
         if (turnsActive >= explosionTurns)

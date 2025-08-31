@@ -81,6 +81,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         Die();
         
         // Then create moving explosions in all directions
+        // Moving explosions will create explosions as they move, but not at their starting positions
         CreateMovingExplosionInDirection(Vector2Int.up);
         CreateMovingExplosionInDirection(Vector2Int.down);
         CreateMovingExplosionInDirection(Vector2Int.left);
@@ -194,7 +195,55 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
             return;
         }
         
-        Debug.Log($"[BombTile] Creating explosion at ({x},{y})");
+        // Validate position bounds
+        if (x < 0 || x >= ll.Width || y < 0 || y >= ll.Height)
+        {
+            Debug.Log($"[BombTile] Position ({x},{y}) out of bounds, skipping explosion creation");
+            return;
+        }
+        
+        // Check what's currently at this position
+        TileType currentTileType = TileSymbols.DataSymbolToType(ll.levelMap[x, y]);
+        GameObject currentObject = ll.tileObjects[x, y];
+        
+        // For bomb center explosion, always create (bomb position should be valid)
+        // For other positions, check passability and IDamageable
+        if (x != X || y != Y) // Not the bomb center
+        {
+            // Check if tile is passable
+            bool isPassable = true;
+            try 
+            {
+                isPassable = MovementHelper.IsTilePassable(null, currentTileType);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[BombTile] IsTilePassable check failed at ({x},{y}): {e.Message}");
+                isPassable = false;
+            }
+            
+            // If tile is not passable and has no IDamageable component, skip explosion
+            if (!isPassable)
+            {
+                bool hasDamageableComponent = false;
+                if (currentObject != null)
+                {
+                    hasDamageableComponent = currentObject.TryGetComponent<IDamageable>(out _);
+                }
+                
+                if (!hasDamageableComponent)
+                {
+                    Debug.Log($"[BombTile] Tile at ({x},{y}) is not passable and has no IDamageable component (type: {currentTileType}), skipping explosion creation");
+                    return;
+                }
+                else
+                {
+                    Debug.Log($"[BombTile] Tile at ({x},{y}) is not passable but has IDamageable component (type: {currentTileType}), creating explosion to damage it");
+                }
+            }
+        }
+        
+        Debug.Log($"[BombTile] Creating explosion at ({x},{y}) - current tile type: {currentTileType}");
         
         Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
         Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;

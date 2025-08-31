@@ -379,7 +379,7 @@ MonoBehaviour:
   visEncodeType: simple
   maxSteps: 100000
   keepCheckpoints: 5
-  isTraining: 0
+  isTraining: 1
   heuristicMode: 0
   autoParseResults: 1
   statusCheckInterval: 10

@@ -45,7 +45,23 @@ public class PlayerAgent : Agent, ITurnBased
     private int lastHealth;
     private int lastEnemyCount;
     private float episodeStartTime;
-    
+
+    private void OnEnable()
+    {
+        PlayerController.OnPlayerDeath += HandlePlayerDeath;
+    }
+
+    private void OnDisable()
+    {
+        PlayerController.OnPlayerDeath -= HandlePlayerDeath;
+    }
+    private void HandlePlayerDeath(PlayerController controller)
+    {
+        Debug.Log("[PlayerAgent] Player death event received");
+
+        EndEpisode();
+        StartCoroutine(RestartEpisodeDelayed());
+    }
     // ITurnBased implementation
     public bool HasActedThisTurn { get; set; }
     private IGameAction pendingAction;

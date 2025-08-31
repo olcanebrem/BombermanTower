@@ -32,6 +32,15 @@ public class TurnManager : MonoBehaviour
     private float prevTurnStartTime = 0f; // Her tur için
     private List<float> turnDurations = new List<float>(); // Her turun süresini tutacak liste
 
+    private void OnEnable()
+    {
+        PlayerController.OnPlayerDeath += HandlePlayerDeathEvent;
+    }
+
+    private void OnDisable()
+    {
+        PlayerController.OnPlayerDeath -= HandlePlayerDeathEvent;
+    }
 
     void Awake()
     {
