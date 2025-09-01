@@ -970,7 +970,7 @@ public class LevelLoader : MonoBehaviour
                     // Legacy ML-Agent tracking
                     UpdateMLAgentTracking(type, newTile.gameObject);
                     
-                    Debug.Log($"[LevelLoader] Created {type} at ({x},{y}) in layered system");
+                    //Debug.Log($"[LevelLoader] Created {type} at ({x},{y}) in layered system");
                 }
                 else
                 {
@@ -987,6 +987,7 @@ public class LevelLoader : MonoBehaviour
     {
         switch (type)
         {
+            case TileType.Player:
             case TileType.Enemy:
             case TileType.EnemyShooter:
                 if (!layeredGrid.PlaceActor(tileObj, x, y))

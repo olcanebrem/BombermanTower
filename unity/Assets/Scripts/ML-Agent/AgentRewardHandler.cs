@@ -1,4 +1,5 @@
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 public class AgentRewardHandler
 {
@@ -13,7 +14,7 @@ public class AgentRewardHandler
     public AgentRewardHandler(PlayerController player, RewardSystem rewards, EnvManager env, bool debug)
     {
         playerController = player;
-        rewardSystem = rewards; // Should be passed from PlayerAgent, which handles finding it
+        rewardSystem = rewards;
         envManager = env;
         debugActions = debug;
 
@@ -27,45 +28,35 @@ public class AgentRewardHandler
         }
     }
 
-    /// <summary>
-    /// Ensures RewardSystem is always available, finds it if lost
-    /// </summary>
-    private RewardSystem GetRewardSystem()
-    {
-        if (rewardSystem == null)
-        {
-            rewardSystem = Object.FindObjectOfType<RewardSystem>();
-            if (rewardSystem != null) Debug.Log("[AgentRewardHandler] RewardSystem re-found and reconnected!");
-            else Debug.LogError("[AgentRewardHandler] RewardSystem NOT FOUND in scene!");
-        }
-        return rewardSystem;
-    }
-
     public void ApplyStepRewards()
     {
-        if (GetRewardSystem() == null) return;
+        if (rewardSystem == null) return;
 
         rewardSystem.UpdateRewards();
 
         Vector2Int currentPos = new Vector2Int(playerController.X, playerController.Y);
 
-        // Movement reward (exploration)
         if (currentPos != lastPlayerPosition)
         {
             rewardSystem.ApplyExplorationReward();
             lastPlayerPosition = currentPos;
         }
 
-        // Enemy count change detection
         if (envManager != null)
         {
             int currentEnemyCount = envManager.GetRemainingEnemyCount();
             if (currentEnemyCount < lastEnemyCount)
             {
                 int enemiesKilled = lastEnemyCount - currentEnemyCount;
-                for (int i = 0; i < enemiesKilled; i++) rewardSystem.ApplyEnemyKillReward();
+                for (int i = 0; i < enemiesKilled; i++)
+                    rewardSystem.ApplyEnemyKillReward();
                 lastEnemyCount = currentEnemyCount;
             }
         }
+    }
+
+    public void SetRewardSystem(RewardSystem newRewardSystem)
+    {
+        this.rewardSystem = newRewardSystem;
     }
 }

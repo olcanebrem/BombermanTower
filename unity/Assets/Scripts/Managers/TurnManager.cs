@@ -542,7 +542,7 @@ public class TurnManager : MonoBehaviour
             LoadNextLevelInTrainingSequence();
             
             // End current episode - new level will start fresh episode
-            mlAgent.ForceEndEpisode();
+            mlAgent.EndEpisode();
         }
         else
         {

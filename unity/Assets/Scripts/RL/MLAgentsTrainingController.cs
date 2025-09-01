@@ -151,6 +151,14 @@ public class MLAgentsTrainingController : MonoBehaviour
             currentRunId = runId;
         }
         
+        // Initialize epsilon-greedy controller if needed
+        if (EpsilonGreedyController.Instance == null)
+        {
+            GameObject epsilonGO = new GameObject("EpsilonGreedyController");
+            epsilonGO.AddComponent<EpsilonGreedyController>();
+            Debug.Log("[MLAgentsTrainingController] Created EpsilonGreedyController instance");
+        }
+        
         // Subscribe to level sequencer events for multi-level training
         if (LevelSequencer.Instance != null)
         {

@@ -1,16 +1,22 @@
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 public class AgentActionHandler
 {
-    private PlayerController playerController;
-    private bool debugActions;
+    private readonly PlayerController playerController;
+    private readonly bool debugActions;
 
-    private readonly Vector2Int[] moveDirections = new Vector2Int[]
+    private readonly Vector2Int[] moveDirections = 
     {
-        Vector2Int.zero, new Vector2Int(0, -1), new Vector2Int(1, 0),
-        new Vector2Int(0, 1), new Vector2Int(-1, 0),
-        new Vector2Int(1, -1), new Vector2Int(1, 1),
-        new Vector2Int(-1, 1), new Vector2Int(-1, -1)
+        Vector2Int.zero,        // 0: No movement
+        new Vector2Int(0, -1),  // 1: Up
+        new Vector2Int(1, 0),   // 2: Right
+        new Vector2Int(0, 1),   // 3: Down
+        new Vector2Int(-1, 0),  // 4: Left
+        new Vector2Int(1, -1),  // 5: Up-Right
+        new Vector2Int(1, 1),   // 6: Down-Right
+        new Vector2Int(-1, 1),  // 7: Down-Left
+        new Vector2Int(-1, -1)  // 8: Up-Left
     };
 
     public AgentActionHandler(PlayerController player, bool debug)
@@ -21,9 +27,8 @@ public class AgentActionHandler
 
     public IGameAction CreateGameAction(int moveActionIndex, int bombActionIndex)
     {
-        Debug.Log($"[AgentActionHandler] CreateGameAction - Move: {moveActionIndex}, Bomb: {bombActionIndex}");
-
         Vector2Int moveDirection = ConvertMoveAction(moveActionIndex);
+
         if (moveDirection != Vector2Int.zero)
         {
             if (debugActions) Debug.Log($"[AgentActionHandler] Creating MoveAction with direction: {moveDirection}");
@@ -32,12 +37,11 @@ public class AgentActionHandler
 
         if (bombActionIndex >= 1)
         {
-            Vector2Int bombPlacement = FindBombPlacement();
-            if (debugActions) Debug.Log($"[AgentActionHandler] Creating PlaceBombAction at direction: {bombPlacement}");
-            return new PlaceBombAction(playerController, bombPlacement);
+            if (debugActions) Debug.Log($"[AgentActionHandler] Creating PlaceBombAction");
+            return new PlaceBombAction(playerController, FindBombPlacement());
         }
 
-        if (debugActions) Debug.Log("[AgentActionHandler] No movement or bomb action - creating MoveAction with zero vector");
+        if (debugActions) Debug.Log("[AgentActionHandler] No specific action, creating MoveAction with zero vector (Wait Action).");
         return new MoveAction(playerController, Vector2Int.zero);
     }
 
@@ -52,16 +56,14 @@ public class AgentActionHandler
 
     private Vector2Int FindBombPlacement()
     {
-        // Check adjacent tiles for empty space to place bomb
         Vector2Int[] directions = { Vector2Int.zero, Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-        
+
         foreach (var dir in directions)
         {
             int targetX = playerController.X + dir.x;
             int targetY = playerController.Y + dir.y;
-            
-            var ll = LevelLoader.instance;
-            if (ll != null && targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height)
+
+            if (LayeredGridService.Instance?.IsValidPosition(targetX, targetY) ?? false)
             {
                 if (LayeredGridService.Instance?.IsWalkable(targetX, targetY) ?? false)
                 {
@@ -70,8 +72,6 @@ public class AgentActionHandler
                 }
             }
         }
-        
-        if (debugActions) Debug.Log("[AgentActionHandler] No empty space found for bomb, using current position");
-        return Vector2Int.zero; // Fallback to current position
+        return Vector2Int.zero;
     }
 }

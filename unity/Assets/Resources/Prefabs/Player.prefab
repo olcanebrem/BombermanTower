@@ -87,9 +87,9 @@ GameObject:
   - component: {fileID: 8342231042879676228}
   - component: {fileID: -4926589044178424912}
   - component: {fileID: -3097801023920919497}
-  - component: {fileID: 9140803169012042987}
   - component: {fileID: -94589322604941226}
   - component: {fileID: 2152867227875350981}
+  - component: {fileID: 7529146257465458938}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -171,32 +171,6 @@ MonoBehaviour:
   m_UseChildSensors: 1
   m_UseChildActuators: 1
   m_ObservableAttributeHandling: 0
---- !u!114 &9140803169012042987
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9048555102869179715}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8628c1cf3af7b0346bc25d245ff19473, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  agentParameters:
-    maxStep: 0
-  hasUpgradedFromAgentParameters: 1
-  MaxStep: 3000
-  useMLAgent: 1
-  moveSpeed: 5
-  behaviorName: PlayerAgent
-  observationRadius: 2
-  useDistanceObservations: 1
-  useGridObservations: 1
-  debugActions: 1
-  debugObservations: 1
-  useRandomHeuristic: 1
-  enableManualInput: 0
 --- !u!114 &-94589322604941226
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -224,3 +198,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualImage: {fileID: 0}
+--- !u!114 &7529146257465458938
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9048555102869179715}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8628c1cf3af7b0346bc25d245ff19473, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agentParameters:
+    maxStep: 0
+  hasUpgradedFromAgentParameters: 1
+  MaxStep: 0
+  behaviorName: PlayerAgent
+  observationRadius: 2
+  useDistanceObservations: 1
+  useGridObservations: 1
+  debugActions: 1
+  debugObservations: 1
+  useRandomHeuristic: 1
+  enableManualInput: 0

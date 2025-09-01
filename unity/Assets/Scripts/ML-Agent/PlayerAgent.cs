@@ -5,11 +5,6 @@ using Unity.MLAgents.Sensors;
 using System.Collections;
 using Debug = UnityEngine.Debug;
 
-/// <summary>
-/// ML-Agent'in ana koordinasyon sınıfı. 
-/// Gözlem, aksiyon, ödül ve bölüm yönetimi gibi sorumlulukları ilgili yardımcı sınıflara delege eder.
-/// Bu sınıf, Agent yaşam döngüsünü ve ITurnBased arayüzünü yönetir.
-/// </summary>
 public class PlayerAgent : Agent, ITurnBased
 {
     [Header("Behavior Settings")]
@@ -34,7 +29,7 @@ public class PlayerAgent : Agent, ITurnBased
     private RewardSystem rewardSystem;
     private EnvManager envManager;
 
-    // --- Helper Class References (Sorumlulukların Delege Edildiği Sınıflar) ---
+    // --- Helper Class References ---
     private AgentObservationHandler observationHandler;
     private AgentActionHandler actionHandler;
     private AgentRewardHandler rewardHandler;
@@ -44,7 +39,7 @@ public class PlayerAgent : Agent, ITurnBased
     public bool HasActedThisTurn { get; set; }
     private IGameAction pendingAction;
     private bool needsDecision = false;
-    private int episodeSteps = 0; // Sadece loglama ve step sayımı için burada tutulabilir.
+    private int episodeSteps = 0;
 
     // --- Debug Panel Properties ---
     public int CurrentMoveIndex { get; private set; } = 0;
@@ -52,74 +47,100 @@ public class PlayerAgent : Agent, ITurnBased
     public Vector2Int LastActionDirection { get; private set; } = Vector2Int.zero;
     public string CurrentActionType { get; private set; } = "None";
 
+    #region UNITY & ML-AGENTS LIFECYCLE
 
-    #region LIFECYCLE
-
-    private void OnEnable()
+    private void OnEnable() 
     {
+        Debug.Log($"[PlayerAgent] OnEnable() called on {gameObject.name}");
         PlayerController.OnPlayerDeath += HandlePlayerDeath;
     }
-
-    private void OnDisable()
+    
+    private void OnDisable() 
     {
+        Debug.Log($"[PlayerAgent] OnDisable() called on {gameObject.name}");
         PlayerController.OnPlayerDeath -= HandlePlayerDeath;
     }
+    
+    private void Awake()
+    {
+        Debug.Log($"[PlayerAgent] Awake() called on {gameObject.name}");
+    }
+    
+    private void Start()
+    {
+        Debug.Log($"[PlayerAgent] Start() called on {gameObject.name}");
+        // Ensure Initialize is called if not already
+        if (playerController == null)
+        {
+            Debug.Log($"[PlayerAgent] playerController is null in Start(), calling Initialize()");
+            Initialize();
+        }
+    }
 
-    /// <summary>
-    /// Bileşenleri bulur, yardımcı sınıfları başlatır ve TurnManager'a kaydolur.
-    /// </summary>
     public override void Initialize()
     {
         Debug.Log($"[PlayerAgent] Initialize() called.");
 
-        // Academy ayarları (sıra tabanlı oyun için)
         var academy = Academy.Instance;
         if (academy != null) academy.AutomaticSteppingEnabled = false;
 
-        // Davranış ismini ayarla
         if (!string.IsNullOrEmpty(behaviorName))
             GetComponent<Unity.MLAgents.Policies.BehaviorParameters>().BehaviorName = behaviorName;
 
-        // Gerekli bileşenleri bul
         playerController = GetComponent<PlayerController>();
         envManager = FindObjectOfType<EnvManager>();
-        rewardSystem = GetComponent<RewardSystem>(); // Önce bu objede ara
-        if (rewardSystem == null) StartCoroutine(DelayedRewardSystemSearch());
         
-        // Gerekli bileşenlerin kontrolü
+        Debug.Log($"[PlayerAgent] Initialize - Found PlayerController: {playerController != null} on GameObject: {gameObject.name}");
+        
         if (playerController == null)
         {
-            Debug.LogError("[PlayerAgent] PlayerController component required!");
+            Debug.LogError($"[PlayerAgent] PlayerController component required on {gameObject.name}!");
+            // Try to find PlayerController components in scene
+            var allPlayerControllers = FindObjectsOfType<PlayerController>();
+            Debug.LogError($"[PlayerAgent] Found {allPlayerControllers.Length} PlayerController(s) in scene:");
+            foreach(var pc in allPlayerControllers)
+            {
+                Debug.LogError($"  - PlayerController on: {pc.gameObject.name}");
+            }
             return;
         }
 
-        // --- Yardımcı Sınıfları Başlat (Dependency Injection) ---
+        rewardSystem = FindObjectOfType<RewardSystem>();
+        
         observationHandler = new AgentObservationHandler(playerController, envManager, observationRadius, useDistanceObservations, useGridObservations, debugObservations);
         actionHandler = new AgentActionHandler(playerController, debugActions);
-        rewardHandler = new AgentRewardHandler(playerController, rewardSystem, envManager); // RewardSystem'i doğrudan ver
+        rewardHandler = new AgentRewardHandler(playerController, rewardSystem, envManager, debugActions);
         episodeManager = new AgentEpisodeManager(this, playerController, envManager, rewardSystem, debugActions);
 
-        // TurnManager'a kaydol
+        if (rewardSystem == null)
+        {
+            StartCoroutine(DelayedRewardSystemSearch());
+        }
+
+        Debug.Log($"[PlayerAgent] Initialize complete - UseMLAgent: {UseMLAgent}, TurnManager.Instance: {TurnManager.Instance != null}");
+        
         if (UseMLAgent)
         {
+            Debug.Log($"[PlayerAgent] Unregistering PlayerController: {playerController?.gameObject.name}");
             TurnManager.Instance?.Unregister(playerController);
+            
+            Debug.Log($"[PlayerAgent] Registering PlayerAgent: {gameObject.name}");
             TurnManager.Instance?.RegisterMLAgent(this);
             Debug.Log("[PlayerAgent] ML-Agent registered with TurnManager.");
         }
+        else
+        {
+            Debug.Log("[PlayerAgent] UseMLAgent is false - PlayerAgent will not be used");
+        }
     }
     
-    /// <summary>
-    /// Yeni bir bölüm başladığında durumu sıfırlar.
-    /// </summary>
     public override void OnEpisodeBegin()
     {
         episodeSteps = 0;
         
-        // İşi EpisodeManager ve ObservationHandler'a delege et
         episodeManager.OnEpisodeBegin();
         observationHandler.CacheLevelData();
         
-        // Olay abonelikleri
         if (LevelLoader.instance != null)
         {
             LevelLoader.instance.OnEnemyListChanged -= observationHandler.InvalidateCache;
@@ -127,23 +148,38 @@ public class PlayerAgent : Agent, ITurnBased
         }
     }
     
-    /// <summary>
-    /// Gözlemleri toplamak için ObservationHandler'ı çağırır.
-    /// </summary>
     public override void CollectObservations(VectorSensor sensor)
     {
         if (playerController == null) return;
         observationHandler.CollectObservations(sensor);
     }
     
-    /// <summary>
-    /// Python'dan bir aksiyon geldiğinde tetiklenir.
-    /// </summary>
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (!UseMLAgent || playerController == null) return;
 
-        Debug.Log($"[PlayerAgent] 🐍 OnActionReceived! Step: {episodeSteps + 1}");
+        // Increment epsilon-greedy step counter
+        if (EpsilonGreedyController.Instance != null)
+        {
+            EpsilonGreedyController.Instance.IncrementStep();
+        }
+
+        // Check if this is from Python (communicator) or heuristic
+        bool fromPython = Academy.Instance.IsCommunicatorOn;
+        string source = fromPython ? "🐍 Python" : "🧠 Heuristic";
+        var receivedActions = actions.DiscreteActions;
+        string actionStr = receivedActions.Length >= 2 ? $"Move:{receivedActions[0]}, Bomb:{receivedActions[1]}" : "No Actions";
+        
+        // Add epsilon info to debug
+        string epsilonInfo = "";
+        if (EpsilonGreedyController.Instance != null)
+        {
+            float epsilon = EpsilonGreedyController.Instance.CurrentEpsilon;
+            int steps = EpsilonGreedyController.Instance.TotalSteps;
+            epsilonInfo = $" (ε={epsilon:F3}, Step:{steps})";
+        }
+        
+        Debug.Log($"[PlayerAgent] {source} OnActionReceived! Step: {episodeSteps + 1} - Actions: [{actionStr}]{epsilonInfo}");
         
         episodeSteps++;
         needsDecision = false;
@@ -151,28 +187,23 @@ public class PlayerAgent : Agent, ITurnBased
         var discreteActions = actions.DiscreteActions;
         CurrentMoveIndex = discreteActions[0];
         CurrentBombIndex = discreteActions.Length > 1 ? discreteActions[1] : 0;
-
-        // 1. Aksiyon oluştur (ActionHandler)
-        pendingAction = actionHandler.CreateGameAction(CurrentMoveIndex, CurrentBombIndex);
-
-        // 2. Adım ödüllerini uygula (RewardHandler)
-        rewardHandler.ApplyStepRewards();
         
-        // 3. Bölümün bitip bitmediğini kontrol et (EpisodeManager)
+        pendingAction = actionHandler.CreateGameAction(CurrentMoveIndex, CurrentBombIndex);
+        rewardHandler.ApplyStepRewards();
         episodeManager.CheckEpisodeTermination(episodeSteps);
 
-        // Debug info güncelle
         CurrentActionType = pendingAction?.GetType().Name ?? "None";
         if (pendingAction is MoveAction ma) LastActionDirection = ma.Direction;
     }
 
-    /// <summary>
-    /// Heuristic (manuel kontrol) modunda aksiyonları belirler.
-    /// </summary>
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var discreteActionsOut = actionsOut.DiscreteActions;
-        if (discreteActionsOut.Length == 0) return;
+        if (discreteActionsOut.Length == 0) 
+        {
+            Debug.LogWarning("[PlayerAgent] Heuristic: discreteActionsOut.Length is 0!");
+            return;
+        }
 
         int moveAction = 0;
         int bombAction = 0;
@@ -184,57 +215,105 @@ public class PlayerAgent : Agent, ITurnBased
             else if (Input.GetKey(KeyCode.S)) moveAction = 3;
             else if (Input.GetKey(KeyCode.A)) moveAction = 4;
             bombAction = Input.GetKey(KeyCode.Space) ? 1 : 0;
+            Debug.Log($"[🎮 HEURISTIC] Manual: Move={moveAction}, Bomb={bombAction}");
         }
         else if (useRandomHeuristic)
         {
             int randomChoice = Random.Range(0, 10);
-            if (randomChoice < 8) // %80 hareket
+            if (randomChoice < 8)
                 moveAction = Random.Range(1, 5);
             
-            bombAction = (Random.Range(0, 10) < 1) ? 1 : 0; // %10 bomba
+            bombAction = (Random.Range(0, 10) < 1) ? 1 : 0;
+            Debug.Log($"[🎲 HEURISTIC] Random: Move={moveAction}, Bomb={bombAction} (choice={randomChoice})");
+        }
+        else
+        {
+            Debug.Log("[❌ HEURISTIC] Neither manual nor random enabled!");
         }
         
         discreteActionsOut[0] = moveAction;
         if (discreteActionsOut.Length > 1) discreteActionsOut[1] = bombAction;
+        
+        Debug.Log($"[✅ HEURISTIC] Final Output: [{moveAction}, {bombAction}]");
     }
     
     #endregion
 
-    #region ITURNBASED
+    #region ITURNBASED IMPLEMENTATION
 
-    /// <summary>
-    /// TurnManager tarafından çağrılır. Sıra tabanlı sistem için aksiyon talep eder.
-    /// </summary>
     public IGameAction GetAction()
     {
+        Debug.Log($"[PlayerAgent] GetAction called - UseMLAgent:{UseMLAgent}, playerController:{playerController != null}, HasActedThisTurn:{HasActedThisTurn}");
+        
         if (!UseMLAgent || playerController == null || HasActedThisTurn)
         {
+            Debug.Log("[PlayerAgent] GetAction early return - conditions not met");
             return null;
         }
-
-        // Eğer OnActionReceived'dan bir aksiyon gelmişse, onu TurnManager'a ver
+        
         if (pendingAction != null)
         {
             IGameAction actionToExecute = pendingAction;
-            pendingAction = null; // Aksiyonu verdikten sonra temizle
+            pendingAction = null; 
             HasActedThisTurn = true;
             Debug.Log($"[PlayerAgent] ✅ Returning Action: {actionToExecute.GetType().Name}");
             return actionToExecute;
         }
-
-        // Eğer bu turda henüz karar istenmediyse, Python'dan yeni bir karar iste
+        
         if (!needsDecision)
         {
             needsDecision = true;
             Debug.Log("[PlayerAgent] Requesting decision from Python...");
             RequestDecision();
-            
-            // Manuel adımlama modunda olduğumuz için Academy'i manuel tetikle
             Academy.Instance.EnvironmentStep();
+            
+            // Epsilon-greedy decision: should we use heuristic instead of waiting for Python?
+            bool shouldUseHeuristic = false;
+            
+            // Check epsilon-greedy controller
+            if (EpsilonGreedyController.Instance != null && Academy.Instance.IsCommunicatorOn)
+            {
+                shouldUseHeuristic = EpsilonGreedyController.Instance.ShouldUseHeuristic();
+                Debug.Log($"[🎯 EPSILON] Decision: {(shouldUseHeuristic ? "🎲 Using Heuristic" : "🐍 Waiting for Python")}");
+            }
+            // Fallback to original logic if no communicator or no epsilon controller
+            else if (Academy.Instance.IsCommunicatorOn == false || useRandomHeuristic)
+            {
+                shouldUseHeuristic = true;
+                Debug.Log("[PlayerAgent] Fallback: Using heuristic (no communicator or random enabled)");
+            }
+            
+            if (shouldUseHeuristic)
+            {
+                Debug.Log($"[🎯 HEURISTIC_CALL] About to call Heuristic() - useRandom:{useRandomHeuristic}, enableManual:{enableManualInput}");
+                
+                // Generate heuristic action immediately
+                var discreteActionsFloat = new float[2]; // move + bomb actions
+                var heuristicBuffers = ActionBuffers.FromDiscreteActions(discreteActionsFloat);
+                
+                Debug.Log($"[📥 BEFORE] Heuristic input: [{discreteActionsFloat[0]}, {discreteActionsFloat[1]}]");
+                Heuristic(in heuristicBuffers);
+                
+                // Get the actual modified values from the buffer
+                var actualActions = heuristicBuffers.DiscreteActions;
+                Debug.Log($"[📤 AFTER] Heuristic output: [{actualActions[0]}, {actualActions[1]}]");
+                Debug.Log($"[🔄 TRANSFER] Heuristic → OnActionReceived: [{actualActions[0]}, {actualActions[1]}]");
+                
+                // Process the heuristic action with updated values
+                OnActionReceived(heuristicBuffers);
+                
+                // Return the action if we have one now
+                if (pendingAction != null)
+                {
+                    IGameAction actionToExecute = pendingAction;
+                    pendingAction = null; 
+                    HasActedThisTurn = true;
+                    Debug.Log($"[PlayerAgent] ✅ Returning Heuristic Action: {actionToExecute.GetType().Name}");
+                    return actionToExecute;
+                }
+            }
         }
         
-        // Bu frame'de null dönecek. Karar OnActionReceived'a geldiğinde pendingAction'a atanacak 
-        // ve bir sonraki GetAction çağrısında TurnManager'a verilecek.
         return null;
     }
 
@@ -245,17 +324,15 @@ public class PlayerAgent : Agent, ITurnBased
     }
     
     #endregion
-
-    #region EVENT HANDLERS
-
+    
+    #region HELPER & EVENT HANDLERS
+    
     private void HandlePlayerDeath(PlayerController controller)
     {
         Debug.Log("[PlayerAgent] Player death event received. Ending episode.");
-        EndEpisode(); // ML-Agents'e bölümün bittiğini bildir
-        // Yeniden başlatma mantığı EpisodeManager'a devredilebilir veya TurnManager tarafından yönetilebilir.
+        EndEpisode();
     }
     
-    // RewardSystem'i bulmak için gecikmeli arama
     IEnumerator DelayedRewardSystemSearch()
     {
         int attempts = 0;
@@ -268,7 +345,6 @@ public class PlayerAgent : Agent, ITurnBased
 
         if (rewardSystem != null)
         {
-            // Bulunan RewardSystem referanslarını yardımcı sınıflara güncelle
             rewardHandler.SetRewardSystem(rewardSystem);
             episodeManager.SetRewardSystem(rewardSystem);
             Debug.Log($"[PlayerAgent] RewardSystem found after {attempts} attempts.");
@@ -279,19 +355,30 @@ public class PlayerAgent : Agent, ITurnBased
         }
     }
 
-    /// <summary>
-    /// MLAgentsTrainingController'a göre ajanın aktif olup olmadığını belirler.
-    /// </summary>
-    public bool UseMLAgent => MLAgentsTrainingController.Instance != null && 
-                              (MLAgentsTrainingController.Instance.IsTraining || MLAgentsTrainingController.Instance.HeuristicMode);
+    public bool UseMLAgent 
+    { 
+        get 
+        {
+            bool hasController = MLAgentsTrainingController.Instance != null;
+            bool isTraining = hasController && MLAgentsTrainingController.Instance.IsTraining;
+            bool heuristicMode = hasController && MLAgentsTrainingController.Instance.HeuristicMode;
+            bool result = hasController && (isTraining || heuristicMode);
+            
+            return result;
+        }
+    }
 
     private void OnDestroy()
     {
+        Debug.Log($"[PlayerAgent] OnDestroy() called on {gameObject.name} - This should NOT happen during normal gameplay!");
+        Debug.Log($"[PlayerAgent] OnDestroy stack trace:");
+        Debug.Log(System.Environment.StackTrace);
+        
         if (TurnManager.Instance != null)
         {
             TurnManager.Instance.UnregisterMLAgent(this);
         }
-        if (LevelLoader.instance != null)
+        if (LevelLoader.instance != null && observationHandler != null)
         {
             LevelLoader.instance.OnEnemyListChanged -= observationHandler.InvalidateCache;
         }
