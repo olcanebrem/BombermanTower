@@ -37,10 +37,11 @@ public class BreakableTile : TileBase, ITurnBased, IInitializable, IDamageable
     public void Die()
     {
         var ll = LevelLoader.instance;
-        if (ll != null)
+        // Remove from layered system
+        var layeredGrid = LayeredGridService.Instance;
+        if (layeredGrid != null && layeredGrid.IsValidPosition(X, Y))
         {
-            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-            ll.tileObjects[X, Y] = null;
+            layeredGrid.DestroyDestructibleTile(X, Y);
         }
         Destroy(gameObject);
     }

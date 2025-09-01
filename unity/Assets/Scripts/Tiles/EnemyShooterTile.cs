@@ -153,10 +153,14 @@ public class EnemyShooterTile : TileBase, IMovable, ITurnBased, IInitializable, 
 
         // Güvenlik kontrolleri (harita dışı, geçilemezlik)
         if (startX < 0 || startX >= ll.Width || startY < 0 || startY >= ll.Height) return;
-        if (!MovementHelper.IsTilePassable(this, TileSymbols.DataSymbolToType(ll.levelMap[startX, startY])))
+        if (!LayeredGridService.Instance?.IsWalkable(startX, startY) ?? true)
         {
             // Eğer hedefte duvar gibi bir şey varsa, ona hasar ver ama mermi oluşturma.
-            ll.tileObjects[startX, startY]?.GetComponent<IDamageable>()?.TakeDamage(1);
+            var objectsAtPosition = LayeredGridService.Instance?.GetAllObjectsAt(startX, startY) ?? new System.Collections.Generic.List<GameObject>();
+            if (objectsAtPosition.Count > 0)
+            {
+                objectsAtPosition[0]?.GetComponent<IDamageable>()?.TakeDamage(1);
+            }
             return;
         }
 

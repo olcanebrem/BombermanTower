@@ -52,13 +52,8 @@ public class LevelLoader : MonoBehaviour
     public int Width { get; set; }
     public int Height { get; set; }
     
-    // Legacy single-layer system (kept for compatibility)
-    public char[,] levelMap;
-    public GameObject[,] tileObjects;
-    
-    // New layered system
+    // Layered grid system
     private LayeredGridService layeredGrid;
-    private bool useLayeredSystem = true; // Toggle for gradual migration
     
     private GameObject playerObject; // Runtime player instance reference
     public int playerStartX, playerStartY;
@@ -94,16 +89,43 @@ public class LevelLoader : MonoBehaviour
         // Konsolda daha kolay bulmak için bir başlık oluşturalım.
         string mapOutput = $"--- MANTIKSAL HARİTA DURUMU: TUR {currentTurn} ---\n"; // '\n' yeni bir satır başlatır.
 
-        // Haritayı satır satır dolaşarak string'i oluşturalım.
-        for (int y = 0; y < Height; y++)
+        // Layered system'den haritayı oluşturalım
+        if (layeredGrid != null)
         {
-            for (int x = 0; x < Width; x++)
+            for (int y = 0; y < Height; y++)
             {
-                // Her bir karakteri string'e ekle.
-                mapOutput += levelMap[x, y];
+                for (int x = 0; x < Width; x++)
+                {
+                    // Layer bilgisini kontrol et
+                    var staticMask = layeredGrid.GetStaticTile(x, y);
+                    var destructibleMask = layeredGrid.GetDestructibleTile(x, y);
+                    GameObject actor = layeredGrid.GetActorAt(x, y);
+                    GameObject bomb = layeredGrid.GetBombAt(x, y);
+                    
+                    // Öncelik sırasına göre göster
+                    if (actor != null)
+                    {
+                        var tileBase = actor.GetComponent<TileBase>();
+                        if (tileBase != null)
+                            mapOutput += TileSymbols.TypeToDataSymbol(tileBase.TileType);
+                        else
+                            mapOutput += "?";
+                    }
+                    else if (bomb != null)
+                        mapOutput += TileSymbols.TypeToDataSymbol(TileType.Bomb);
+                    else if ((staticMask & LayeredGridService.LayerMask.BlocksMovement) != 0)
+                        mapOutput += TileSymbols.TypeToDataSymbol(TileType.Wall);
+                    else if ((destructibleMask & LayeredGridService.LayerMask.Destructible) != 0)
+                        mapOutput += TileSymbols.TypeToDataSymbol(TileType.Breakable);
+                    else
+                        mapOutput += TileSymbols.TypeToDataSymbol(TileType.Empty);
+                }
+                mapOutput += "\n";
             }
-            // Her satırın sonunda bir alt satıra geç.
-            mapOutput += "\n";
+        }
+        else
+        {
+            mapOutput += "LayeredGridService not available\n";
         }
 
         // Oluşturulan harita string'ini, konsolda öne çıkması için bir uyarı olarak yazdır.
@@ -141,19 +163,16 @@ public class LevelLoader : MonoBehaviour
         }
         
         // Initialize LayeredGridService
-        if (useLayeredSystem)
+        if (LayeredGridService.Instance == null)
         {
-            if (LayeredGridService.Instance == null)
-            {
-                var layeredGridGO = new GameObject("LayeredGridService");
-                layeredGrid = layeredGridGO.AddComponent<LayeredGridService>();
-                // Debug.Log("[LevelLoader] LayeredGridService created automatically");
-            }
-            else
-            {
-                layeredGrid = LayeredGridService.Instance;
-                // Debug.Log("[LevelLoader] LayeredGridService found via Singleton");
-            }
+            var layeredGridGO = new GameObject("LayeredGridService");
+            layeredGrid = layeredGridGO.AddComponent<LayeredGridService>();
+            // Debug.Log("[LevelLoader] LayeredGridService created automatically");
+        }
+        else
+        {
+            layeredGrid = LayeredGridService.Instance;
+            // Debug.Log("[LevelLoader] LayeredGridService found via Singleton");
         }
 
         // Prefab sözlüğünü doldur - önce otomatik keşif dene
@@ -738,7 +757,7 @@ public class LevelLoader : MonoBehaviour
         Height = levelData.gridHeight;
         
         // Initialize layered grid system
-        if (useLayeredSystem && layeredGrid != null)
+        if (layeredGrid != null)
         {
             layeredGrid.Initialize(Width, Height);
             Debug.Log($"[LevelLoader] Layered grid system initialized: {Width}x{Height}");
@@ -747,22 +766,27 @@ public class LevelLoader : MonoBehaviour
         // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
         // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
         
-        // Copy grid data
-        levelMap = new char[Width, Height];
-        if (levelData.grid != null)
+        // Setup layered system with static tiles
+        if (layeredGrid != null && levelData.grid != null)
         {
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    if (x < levelData.grid.GetLength(0) && y < levelData.grid.GetLength(1))
+                    char cellSymbol = (x < levelData.grid.GetLength(0) && y < levelData.grid.GetLength(1)) 
+                        ? levelData.grid[x, y] 
+                        : TileSymbols.TypeToDataSymbol(TileType.Empty);
+                        
+                    TileType cellType = TileSymbols.DataSymbolToType(cellSymbol);
+                    
+                    // Set static layer data
+                    if (cellType == TileType.Wall)
                     {
-                        levelMap[x, y] = levelData.grid[x, y];
+                        layeredGrid.SetStaticTile(x, y, LayeredGridService.LayerMask.BlocksMovement | LayeredGridService.LayerMask.BlocksFire);
                     }
-                    else
+                    else if (cellType == TileType.Breakable)
                     {
-                        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-                        // Debug.LogWarning($"[LevelLoader] Out of bounds access at ({x},{y}) - grid size is {levelData.grid.GetLength(0)}x{levelData.grid.GetLength(1)}");
+                        layeredGrid.SetDestructibleTile(x, y, LayeredGridService.LayerMask.BlocksMovement | LayeredGridService.LayerMask.BlocksFire | LayeredGridService.LayerMask.Destructible);
                     }
                 }
             }
@@ -772,29 +796,15 @@ public class LevelLoader : MonoBehaviour
         playerStartX = levelData.playerSpawn.x;
         playerStartY = levelData.playerSpawn.y;
         
-        // Count non-empty cells
-        int nonEmptyCells = 0;
-        for (int x = 0; x < Width; x++)
-        {
-            for (int y = 0; y < Height; y++)
-            {
-                if (levelMap[x, y] != '.' && levelMap[x, y] != ' ')
-                    nonEmptyCells++;
-            }
-        }
-        
-        // Combined debug info in single message
+        // Debug info for layered system
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.AppendLine($"\n=== LEVEL LOADER DEBUG INFO ===");
+        sb.AppendLine($"\n=== LAYERED LEVEL LOADER DEBUG INFO ===");
         sb.AppendLine($"Level: {levelData.levelName} (v{levelData.version})");
         sb.AppendLine($"Dimensions: {Width}x{Height}");
         sb.AppendLine($"Player spawn: ({playerStartX}, {playerStartY})");
         sb.AppendLine($"Enemies: {levelData.enemyPositions.Count}");
-        sb.AppendLine($"Non-empty cells: {nonEmptyCells}/{Width * Height}");
-        sb.AppendLine($"Grid samples:");
-        sb.AppendLine($"  Top-left: '{levelMap[0,0]}' | Top-right: '{levelMap[Width-1,0]}'");
-        sb.AppendLine($"  Bottom-left: '{levelMap[0,Height-1]}' | Bottom-right: '{levelMap[Width-1,Height-1]}'");
-        sb.AppendLine("==============================");
+        sb.AppendLine($"Layered Grid Service: {(layeredGrid != null ? "Active" : "NULL")}");
+        sb.AppendLine("=====================================");
         
         // Debug.Log(sb.ToString());
         
@@ -820,76 +830,13 @@ public class LevelLoader : MonoBehaviour
         // Debug.Log($"[LevelLoader] *** CreateMapVisual CALLED *** - Dimensions: {Width}x{Height}");
         // Debug.Log($"[LevelLoader] Call Stack:\n{System.Environment.StackTrace}");
         
-        // 1. Referans haritalarımızı oluştur.
-        tileObjects = new GameObject[Width, Height];
-        // Debug.Log($"[LevelLoader] TileObjects array created: {Width}x{Height}");
+        // Clear previous visual objects
+        // Debug.Log($"[LevelLoader] *** CreateMapVisual CALLED *** - Dimensions: {Width}x{Height}");
 
-        // 2. JENERİK TILE'LARI OLUŞTURMA DÖNGÜSÜ
-        // Bu döngü, oyuncu DIŞINDAKİ her şeyi oluşturur.
-        for (int y = 0; y < Height; y++)
+        // Create visual objects from level data
+        if (currentLevelData != null && currentLevelData.grid != null)
         {
-            for (int x = 0; x < Width; x++)
-            {
-                char symbolChar = levelMap[x, y];
-                TileType type = TileSymbols.DataSymbolToType(symbolChar);
-
-                // Boş kareleri ve oyuncunun başlangıç noktasını atla.
-                // Oyuncu, bu döngü bittikten sonra özel olarak oluşturulacak.
-                if (type == TileType.Empty || type == TileType.PlayerSpawn)
-                {
-                    continue;
-                }
-
-                // Prefab sözlüğünde bu tip için bir girdi var mı diye bak.
-                if (prefabMap.TryGetValue(type, out var tileBasePrefab))
-                {
-                    if (tileBasePrefab != null)
-                    {
-                        // Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name} from symbol '{symbolChar}'");
-                        Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-                        Transform parentContainer = GetContainerForTileType(type);
-                        // Debug.Log($"[LevelLoader] {type} will be created under parent: {parentContainer?.name ?? "NULL"} (full path: {GetFullPath(parentContainer)})");
-                        TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
-                        
-                        // Yeni oluşturulan tile'ı kur.
-                        if (spriteDatabase != null)
-                        {
-                            newTile.SetVisual(spriteDatabase.GetSprite(type));
-                        }
-                        (newTile as IInitializable)?.Init(x, y);
-                        
-                        // ML-Agent tracking - Add to appropriate lists
-                        if (type == TileType.Enemy || type == TileType.EnemyShooter)
-                        {
-                            enemies.Add(newTile.gameObject);
-                        }
-                        else if (type == TileType.Coin || type == TileType.Health)
-                        {
-                            collectibles.Add(newTile.gameObject);
-                        }
-                        else if (type == TileType.Gate)
-                        {
-                            exitObject = newTile.gameObject;
-                        }
-                        
-                        // Tile array'ine ve mantık haritasına ekle
-                        tileObjects[x, y] = newTile.gameObject;
-                        // Debug.Log($"[LevelLoader] Added to tileObjects[{x},{y}]: {newTile.gameObject.name}");
-                        // LevelMap'i güncelle - oluşturulan objenin gerçek tipini kullan
-                        levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
-                        
-                        // Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(type)}' for {type}");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[LevelLoader] TileBase prefab for {type} is null at position ({x}, {y})");
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning($"[LevelLoader] No prefab mapping found for TileType: {type} at position ({x}, {y})");
-                }
-            }
+            CreateVisualTiles();
         }
 
         // --- 3. OYUNCUYU OLUŞTURMA BLOĞU ---
@@ -967,16 +914,11 @@ public class LevelLoader : MonoBehaviour
                 GameManager.Instance.RegisterPlayer(playerController);
             }
 
-            // Oyuncunun mantıksal haritasına kaydet.
-            levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
-            tileObjects[playerStartX, playerStartY] = playerObject;
-            // Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
+            // Place player in layered system
+            layeredGrid.PlaceActor(playerObject, playerStartX, playerStartY);
             
             // Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }
-        
-        // f) Oyuncunun referansını, nesne haritasındaki doğru yere koy.
-        tileObjects[playerStartX, playerStartY] = playerObject;
         
         // Debug.Log($"[LevelLoader] CreateMapVisual completed successfully");
         
@@ -984,6 +926,107 @@ public class LevelLoader : MonoBehaviour
         if (TurnManager.Instance != null)
         {
             TurnManager.Instance.LogAllRegisteredObjects();
+        }
+    }
+    
+    /// <summary>
+    /// Create visual tile objects and place them in layered system
+    /// </summary>
+    private void CreateVisualTiles()
+    {
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                char symbolChar = (x < currentLevelData.grid.GetLength(0) && y < currentLevelData.grid.GetLength(1)) 
+                    ? currentLevelData.grid[x, y] 
+                    : TileSymbols.TypeToDataSymbol(TileType.Empty);
+                    
+                TileType type = TileSymbols.DataSymbolToType(symbolChar);
+
+                // Skip empty cells and player spawn (player created separately)
+                if (type == TileType.Empty || type == TileType.PlayerSpawn)
+                {
+                    continue;
+                }
+
+                // Create visual object
+                if (prefabMap.TryGetValue(type, out var tileBasePrefab) && tileBasePrefab != null)
+                {
+                    Vector3 pos = layeredGrid.GridToWorld(x, y);
+                    Transform parentContainer = GetContainerForTileType(type);
+                    TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
+                    
+                    // Setup tile
+                    if (spriteDatabase != null)
+                    {
+                        newTile.SetVisual(spriteDatabase.GetSprite(type));
+                    }
+                    (newTile as IInitializable)?.Init(x, y);
+                    
+                    // Place in appropriate layer
+                    PlaceTileInLayer(newTile.gameObject, x, y, type);
+                    
+                    // Legacy ML-Agent tracking
+                    UpdateMLAgentTracking(type, newTile.gameObject);
+                    
+                    Debug.Log($"[LevelLoader] Created {type} at ({x},{y}) in layered system");
+                }
+                else
+                {
+                    Debug.LogWarning($"[LevelLoader] No prefab found for {type} at ({x}, {y})");
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Place tile in appropriate layer based on type
+    /// </summary>
+    private void PlaceTileInLayer(GameObject tileObj, int x, int y, TileType type)
+    {
+        switch (type)
+        {
+            case TileType.Enemy:
+            case TileType.EnemyShooter:
+                if (!layeredGrid.PlaceActor(tileObj, x, y))
+                {
+                    Debug.LogWarning($"[LevelLoader] Failed to place {type} at ({x},{y}) - position occupied!");
+                    Destroy(tileObj);
+                }
+                break;
+                
+            case TileType.Coin:
+            case TileType.Health:
+                if (!layeredGrid.PlaceItem(tileObj, x, y))
+                {
+                    Debug.LogWarning($"[LevelLoader] Failed to place {type} at ({x},{y}) - position occupied!");
+                    Destroy(tileObj);
+                }
+                break;
+                
+            case TileType.Gate:
+                // Gates are special - they don't block movement but are tracked
+                exitObject = tileObj;
+                break;
+                
+            // Static tiles are already set in layer masks during level data loading
+            case TileType.Wall:
+                // Walls are handled by static layer masks only
+                break;
+                
+            case TileType.Breakable:
+                // BreakableTiles need both layer mask AND GameObject reference for damage handling
+                if (!layeredGrid.PlaceDestructibleObject(tileObj, x, y))
+                {
+                    Debug.LogWarning($"[LevelLoader] Failed to place BreakableTile at ({x},{y}) - position occupied!");
+                    Destroy(tileObj);
+                }
+                break;
+                
+            default:
+                Debug.LogWarning($"[LevelLoader] Unknown tile type for layered placement: {type}");
+                break;
         }
     }
     /// <summary>
@@ -998,33 +1041,47 @@ public class LevelLoader : MonoBehaviour
             TurnManager.Instance.ClearAllRegistersExceptPlayer();
         }
         
-        if (tileObjects != null)
+        // Clear layered grid system
+        if (layeredGrid != null)
         {
             int destroyedCount = 0;
-            for (int y = 0; y < tileObjects.GetLength(1); y++)
+            
+            // Destroy all objects from all layers
+            var allActors = layeredGrid.AllActors;
+            var allBombs = layeredGrid.AllBombs;
+            var allItems = layeredGrid.AllItems;
+            
+            foreach (var actor in allActors)
             {
-                for (int x = 0; x < tileObjects.GetLength(0); x++)
+                if (actor != null && actor.name != "RL_TRAINING_PARAMETERS")
                 {
-                    if (tileObjects[x, y] != null)
-                    {
-                        // Check if this is RL_TRAINING_PARAMETERS - don't destroy ML-Agent components
-                        bool isMLTrainingComponents = (tileObjects[x, y].name == "RL_TRAINING_PARAMETERS");
-                        
-                        if (!isMLTrainingComponents)
-                        {
-                            Destroy(tileObjects[x, y]);
-                            destroyedCount++;
-                        }
-                        else if (isMLTrainingComponents)
-                        {
-                            // Debug.Log("[LevelLoader] Preserving ML-Agent components during level clear");
-                        }
-                        
-                        tileObjects[x, y] = null;
-                    }
+                    Destroy(actor);
+                    destroyedCount++;
                 }
             }
-            // Debug.Log($"[LevelLoader] Destroyed {destroyedCount} existing objects");
+            
+            foreach (var bomb in allBombs)
+            {
+                if (bomb != null)
+                {
+                    Destroy(bomb);
+                    destroyedCount++;
+                }
+            }
+            
+            foreach (var item in allItems)
+            {
+                if (item != null)
+                {
+                    Destroy(item);
+                    destroyedCount++;
+                }
+            }
+            
+            // Clear all layers
+            layeredGrid.ClearAllLayers();
+            
+            // Debug.Log($"[LevelLoader] Destroyed {destroyedCount} objects from layered system");
         }
         
         // Clear ML-Agent tracking lists
@@ -1035,48 +1092,18 @@ public class LevelLoader : MonoBehaviour
         // Clear player reference so new player can be created
         playerObject = null;
         
-        // Clear level map data
-        if (levelMap != null)
-        {
-            for (int y = 0; y < Height; y++)
-            {
-                for (int x = 0; x < Width; x++)
-                {
-                    levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-                }
-            }
-        }
-        
         // Debug.Log("[LevelLoader] ClearAllTiles completed");
     }
     
         /// <summary>
-    /// Atomic bomb placement - checks and places in single operation
+    /// Atomic bomb placement using layered system
     /// Returns true if successfully placed, false if position occupied
     /// </summary>
     public bool TryPlaceBombAt(int x, int y, out GameObject placedBomb)
     {
         placedBomb = null;
         
-        // Use layered system if enabled
-        if (useLayeredSystem && layeredGrid != null)
-        {
-            return TryPlaceBombAtLayered(x, y, out placedBomb);
-        }
-        
-        // Legacy single-layer system
-        return TryPlaceBombAtLegacy(x, y, out placedBomb);
-    }
-    
-    /// <summary>
-    /// Layered system bomb placement
-    /// </summary>
-    private bool TryPlaceBombAtLayered(int x, int y, out GameObject placedBomb)
-    {
-        placedBomb = null;
-        
-        // Check bounds
-        if (!layeredGrid.IsValidPosition(x, y))
+        if (layeredGrid == null || !layeredGrid.IsValidPosition(x, y))
         {
             return false;
         }
@@ -1115,10 +1142,6 @@ public class LevelLoader : MonoBehaviour
         bool placementSuccess = layeredGrid.PlaceBomb(newBomb.gameObject, x, y);
         if (placementSuccess)
         {
-            // Update legacy system for compatibility
-            tileObjects[x, y] = newBomb.gameObject;
-            levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb);
-            
             placedBomb = newBomb.gameObject;
             Debug.Log($"[LevelLoader] Successfully placed bomb at ({x},{y}) using layered system");
             return true;
@@ -1129,51 +1152,6 @@ public class LevelLoader : MonoBehaviour
             Destroy(newBomb.gameObject);
             return false;
         }
-    }
-    
-    /// <summary>
-    /// Legacy bomb placement system
-    /// </summary>
-    private bool TryPlaceBombAtLegacy(int x, int y, out GameObject placedBomb)
-    {
-        placedBomb = null;
-        
-        // Bounds check
-        if (x < 0 || x >= Width || y < 0 || y >= Height)
-        {
-            return false;
-        }
-        
-        // Atomic check-and-place: check both logical and physical maps
-        if (TileSymbols.DataSymbolToType(levelMap[x, y]) != TileType.Empty || tileObjects[x, y] != null)
-        {
-            // Debug.LogWarning($"({x},{y}) occupied, cannot place bomb. Content: {TileSymbols.DataSymbolToType(levelMap[x,y])}, Object: {tileObjects[x,y]?.name}");
-            return false;
-        }
-
-        // Get bomb prefab
-        if (!prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab) || bombTilePrefab == null)
-        {
-            Debug.LogError($"[LevelLoader] No bomb prefab found in prefabMap!");
-            return false;
-        }
-        
-        // Create bomb
-        Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-        Transform bombParent = dynamicParent ?? levelContentParent;
-        TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, bombParent);
-
-        // Setup bomb
-        newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
-        (newBomb as IInitializable)?.Init(x, y);
-        
-        // ATOMIC UPDATE: Update both maps together
-        tileObjects[x, y] = newBomb.gameObject;
-        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb);
-        
-        placedBomb = newBomb.gameObject;
-        Debug.Log($"[LevelLoader] Successfully placed bomb at ({x},{y}) using legacy system");
-        return true;
     }
     
     /// <summary>
@@ -1263,21 +1241,27 @@ public class LevelLoader : MonoBehaviour
     }
     
     /// <summary>
-    /// Clear tile at specified grid position - removes from both levelMap and tileObjects
+    /// Clear tile at specified grid position using layered system
     /// Used for clean tile removal operations (e.g., player death, object destruction)
     /// NOTE: This only clears logical data, does not destroy GameObjects
     /// </summary>
     public void ClearTile(int x, int y)
     {
-        if (x >= 0 && x < Width && y >= 0 && y < Height)
+        if (layeredGrid != null && layeredGrid.IsValidPosition(x, y))
         {
-            // Clear the levelMap data
-            levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+            // Get objects from all layers and clear references
+            GameObject actor = layeredGrid.GetActorAt(x, y);
+            GameObject bomb = layeredGrid.GetBombAt(x, y);
+            GameObject item = layeredGrid.GetItemAt(x, y);
+            GameObject effect = layeredGrid.GetEffectAt(x, y);
             
-            // Clear the object reference
-            tileObjects[x, y] = null;
+            // Remove from layers (this doesn't destroy GameObjects)
+            if (actor != null) layeredGrid.RemoveActor(actor, x, y);
+            if (bomb != null) layeredGrid.RemoveBomb(bomb, x, y);
+            if (item != null) layeredGrid.RemoveItem(item, x, y);
+            if (effect != null) layeredGrid.RemoveEffect(effect, x, y);
             
-            // Debug.Log($"[LevelLoader] Cleared tile at ({x}, {y})");
+            // Debug.Log($"[LevelLoader] Cleared tile at ({x}, {y}) from layered system");
         }
         else
         {
@@ -1381,11 +1365,15 @@ public class LevelLoader : MonoBehaviour
             return false;
         }
         
-        // Check if position is occupied
-        if (tileObjects[x, y] != null)
+        // Check if position is occupied using layered system
+        if (layeredGrid != null)
         {
-            Debug.LogWarning($"[LevelLoader] CreateTileAt position ({x}, {y}) is already occupied by: {tileObjects[x, y].name}");
-            return false;
+            var objects = layeredGrid.GetAllObjectsAt(x, y);
+            if (objects.Count > 0)
+            {
+                Debug.LogWarning($"[LevelLoader] CreateTileAt position ({x}, {y}) is already occupied by: {objects[0].name}");
+                return false;
+            }
         }
         
         if (prefabMap.TryGetValue(type, out var tileBasePrefab))
@@ -1407,9 +1395,7 @@ public class LevelLoader : MonoBehaviour
                 // Initialize tile with position
                 (newTile as IInitializable)?.Init(x, y);
                 
-                // Update tracking arrays
-                tileObjects[x, y] = newTile.gameObject;
-                levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
+                // Note: Layered system handles placement automatically via PlaceTileInLayer
                 
                 // ML-Agent and special tracking
                 UpdateMLAgentTracking(type, newTile.gameObject);
@@ -1424,62 +1410,74 @@ public class LevelLoader : MonoBehaviour
     }
     
     /// <summary>
-    /// CENTRALIZED TILE DESTRUCTION - Remove any tile type at specified position
+    /// CENTRALIZED TILE DESTRUCTION - Remove any tile type at specified position using layered system
     /// This is the main method for destroying tiles in the game
     /// </summary>
     public bool DestroyTileAt(int x, int y)
     {
-        if (x < 0 || x >= Width || y < 0 || y >= Height)
+        if (layeredGrid == null || !layeredGrid.IsValidPosition(x, y))
         {
-            Debug.LogWarning($"[LevelLoader] DestroyTileAt position out of bounds: ({x}, {y})");
+            Debug.LogWarning($"[LevelLoader] DestroyTileAt position invalid: ({x}, {y})");
             return false;
         }
         
-        GameObject tileObject = tileObjects[x, y];
+        // Check all layers for objects to destroy
+        GameObject actor = layeredGrid.GetActorAt(x, y);
+        GameObject bomb = layeredGrid.GetBombAt(x, y);
+        GameObject item = layeredGrid.GetItemAt(x, y);
+        GameObject effect = layeredGrid.GetEffectAt(x, y);
+        
+        GameObject tileObject = actor ?? bomb ?? item ?? effect;
+        
         if (tileObject == null)
         {
             // Debug.Log($"[LevelLoader] DestroyTileAt - No tile to destroy at ({x}, {y})");
             return true; // Not an error, position is already empty
         }
         
-        TileType tileType = TileSymbols.DataSymbolToType(levelMap[x, y]);
+        var tileBase = tileObject.GetComponent<TileBase>();
+        TileType tileType = tileBase != null ? tileBase.TileType : TileType.Unknown;
+        
         // Debug.Log($"[LevelLoader] DestroyTileAt - Destroying {tileType} at ({x}, {y}): {tileObject.name}");
         
-        // Remove from appropriate tracking lists
-        switch (tileType)
+        // Remove from layered system and tracking lists
+        if (actor != null)
         {
-            case TileType.Enemy:
-            case TileType.EnemyShooter:
-                if (enemies.Contains(tileObject))
-                {
-                    enemies.Remove(tileObject);
-                    OnEnemyListChanged?.Invoke();
-                    // Debug.Log($"[LevelLoader] DestroyTileAt - Removed from enemies list");
-                }
-                break;
-                
-            case TileType.Coin:
-            case TileType.Health:
-                if (collectibles.Contains(tileObject))
-                {
-                    collectibles.Remove(tileObject);
-                    OnCollectibleListChanged?.Invoke();
-                    // Debug.Log($"[LevelLoader] DestroyTileAt - Removed from collectibles list");
-                }
-                break;
-                
-            case TileType.Gate:
-                if (exitObject == tileObject)
-                {
-                    exitObject = null;
-                    // Debug.Log($"[LevelLoader] DestroyTileAt - Cleared exit object reference");
-                }
-                break;
+            layeredGrid.RemoveActor(actor, x, y);
+            
+            if (enemies.Contains(actor))
+            {
+                enemies.Remove(actor);
+                OnEnemyListChanged?.Invoke();
+            }
         }
         
-        // Clear logical data first
-        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        tileObjects[x, y] = null;
+        if (bomb != null)
+        {
+            layeredGrid.RemoveBomb(bomb, x, y);
+        }
+        
+        if (item != null)
+        {
+            layeredGrid.RemoveItem(item, x, y);
+            
+            if (collectibles.Contains(item))
+            {
+                collectibles.Remove(item);
+                OnCollectibleListChanged?.Invoke();
+            }
+        }
+        
+        if (effect != null)
+        {
+            layeredGrid.RemoveEffect(effect, x, y);
+        }
+        
+        // Handle special cases
+        if (tileType == TileType.Gate && exitObject == tileObject)
+        {
+            exitObject = null;
+        }
         
         // Destroy the visual GameObject
         Destroy(tileObject);
@@ -1547,36 +1545,19 @@ public class LevelLoader : MonoBehaviour
                 GameManager.Instance.RegisterPlayer(playerController);
             }
             
-            levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
-            tileObjects[playerStartX, playerStartY] = playerObject;
-            // Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
+            // Note: Player placement in layered system is handled above
             
             // Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }
     }
     
     /// <summary>
-    /// Atomic movement operation - checks and moves in single operation
+    /// Atomic movement operation using layered system
     /// Returns true if movement successful, false if destination occupied
     /// </summary>
     public bool TryMoveObject(GameObject obj, int fromX, int fromY, int toX, int toY)
     {
-        // Use layered system if enabled
-        if (useLayeredSystem && layeredGrid != null)
-        {
-            return TryMoveObjectLayered(obj, fromX, fromY, toX, toY);
-        }
-        
-        // Legacy single-layer system
-        return TryMoveObjectLegacy(obj, fromX, fromY, toX, toY);
-    }
-    
-    /// <summary>
-    /// Layered system movement (new approach)
-    /// </summary>
-    private bool TryMoveObjectLayered(GameObject obj, int fromX, int fromY, int toX, int toY)
-    {
-        if (!layeredGrid.IsValidPosition(toX, toY))
+        if (layeredGrid == null || !layeredGrid.IsValidPosition(toX, toY))
         {
             return false;
         }
@@ -1599,88 +1580,18 @@ public class LevelLoader : MonoBehaviour
                     bool moveSuccess = layeredGrid.MoveActor(obj, fromX, fromY, toX, toY);
                     if (moveSuccess)
                     {
-                        UpdateObjectTransform(obj, toX, toY);
-                        // Also update legacy system for compatibility
-                        UpdateLegacyMaps(obj, fromX, fromY, toX, toY, tileBase.TileType);
+                        // Update object transform (LayeredGridService doesn't handle Unity transforms)
+                        obj.transform.position = layeredGrid.GridToWorld(toX, toY);
                     }
                     return moveSuccess;
                     
-                // Other object types can be added here
                 default:
-                    // Fall back to legacy system for unknown types
-                    return TryMoveObjectLegacy(obj, fromX, fromY, toX, toY);
+                    Debug.LogWarning($"[LevelLoader] Unknown object type for movement: {tileBase.TileType}");
+                    return false;
             }
         }
         
         return false;
-    }
-    
-    /// <summary>
-    /// Legacy single-layer system (for backward compatibility)
-    /// </summary>
-    private bool TryMoveObjectLegacy(GameObject obj, int fromX, int fromY, int toX, int toY)
-    {
-        // Bounds check
-        if (toX < 0 || toX >= Width || toY < 0 || toY >= Height)
-        {
-            return false;
-        }
-        
-        // Check if destination is walkable (not occupied by static objects)
-        char destCell = levelMap[toX, toY];
-        TileType destType = TileSymbols.DataSymbolToType(destCell);
-        
-        // Can't move to walls, breakables, or occupied cells
-        if (destType == TileType.Wall || destType == TileType.Breakable || 
-            (tileObjects[toX, toY] != null && tileObjects[toX, toY] != obj))
-        {
-            return false;
-        }
-        
-        // ATOMIC UPDATE: Clear old position and set new position
-        if (fromX >= 0 && fromX < Width && fromY >= 0 && fromY < Height)
-        {
-            tileObjects[fromX, fromY] = null;
-            levelMap[fromX, fromY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        }
-        
-        tileObjects[toX, toY] = obj;
-        
-        // Update levelMap based on object type
-        var tileBase = obj.GetComponent<TileBase>();
-        if (tileBase != null)
-        {
-            levelMap[toX, toY] = TileSymbols.TypeToDataSymbol(tileBase.TileType);
-        }
-        
-        UpdateObjectTransform(obj, toX, toY);
-        return true;
-    }
-    
-    /// <summary>
-    /// Update object's world transform
-    /// </summary>
-    private void UpdateObjectTransform(GameObject obj, int x, int y)
-    {
-        Vector3 newPos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-        obj.transform.position = newPos;
-    }
-    
-    /// <summary>
-    /// Update legacy maps for backward compatibility
-    /// </summary>
-    private void UpdateLegacyMaps(GameObject obj, int fromX, int fromY, int toX, int toY, TileType tileType)
-    {
-        // Clear old position
-        if (fromX >= 0 && fromX < Width && fromY >= 0 && fromY < Height)
-        {
-            tileObjects[fromX, fromY] = null;
-            levelMap[fromX, fromY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-        }
-        
-        // Set new position
-        tileObjects[toX, toY] = obj;
-        levelMap[toX, toY] = TileSymbols.TypeToDataSymbol(tileType);
     }
     
     /// <summary>

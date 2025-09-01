@@ -13,12 +13,13 @@ public static class AtomicMovementHelper
     public static bool TryMove(IMovable mover, Vector2Int direction, out Vector3 targetWorldPos)
     {
         var ll = LevelLoader.instance;
+        var layeredGrid = LayeredGridService.Instance;
         targetWorldPos = Vector3.zero;
         
         // Safety checks
-        if (mover == null || mover.gameObject == null || ll == null) 
+        if (mover == null || mover.gameObject == null || ll == null || layeredGrid == null) 
         {
-            Debug.LogError("[AtomicMovementHelper] FAILED - Mover or LevelLoader is null");
+            Debug.LogError("[AtomicMovementHelper] FAILED - Required components are null");
             return false;
         }
         
@@ -35,10 +36,10 @@ public static class AtomicMovementHelper
             mover.OnMoved(targetX, targetY);
             
             // Calculate world position for animation
-            targetWorldPos = ll.GridToWorld(new Vector2Int(targetX, targetY));
+            targetWorldPos = layeredGrid.GridToWorld(targetX, targetY);
             
             // Handle interaction (collection, combat) at new position
-            HandleInteractionAtPosition(mover, targetX, targetY);
+            HandleInteractionAtPosition(mover, targetX, targetY, layeredGrid);
             
             Debug.Log($"[AtomicMovementHelper] {mover.GetType().Name} successfully moved to ({targetX}, {targetY})");
             return true;
@@ -51,42 +52,47 @@ public static class AtomicMovementHelper
     /// <summary>
     /// Handle interactions at the new position (item collection, combat)
     /// </summary>
-    private static void HandleInteractionAtPosition(IMovable mover, int x, int y)
+    private static void HandleInteractionAtPosition(IMovable mover, int x, int y, LayeredGridService layeredGrid)
     {
-        var ll = LevelLoader.instance;
-        if (ll == null) return;
-        
-        // Check for collectibles
-        TileType tileType = TileSymbols.DataSymbolToType(ll.levelMap[x, y]);
-        GameObject objAtPosition = ll.tileObjects[x, y];
-        
-        // Item collection for players
-        if (mover is PlayerController player && (tileType == TileType.Coin || tileType == TileType.Health))
+        // Check for items at new position
+        GameObject itemAtPosition = layeredGrid.GetItemAt(x, y);
+        if (itemAtPosition != null && mover is PlayerController player)
         {
-            var collectible = objAtPosition?.GetComponent<ICollectible>();
+            var collectible = itemAtPosition.GetComponent<ICollectible>();
             if (collectible != null)
             {
                 bool collected = collectible.OnCollect(player.gameObject);
                 if (collected)
                 {
-                    ll.DestroyTileAt(x, y);
-                    Debug.Log($"[AtomicMovementHelper] {player.GetType().Name} collected {tileType} at ({x}, {y})");
+                    layeredGrid.RemoveItem(itemAtPosition, x, y);
+                    Object.Destroy(itemAtPosition);
+                    Debug.Log($"[AtomicMovementHelper] {player.GetType().Name} collected item at ({x}, {y})");
                 }
             }
         }
         
-        // Combat interactions
-        bool moverIsPlayer = mover is PlayerController;
-        bool targetIsEnemy = (tileType == TileType.Enemy || tileType == TileType.EnemyShooter);
-        bool targetIsPlayer = (tileType == TileType.Player);
-        
-        if ((moverIsPlayer && targetIsEnemy) || (!moverIsPlayer && targetIsPlayer))
+        // Check for actors at new position for combat
+        GameObject actorAtPosition = layeredGrid.GetActorAt(x, y);
+        if (actorAtPosition != null && actorAtPosition != mover.gameObject)
         {
-            var damageable = objAtPosition?.GetComponent<IDamageable>();
-            if (damageable != null && damageable.CurrentHealth > 0)
+            bool moverIsPlayer = mover is PlayerController;
+            
+            var targetTile = actorAtPosition.GetComponent<TileBase>();
+            if (targetTile != null)
             {
-                damageable.TakeDamage(1);
-                Debug.Log($"[AtomicMovementHelper] {mover.GetType().Name} attacked {tileType} at ({x}, {y})");
+                bool targetIsEnemy = (targetTile.TileType == TileType.Enemy || targetTile.TileType == TileType.EnemyShooter);
+                bool targetIsPlayer = (targetTile.TileType == TileType.Player);
+                
+                // Combat: Player vs Enemy or Enemy vs Player
+                if ((moverIsPlayer && targetIsEnemy) || (!moverIsPlayer && targetIsPlayer))
+                {
+                    var damageable = actorAtPosition.GetComponent<IDamageable>();
+                    if (damageable != null && damageable.CurrentHealth > 0)
+                    {
+                        damageable.TakeDamage(1);
+                        Debug.Log($"[AtomicMovementHelper] {mover.GetType().Name} attacked {targetTile.TileType} at ({x}, {y})");
+                    }
+                }
             }
         }
     }

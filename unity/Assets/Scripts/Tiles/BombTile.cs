@@ -6,8 +6,7 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
     [Header("Bomb Settings")]
     public int explosionRange = 4;
     public int turnsToExplode = 3;
-    public GameObject explosionPrefab;
-    public GameObject movingExplosionPrefab;
+    public GameObject movingExplosionPrefab;  // MovingExplosion creates ExplosionTiles automatically
     
     public int X { get; set; }
     public int Y { get; set; }
@@ -77,61 +76,24 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         CurrentHealth = 0;
         Debug.Log($"[BombTile] Bomb at ({X},{Y}) exploding with range {explosionRange}!");
         
-        // Create center explosion immediately
-        CreateExplosionAt(X, Y);
+        // Create center explosion - use MovingExplosion with 0 steps for consistency
+        CreateMovingExplosionAt(X, Y, Vector2Int.zero, 0);
         
         // Die FIRST to clear this bomb from tileObjects
         Die();
         
-        // Then create moving explosions in all directions
-        // Moving explosions will create explosions as they move, but not at their starting positions
-        CreateMovingExplosionInDirection(Vector2Int.up);
-        CreateMovingExplosionInDirection(Vector2Int.down);
-        CreateMovingExplosionInDirection(Vector2Int.left);
-        CreateMovingExplosionInDirection(Vector2Int.right);
+        // Then create moving explosions in all directions  
+        // Each direction starts one step away from bomb center
+        CreateMovingExplosionAt(X + Vector2Int.up.x, Y + Vector2Int.up.y, Vector2Int.up, explosionRange - 1);
+        CreateMovingExplosionAt(X + Vector2Int.down.x, Y + Vector2Int.down.y, Vector2Int.down, explosionRange - 1);
+        CreateMovingExplosionAt(X + Vector2Int.left.x, Y + Vector2Int.left.y, Vector2Int.left, explosionRange - 1);
+        CreateMovingExplosionAt(X + Vector2Int.right.x, Y + Vector2Int.right.y, Vector2Int.right, explosionRange - 1);
     }
     
-    private void CreateExplosionInDirection(Vector2Int direction)
-    {
-        var ll = LevelLoader.instance;
-        if (ll == null) return;
-        
-        for (int i = 1; i <= explosionRange; i++)
-        {
-            int targetX = X + (direction.x * i);
-            int targetY = Y + (direction.y * i);
-            
-            // Bounds check
-            if (targetX < 0 || targetX >= ll.Width || targetY < 0 || targetY >= ll.Height)
-                break;
-            
-            // Create explosion at this position first
-            CreateExplosionAt(targetX, targetY);
-            
-            // Then check if we should continue (passable check)
-            TileType tileType = TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]);
-            
-            // Safe passable check - just use tileType directly
-            bool passable = true;
-            try 
-            {
-                passable = MovementHelper.IsTilePassable(null, tileType);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"[BombTile] IsTilePassable failed at ({targetX},{targetY}): {e.Message}");
-                passable = false;
-            }
-            
-            if (!passable)
-                break; // Hit wall/obstacle, stop explosion
-        }
-    }
+    // Old explosion methods removed - now using MovingExplosion for all explosion logic
     
-    private void CreateMovingExplosionInDirection(Vector2Int direction)
+    private void CreateMovingExplosionAt(int startX, int startY, Vector2Int direction, int steps)
     {
-        // Debug.Log($"[BombTile] CreateMovingExplosionInDirection called for direction {direction}");
-        
         var ll = LevelLoader.instance;
         if (ll == null) 
         {
@@ -144,12 +106,6 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
             Debug.LogError("[BombTile] movingExplosionPrefab is null! Please assign it in the Inspector.");
             return;
         }
-        
-        // Debug.Log($"[BombTile] LevelLoader and prefab OK, creating moving explosion...");
-        
-        // Starting position is one step in the direction from bomb
-        int startX = X + direction.x;
-        int startY = Y + direction.y;
         
         // Check bounds for starting position
         if (startX < 0 || startX >= ll.Width || startY < 0 || startY >= ll.Height)
@@ -166,16 +122,14 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         
         if (movingExplosion == null)
         {
-            // Debug.LogWarning($"[BombTile] MovingExplosion component not found, adding it to {movingExplosionGO.name}");
             movingExplosion = movingExplosionGO.AddComponent<MovingExplosion>();
-            movingExplosion.explosionTilePrefab = explosionPrefab; // Give it reference to explosion tile prefab
+            // MovingExplosion prefab should have explosionTilePrefab already set
         }
         
         if (movingExplosion != null)
         {
-            // Initialize with remaining steps (explosionRange - 1 because we already moved one step)
-            movingExplosion.InitMovingExplosion(startX, startY, direction, explosionRange - 1);
-            // Debug.Log($"[BombTile] Successfully created MovingExplosion at ({startX},{startY}) moving {direction} for {explosionRange - 1} steps");
+            movingExplosion.InitMovingExplosion(startX, startY, direction, steps);
+            // Debug.Log($"[BombTile] Successfully created MovingExplosion at ({startX},{startY}) moving {direction} for {steps} steps");
         }
         else
         {
@@ -183,113 +137,17 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
         }
     }
     
-    private void CreateExplosionAt(int x, int y)
-    {
-        var ll = LevelLoader.instance;
-        if (ll == null) 
-        {
-            Debug.LogError("[BombTile] LevelLoader.instance is null!");
-            return;
-        }
-        
-        if (explosionPrefab == null) 
-        {
-            Debug.LogError("[BombTile] explosionPrefab is null!");
-            return;
-        }
-        
-        // Validate position bounds
-        if (x < 0 || x >= ll.Width || y < 0 || y >= ll.Height)
-        {
-            Debug.Log($"[BombTile] Position ({x},{y}) out of bounds, skipping explosion creation");
-            return;
-        }
-        
-        // Check what's currently at this position
-        TileType currentTileType = TileSymbols.DataSymbolToType(ll.levelMap[x, y]);
-        GameObject currentObject = ll.tileObjects[x, y];
-        
-        // For bomb center explosion, always create (bomb position should be valid)
-        // For other positions, check passability and IDamageable
-        if (x != X || y != Y) // Not the bomb center
-        {
-            // Check if tile is passable
-            bool isPassable = true;
-            try 
-            {
-                isPassable = MovementHelper.IsTilePassable(null, currentTileType);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"[BombTile] IsTilePassable check failed at ({x},{y}): {e.Message}");
-                isPassable = false;
-            }
-            
-            // If tile is not passable and has no IDamageable component, skip explosion
-            if (!isPassable)
-            {
-                bool hasDamageableComponent = false;
-                if (currentObject != null)
-                {
-                    hasDamageableComponent = currentObject.TryGetComponent<IDamageable>(out _);
-                }
-                
-                if (!hasDamageableComponent)
-                {
-                    Debug.Log($"[BombTile] Tile at ({x},{y}) is not passable and has no IDamageable component (type: {currentTileType}), skipping explosion creation");
-                    return;
-                }
-                else
-                {
-                    Debug.Log($"[BombTile] Tile at ({x},{y}) is not passable but has IDamageable component (type: {currentTileType}), creating explosion to damage it");
-                }
-            }
-        }
-        
-        // Debug.Log($"[BombTile] Creating explosion at ({x},{y}) - current tile type: {currentTileType}");
-        
-        Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
-        Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
-        
-        // Debug.Log($"[BombTile] Instantiating explosion prefab: {explosionPrefab.name} at position: {pos} under parent: {effectsParent?.name}");
-        
-        GameObject explosionGO = Instantiate(explosionPrefab, pos, Quaternion.identity, effectsParent);
-        ExplosionTile explosion = explosionGO.GetComponent<ExplosionTile>();
-        
-        if (explosion == null)
-        {
-            // Debug.LogWarning($"[BombTile] ExplosionTile component not found, adding it to {explosionGO.name}");
-            
-            // Remove old ExplosionWave if exists
-            var oldExplosion = explosionGO.GetComponent<ExplosionWave>();
-            if (oldExplosion != null)
-            {
-                // Debug.Log($"[BombTile] Removing old ExplosionWave component");
-                DestroyImmediate(oldExplosion);
-            }
-            
-            // Add new ExplosionTile
-            explosion = explosionGO.AddComponent<ExplosionTile>();
-        }
-        
-        if (explosion != null)
-        {
-            // Debug.Log($"[BombTile] ExplosionTile component ready, calling Init({x},{y})");
-            explosion.Init(x, y);
-        }
-        
-        // Debug.Log($"[BombTile] Explosion creation completed at ({x},{y})");
-    }
+    // CreateExplosionAt removed - MovingExplosion handles all explosion tile creation
     
     private void Die()
     {
         Debug.Log($"[BombTile] Bomb at ({X},{Y}) dying...");
         
-        var ll = LevelLoader.instance;
-        if (ll != null && X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height)
+        // Remove from layered system
+        var layeredGrid = LayeredGridService.Instance;
+        if (layeredGrid != null && layeredGrid.IsValidPosition(X, Y))
         {
-            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-            ll.tileObjects[X, Y] = null;
+            layeredGrid.RemoveBomb(this.gameObject, X, Y);
         }
         
         // Manual unregister to avoid OnDisable double call

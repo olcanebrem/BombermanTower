@@ -435,7 +435,7 @@ public class PlayerAgent : Agent, ITurnBased
             var ll = LevelLoader.instance;
             if (ll != null && targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height)
             {
-                if (TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
+                if (LayeredGridService.Instance?.IsWalkable(targetX, targetY) ?? false)
                 {
                     Debug.Log($"[PlayerAgent] Found empty space for bomb at direction: {dir}");
                     return dir;
@@ -611,12 +611,44 @@ public class PlayerAgent : Agent, ITurnBased
                 }
                 
                 // Tile type observation
-                var tileType = TileSymbols.DataSymbolToType(ll.levelMap[checkPos.x, checkPos.y]);
+                // Check what's at position using layered system  
+                var layeredGrid = LayeredGridService.Instance;
+                TileType tileType = TileType.Empty;
+                
+                if (layeredGrid != null)
+                {
+                    // Check static layers first
+                    var staticMask = layeredGrid.GetStaticTile(checkPos.x, checkPos.y);
+                    var destructibleMask = layeredGrid.GetDestructibleTile(checkPos.x, checkPos.y);
+                    
+                    if ((staticMask & LayeredGridService.LayerMask.BlocksMovement) != 0)
+                        tileType = TileType.Wall;
+                    else if ((destructibleMask & LayeredGridService.LayerMask.Destructible) != 0)
+                        tileType = TileType.Breakable;
+                    else
+                    {
+                        // Check dynamic objects
+                        GameObject actor = layeredGrid.GetActorAt(checkPos.x, checkPos.y);
+                        GameObject bomb = layeredGrid.GetBombAt(checkPos.x, checkPos.y);
+                        
+                        if (actor != null)
+                        {
+                            var tileBase = actor.GetComponent<TileBase>();
+                            tileType = tileBase != null ? tileBase.TileType : TileType.Empty;
+                        }
+                        else if (bomb != null)
+                        {
+                            tileType = TileType.Bomb;
+                        }
+                    }
+                }
+                
                 sensor.AddObservation(GetTileTypeValue(tileType));
                 observationCount += 1;
                 
                 // Object observations
-                var obj = ll.tileObjects[checkPos.x, checkPos.y];
+                var objectsAtPosition = layeredGrid?.GetAllObjectsAt(checkPos.x, checkPos.y) ?? new System.Collections.Generic.List<GameObject>();
+                var obj = objectsAtPosition.Count > 0 ? objectsAtPosition[0] : null;
                 
                 // Enemy detection
                 bool hasEnemy = obj != null && 

@@ -79,8 +79,7 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
 
         // --- YENİ VE EN ÖNEMLİ KISIM: MANTIKSAL KAYIT ---
         // 3. Bu yeni mermiyi, oyunun mantıksal haritalarına kaydet.
-        ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(proj.TileType);
-        ll.tileObjects[x, y] = projectileGO;
+        LayeredGridService.Instance?.PlaceActor(projectileGO, x, y);
         // -------------------------------------------------
 
         // 4. Görselini ayarla.
@@ -149,12 +148,10 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         var ll = LevelLoader.instance;
 
         // --- GÜVENLİK KİLİDİ ---
-        // Haritadaki izimizi silmeden önce, o izin gerçekten bize ait olduğunu doğrula.
-        // Bu, başka bir merminin yerini yanlışlıkla silmemizi engeller.
-        if (X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height && ll.tileObjects[X, Y] == this.gameObject)
+        // Haritadaki izimizi silmeden önce, geçerli pozisyonu kontrol et.
+        if (X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height)
         {
-            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-            ll.tileObjects[X, Y] = null;
+            LayeredGridService.Instance?.RemoveActor(this.gameObject, X, Y);
         }
         
         // GameObject'i her halükarda yok et.

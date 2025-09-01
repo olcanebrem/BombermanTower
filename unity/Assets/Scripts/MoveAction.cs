@@ -45,7 +45,7 @@ public class MoveAction : IGameAction
         try
         {
             // Debug.Log($"[MoveAction] Calling MovementHelper.TryMove with direction: {direction}");
-            bool moveSuccessful = MovementHelper.TryMove(mover, direction, out Vector3 targetPos);
+            bool moveSuccessful = AtomicMovementHelper.TryMove(mover, direction, out Vector3 targetPos);
             // Debug.Log($"[MoveAction] MovementHelper.TryMove returned: {moveSuccessful}, targetPos: {targetPos}");
             
             if (moveSuccessful)

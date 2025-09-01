@@ -29,6 +29,7 @@ public class LayeredGridService : MonoBehaviour
     // Individual layer grids
     private LayerMask[,] staticLayer;      // Walls, indestructibles (never change)
     private LayerMask[,] destructibleLayer; // Breakable blocks (destroyed by fire)
+    private GameObject[,] destructibleObjectLayer; // GameObject references for destructible tiles
     private GameObject[,] actorLayer;       // Players, enemies (1 per cell max)
     private GameObject[,] bombLayer;        // Bombs (1 per cell max)  
     private GameObject[,] effectLayer;      // Explosions, fire (temporary)
@@ -71,6 +72,7 @@ public class LayeredGridService : MonoBehaviour
         // Initialize all layer grids
         staticLayer = new LayerMask[width, height];
         destructibleLayer = new LayerMask[width, height];
+        destructibleObjectLayer = new GameObject[width, height];
         actorLayer = new GameObject[width, height];
         bombLayer = new GameObject[width, height];
         effectLayer = new GameObject[width, height];
@@ -90,6 +92,59 @@ public class LayeredGridService : MonoBehaviour
     public bool IsValidPosition(int x, int y)
     {
         return x >= 0 && x < width && y >= 0 && y < height;
+    }
+    
+    /// <summary>
+    /// Get the tile type at a specific position by analyzing all layers
+    /// </summary>
+    public TileType GetTileTypeAt(int x, int y)
+    {
+        if (!IsValidPosition(x, y)) return TileType.Empty;
+        
+        // Check layers in priority order
+        if (destructibleObjectLayer[x, y] != null)
+        {
+            var tileBase = destructibleObjectLayer[x, y].GetComponent<TileBase>();
+            if (tileBase != null) return tileBase.TileType;
+        }
+        
+        if (actorLayer[x, y] != null)
+        {
+            var tileBase = actorLayer[x, y].GetComponent<TileBase>();
+            if (tileBase != null) return tileBase.TileType;
+        }
+        
+        if (bombLayer[x, y] != null)
+        {
+            var tileBase = bombLayer[x, y].GetComponent<TileBase>();
+            if (tileBase != null) return tileBase.TileType;
+        }
+        
+        if (effectLayer[x, y] != null)
+        {
+            var tileBase = effectLayer[x, y].GetComponent<TileBase>();
+            if (tileBase != null) return tileBase.TileType;
+        }
+        
+        if (itemLayer[x, y] != null)
+        {
+            var tileBase = itemLayer[x, y].GetComponent<TileBase>();
+            if (tileBase != null) return tileBase.TileType;
+        }
+        
+        // Check destructible layer
+        if ((destructibleLayer[x, y] & LayerMask.Destructible) != 0)
+        {
+            return TileType.Breakable;
+        }
+        
+        // Check static layer
+        if ((staticLayer[x, y] & LayerMask.BlocksMovement) != 0)
+        {
+            return TileType.Wall;
+        }
+        
+        return TileType.Empty;
     }
     
     /// <summary>
@@ -119,6 +174,22 @@ public class LayeredGridService : MonoBehaviour
                 // Only owner can pass through bomb on placement turn
                 return false;
             }
+        }
+        
+        // Items block movement for non-players
+        GameObject item = itemLayer[x, y];
+        if (item != null)
+        {
+            // Check if the actor is a player
+            bool isPlayer = actor != null && actor.GetComponent<PlayerController>() != null;
+            
+            if (!isPlayer)
+            {
+                // Non-players (enemies) cannot walk through items
+                return false;
+            }
+            
+            // Players can walk through items (will trigger collection in AtomicMovementHelper)
         }
         
         return true;
@@ -166,6 +237,31 @@ public class LayeredGridService : MonoBehaviour
         destructibleLayer[x, y] = mask;
     }
     
+    public bool PlaceDestructibleObject(GameObject destructibleObj, int x, int y)
+    {
+        if (!IsValidPosition(x, y) || destructibleObj == null) return false;
+        
+        // Check if position is already occupied by a destructible object
+        if (destructibleObjectLayer[x, y] != null)
+        {
+            Debug.LogWarning($"[LayeredGridService] Destructible position ({x}, {y}) already occupied by {destructibleObjectLayer[x, y].name}");
+            return false;
+        }
+        
+        // Set both the layer mask and object reference
+        destructibleLayer[x, y] = LayerMask.Destructible | LayerMask.BlocksMovement | LayerMask.BlocksFire;
+        destructibleObjectLayer[x, y] = destructibleObj;
+        
+        Debug.Log($"[LayeredGridService] Placed destructible object {destructibleObj.name} at ({x}, {y})");
+        return true;
+    }
+    
+    public GameObject GetDestructibleObjectAt(int x, int y)
+    {
+        if (!IsValidPosition(x, y)) return null;
+        return destructibleObjectLayer[x, y];
+    }
+    
     public bool DestroyDestructibleTile(int x, int y)
     {
         if (!IsValidPosition(x, y)) return false;
@@ -174,6 +270,7 @@ public class LayeredGridService : MonoBehaviour
         if (wasDestructible)
         {
             destructibleLayer[x, y] = LayerMask.None;
+            destructibleObjectLayer[x, y] = null; // Clear object reference too
             Debug.Log($"[LayeredGridService] Destroyed destructible tile at ({x}, {y})");
         }
         return wasDestructible;
@@ -193,10 +290,17 @@ public class LayeredGridService : MonoBehaviour
     {
         if (!IsValidPosition(x, y) || actor == null) return false;
         
-        // Check if position is occupied
+        // Check if position is occupied by another actor
         if (actorLayer[x, y] != null && actorLayer[x, y] != actor)
         {
-            Debug.LogWarning($"[LayeredGridService] Actor position ({x}, {y}) already occupied by {actorLayer[x, y].name}");
+            Debug.LogWarning($"[LayeredGridService] Actor position ({x}, {y}) already occupied by actor {actorLayer[x, y].name}");
+            return false;
+        }
+        
+        // Check if there's an item at this position (actors shouldn't overlap with items)
+        if (itemLayer[x, y] != null)
+        {
+            Debug.LogWarning($"[LayeredGridService] Cannot place actor at ({x}, {y}) - position occupied by item {itemLayer[x, y].name}");
             return false;
         }
         
@@ -302,6 +406,20 @@ public class LayeredGridService : MonoBehaviour
     {
         if (!IsValidPosition(x, y) || item == null) return false;
         
+        // Check if there's already an actor at this position (items shouldn't overlap with actors)
+        if (actorLayer[x, y] != null)
+        {
+            Debug.LogWarning($"[LayeredGridService] Cannot place item at ({x}, {y}) - position occupied by actor {actorLayer[x, y].name}");
+            return false;
+        }
+        
+        // Check if there's already an item at this position
+        if (itemLayer[x, y] != null)
+        {
+            Debug.LogWarning($"[LayeredGridService] Cannot place item at ({x}, {y}) - position already has item {itemLayer[x, y].name}");
+            return false;
+        }
+        
         itemLayer[x, y] = item;
         if (!allItems.Contains(item))
         {
@@ -374,6 +492,7 @@ public class LayeredGridService : MonoBehaviour
         
         if (!IsValidPosition(x, y)) return objects;
         
+        if (destructibleObjectLayer[x, y] != null) objects.Add(destructibleObjectLayer[x, y]);
         if (actorLayer[x, y] != null) objects.Add(actorLayer[x, y]);
         if (bombLayer[x, y] != null) objects.Add(bombLayer[x, y]);
         if (effectLayer[x, y] != null) objects.Add(effectLayer[x, y]);

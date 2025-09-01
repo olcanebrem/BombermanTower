@@ -34,8 +34,14 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
         if (ll != null && x >= 0 && x < ll.Width && y >= 0 && y < ll.Height)
         {
             // Get current tile information
-            TileType currentTileType = TileSymbols.DataSymbolToType(ll.levelMap[x, y]);
-            GameObject existingTarget = ll.tileObjects[x, y];
+            // Check layers for current objects
+            var layeredGrid = LayeredGridService.Instance;
+            bool hasDestructibleTile = layeredGrid != null && (layeredGrid.GetDestructibleTile(x, y) & LayeredGridService.LayerMask.Destructible) != 0;
+            var objectsAtPosition = layeredGrid?.GetAllObjectsAt(x, y) ?? new System.Collections.Generic.List<GameObject>();
+            GameObject existingTarget = objectsAtPosition.Count > 0 ? objectsAtPosition[0] : null;
+            
+            // Get current tile type from layered grid
+            TileType currentTileType = layeredGrid?.GetTileTypeAt(x, y) ?? TileType.Empty;
             
             // Debug.Log($"[ExplosionTile] Analyzing position ({x},{y}) - current tile: {currentTileType}, object: {existingTarget?.name ?? "NULL"}");
             
@@ -100,8 +106,11 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
             
             if (shouldRegisterInMap)
             {
-                ll.levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Explosion);
-                ll.tileObjects[x, y] = gameObject;
+                // Place explosion in effect layer
+                if (layeredGrid != null)
+                {
+                    layeredGrid.PlaceEffect(gameObject, x, y);
+                }
                 // Debug.Log($"[ExplosionTile] Registered explosion in LevelLoader maps at ({x},{y})");
             }
             // else - Explosion exists visually but doesn't override logic map
@@ -146,7 +155,9 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
             return;
         }
 
-        GameObject target = ll.tileObjects[X, Y];
+        var layeredGrid = LayeredGridService.Instance;
+        var objectsAtPosition = layeredGrid?.GetAllObjectsAt(X, Y) ?? new System.Collections.Generic.List<GameObject>();
+        GameObject target = objectsAtPosition.Count > 0 ? objectsAtPosition[0] : null;
         if (target == null) 
         {
             Debug.Log($"[ExplosionTile] No target at ({X},{Y})");
@@ -171,10 +182,14 @@ public class ExplosionTile : TileBase, IInitializable, ITurnBased
         Debug.Log($"[ExplosionTile] Explosion at ({X},{Y}) dying...");
         
         var ll = LevelLoader.instance;
-        if (ll != null && X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height && ll.tileObjects[X, Y] == gameObject)
+        if (ll != null && X >= 0 && X < ll.Width && Y >= 0 && Y < ll.Height)
         {
-            ll.levelMap[X, Y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-            ll.tileObjects[X, Y] = null;
+            // Remove from effect layer
+            var layeredGrid = LayeredGridService.Instance;
+            if (layeredGrid != null && layeredGrid.IsValidPosition(X, Y))
+            {
+                layeredGrid.RemoveEffect(this.gameObject, X, Y);
+            }
         }
         
         // Unregister from TurnManager

@@ -190,44 +190,80 @@ public class TurnManager : MonoBehaviour
     private void PrintDebugMap()
     {
         var ll = LevelLoader.instance;
-        if (ll == null || ll.levelMap == null) return;
-
+        var layeredGrid = LayeredGridService.Instance;
         
+        if (ll == null || layeredGrid == null) return;
+
         // Create a grid to represent the map
         string[,] debugGrid = new string[ll.Width, ll.Height];
         
-        // Initialize with empty spaces
-        for (int y = 0; y < ll.Height; y++)
-            for (int x = 0; x < ll.Width; x++)
-                debugGrid[x, y] = GetDebugSymbol(TileSymbols.DataSymbolToType(ll.levelMap[x, y]));
-        
-        // Add dynamic objects from tileObjects (only for moving/dynamic objects)
+        // Initialize with static layer data
         for (int y = 0; y < ll.Height; y++)
         {
             for (int x = 0; x < ll.Width; x++)
             {
-                var obj = ll.tileObjects[x, y];
-                if (obj != null)
+                // Check static layers first
+                var staticMask = layeredGrid.GetStaticTile(x, y);
+                var destructibleMask = layeredGrid.GetDestructibleTile(x, y);
+                
+                if ((staticMask & LayeredGridService.LayerMask.BlocksMovement) != 0)
                 {
-                    // Only override for dynamic objects (Player, Enemy, Bomb)
-                    TileType objectType = GetTileTypeFromGameObject(obj);
-                    if (IsDynamicObject(objectType))
-                    {
-                        debugGrid[x, y] = GetDebugSymbol(objectType);
-                    }
+                    debugGrid[x, y] = GetDebugSymbol(TileType.Wall);
+                }
+                else if ((destructibleMask & LayeredGridService.LayerMask.Destructible) != 0)
+                {
+                    debugGrid[x, y] = GetDebugSymbol(TileType.Breakable);
+                }
+                else
+                {
+                    debugGrid[x, y] = GetDebugSymbol(TileType.Empty);
                 }
             }
         }
         
-        // Debug: Print a few levelMap samples (with bounds check)
-        string sample00 = (ll.Width > 0 && ll.Height > 0) ? ll.levelMap[0,0].ToString() : "N/A";
-        string sample55 = (ll.Width > 5 && ll.Height > 5) ? ll.levelMap[5,5].ToString() : "N/A";
-        string sample1010 = (ll.Width > 10 && ll.Height > 10) ? ll.levelMap[10,10].ToString() : "N/A";
-        // Debug.Log($"[DEBUG] levelMap samples - [0,0]='{sample00}' [5,5]='{sample55}' [10,10]='{sample1010}'");
+        // Add dynamic objects from layered system
+        for (int y = 0; y < ll.Height; y++)
+        {
+            for (int x = 0; x < ll.Width; x++)
+            {
+                // Check actor layer
+                GameObject actor = layeredGrid.GetActorAt(x, y);
+                if (actor != null)
+                {
+                    TileType actorType = GetTileTypeFromGameObject(actor);
+                    debugGrid[x, y] = GetDebugSymbol(actorType);
+                    continue;
+                }
+                
+                // Check bomb layer
+                GameObject bomb = layeredGrid.GetBombAt(x, y);
+                if (bomb != null)
+                {
+                    debugGrid[x, y] = GetDebugSymbol(TileType.Bomb);
+                    continue;
+                }
+                
+                // Check item layer
+                GameObject item = layeredGrid.GetItemAt(x, y);
+                if (item != null)
+                {
+                    TileType itemType = GetTileTypeFromGameObject(item);
+                    debugGrid[x, y] = GetDebugSymbol(itemType);
+                    continue;
+                }
+                
+                // Check effect layer
+                GameObject effect = layeredGrid.GetEffectAt(x, y);
+                if (effect != null)
+                {
+                    debugGrid[x, y] = GetDebugSymbol(TileType.Explosion);
+                }
+            }
+        }
         
         // Build the entire map as a single string
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.AppendLine($"\n=== TURN {TurnCount} DEBUG MAP ===");
+        sb.AppendLine($"\n=== TURN {TurnCount} LAYERED DEBUG MAP ===");
         
         // Add each row to the string builder
         for (int y = 0; y < ll.Height; y++)
@@ -239,7 +275,7 @@ public class TurnManager : MonoBehaviour
             }
             sb.AppendLine(row);
         }
-        sb.AppendLine("======================");
+        sb.AppendLine("=========================================");
         
         // Log the entire map at once
         Debug.Log(sb.ToString());

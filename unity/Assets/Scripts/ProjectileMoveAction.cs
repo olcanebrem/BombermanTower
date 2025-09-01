@@ -27,7 +27,7 @@ public class ProjectileMoveAction : IGameAction
             return;
         }
 
-        if (MovementHelper.TryMove(projectile, projectile.direction, out Vector3 targetPos))
+        if (AtomicMovementHelper.TryMove(projectile, projectile.direction, out Vector3 targetPos))
         {
             projectile.StartMoveAnimation(targetPos);
         }

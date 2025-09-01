@@ -77,9 +77,14 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
             return null;
         }
         
-        // Check what's at the next position and validate if explosion can be created there
-        TileType nextTileType = TileSymbols.DataSymbolToType(ll.levelMap[nextX, nextY]);
-        GameObject nextObject = ll.tileObjects[nextX, nextY];
+        // Check what's at the next position using layered system
+        var layeredGrid = LayeredGridService.Instance;
+        bool canPass = layeredGrid?.IsFirePassable(nextX, nextY) ?? false;
+        var objectsAtPosition = layeredGrid?.GetAllObjectsAt(nextX, nextY) ?? new System.Collections.Generic.List<GameObject>();
+        
+        // Get tile type at next position
+        TileType nextTileType = layeredGrid?.GetTileTypeAt(nextX, nextY) ?? TileType.Empty;
+        GameObject nextObject = objectsAtPosition.Count > 0 ? objectsAtPosition[0] : null;
         
         // Use ExplosionPassableHelper to determine explosion behavior
         bool canCreateExplosion = ExplosionPassableHelper.ShouldCreateExplosionTile(nextTileType, nextObject);
@@ -136,9 +141,13 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
             return;
         }
         
-        // Check what's currently at this position
-        TileType currentTileType = TileSymbols.DataSymbolToType(ll.levelMap[x, y]);
-        GameObject currentObject = ll.tileObjects[x, y];
+        // Check what's currently at this position using layered system
+        var layeredGrid = LayeredGridService.Instance;
+        var objectsAtPosition = layeredGrid?.GetAllObjectsAt(x, y) ?? new System.Collections.Generic.List<GameObject>();
+        GameObject currentObject = objectsAtPosition.Count > 0 ? objectsAtPosition[0] : null;
+        
+        // Get current tile type from layered grid
+        TileType currentTileType = layeredGrid?.GetTileTypeAt(x, y) ?? TileType.Empty;
         
         // Use ExplosionPassableHelper to check if explosion should be created here
         if (!ExplosionPassableHelper.ShouldCreateExplosionTile(currentTileType, currentObject))
@@ -155,12 +164,7 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         
         if (explosion == null)
         {
-            // Remove old ExplosionWave if exists and add ExplosionTile
-            var oldExplosion = explosionGO.GetComponent<ExplosionWave>();
-            if (oldExplosion != null)
-            {
-                DestroyImmediate(oldExplosion);
-            }
+            // Add ExplosionTile component if needed
             explosion = explosionGO.AddComponent<ExplosionTile>();
         }
         
