@@ -101,6 +101,8 @@ public class PlayerAgent : Agent, ITurnBased
     
     public override void Initialize()
     {
+        Debug.Log($"[PlayerAgent] Initialize() called - TurnCount: {(TurnManager.Instance?.TurnCount ?? -1)}, FrameCount: {Time.frameCount}");
+        
         // Configure Academy for turn-based gameplay
         var academy = Unity.MLAgents.Academy.Instance;
         if (academy != null)

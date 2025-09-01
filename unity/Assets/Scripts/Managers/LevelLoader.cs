@@ -101,18 +101,18 @@ public class LevelLoader : MonoBehaviour
         }
 
         // Oluşturulan harita string'ini, konsolda öne çıkması için bir uyarı olarak yazdır.
-        Debug.LogWarning(mapOutput);
+        // Debug.LogWarning(mapOutput);
     }
     void Awake()
     {
         if (instance != null && instance != this)
         {
-            Debug.LogWarning("[LevelLoader] Multiple LevelLoader instances detected. Destroying duplicate component only.");
+            // Debug.LogWarning("[LevelLoader] Multiple LevelLoader instances detected. Destroying duplicate component only.");
             Destroy(this);
             return;
         }
         instance = this;
-        Debug.Log($"[LevelLoader] Singleton instance set to: {this.gameObject.name}");
+        // Debug.Log($"[LevelLoader] Singleton instance set to: {this.gameObject.name}");
 
         // Component references - find HoudiniLevelParser (Singleton or scene)
         levelParser = HoudiniLevelParser.Instance;
@@ -122,16 +122,16 @@ public class LevelLoader : MonoBehaviour
             if (levelParser == null)
             {
                 levelParser = gameObject.AddComponent<HoudiniLevelParser>();
-                Debug.Log("[LevelLoader] HoudiniLevelParser component automatically added to LevelLoader");
+                // Debug.Log("[LevelLoader] HoudiniLevelParser component automatically added to LevelLoader");
             }
             else
             {
-                Debug.Log("[LevelLoader] HoudiniLevelParser found in scene");
+                // Debug.Log("[LevelLoader] HoudiniLevelParser found in scene");
             }
         }
         else
         {
-            Debug.Log("[LevelLoader] HoudiniLevelParser found via Singleton");
+            // Debug.Log("[LevelLoader] HoudiniLevelParser found via Singleton");
         }
 
         // Prefab sözlüğünü doldur - önce otomatik keşif dene
@@ -143,39 +143,39 @@ public class LevelLoader : MonoBehaviour
         // Inspector'dan manual atamalar (varsa) - otomatiklerin üzerine yazar
         if (tilePrefabs != null && tilePrefabs.Length > 0)
         {
-            Debug.Log("[LevelLoader] === MANUAL PREFAB OVERRIDES ===");
+            // Debug.Log("[LevelLoader] === MANUAL PREFAB OVERRIDES ===");
             foreach (var entry in tilePrefabs)
             {
                 if (entry.prefab != null)
                 {
                     if (prefabMap.ContainsKey(entry.type))
                     {
-                        Debug.Log($"[LevelLoader] Overriding {entry.type}: {prefabMap[entry.type].name} -> {entry.prefab.name}");
+                        // Debug.Log($"[LevelLoader] Overriding {entry.type}: {prefabMap[entry.type].name} -> {entry.prefab.name}");
                         prefabMap[entry.type] = entry.prefab;
                     }
                     else
                     {
                         prefabMap.Add(entry.type, entry.prefab);
-                        Debug.Log($"[LevelLoader] Manual assignment {entry.type} -> {entry.prefab.name}");
+                        // Debug.Log($"[LevelLoader] Manual assignment {entry.type} -> {entry.prefab.name}");
                     }
                 }
             }
         }
         else
         {
-            Debug.Log("[LevelLoader] No manual prefab overrides - using auto-discovery only");
+            // Debug.Log("[LevelLoader] No manual prefab overrides - using auto-discovery only");
         }
         
-        Debug.Log($"[LevelLoader] Final prefab map: {prefabMap.Count} entries");
+        // Debug.Log($"[LevelLoader] Final prefab map: {prefabMap.Count} entries");
         // Sprite database'i initialize et
         if (spriteDatabase != null)
         {
             spriteDatabase.Initialize(); // Veri tabanını hazırla
-            Debug.Log("[LevelLoader] SpriteDatabase initialized");
+            // Debug.Log("[LevelLoader] SpriteDatabase initialized");
         }
         else
         {
-            Debug.LogWarning("[LevelLoader] spriteDatabase is null! Please assign SpriteDatabase in Inspector.");
+            // Debug.LogWarning("[LevelLoader] spriteDatabase is null! Please assign SpriteDatabase in Inspector.");
         }
         
         // Initialize level content containers EARLY - before any Start() methods can call LoadLevel
@@ -187,7 +187,7 @@ public class LevelLoader : MonoBehaviour
         ScanForLevelFiles();
         // Level loading is now handled by LevelManager - don't auto-load here
         // LoadSelectedLevel(); // Removed - causes duplicate loading
-        Debug.Log("[LevelLoader] Start completed - level loading handled by LevelManager");
+        // Debug.Log("[LevelLoader] Start completed - level loading handled by LevelManager");
     }
     
     /// <summary>
@@ -202,14 +202,14 @@ public class LevelLoader : MonoBehaviour
             if (levelContentGO == null)
             {
                 levelContentGO = new GameObject("[LEVEL CONTENT]");
-                Debug.Log("[LevelLoader] Created [LEVEL CONTENT] container");
+                // Debug.Log("[LevelLoader] Created [LEVEL CONTENT] container");
             }
             else
             {
-                Debug.Log("[LevelLoader] Found existing [LEVEL CONTENT] container");
+                // Debug.Log("[LevelLoader] Found existing [LEVEL CONTENT] container");
             }
             levelContentParent = levelContentGO.transform;
-            Debug.Log($"[LevelLoader] Level content parent set to: {levelContentParent.name}");
+            // Debug.Log($"[LevelLoader] Level content parent set to: {levelContentParent.name}");
         }
         
         // Create grid parent
@@ -218,7 +218,7 @@ public class LevelLoader : MonoBehaviour
             GameObject gridGO = new GameObject("GridParent");
             gridGO.transform.SetParent(levelContentParent);
             gridParent = gridGO.transform;
-            Debug.Log($"[LevelLoader] Created GridParent under: {levelContentParent.name}");
+            // Debug.Log($"[LevelLoader] Created GridParent under: {levelContentParent.name}");
         }
         
         // Create dynamic content parent  
@@ -227,7 +227,7 @@ public class LevelLoader : MonoBehaviour
             GameObject dynamicGO = new GameObject("Dynamic Content");
             dynamicGO.transform.SetParent(levelContentParent);
             dynamicParent = dynamicGO.transform;
-            Debug.Log($"[LevelLoader] Created Dynamic Content under: {levelContentParent.name}");
+            // Debug.Log($"[LevelLoader] Created Dynamic Content under: {levelContentParent.name}");
         }
         
         // Create tile type containers under grid
@@ -241,7 +241,7 @@ public class LevelLoader : MonoBehaviour
         CreateTileContainer(ref effectsContainer, "Effects", dynamicParent);
         CreateTileContainer(ref projectilesContainer, "Projectiles", dynamicParent);
         
-        Debug.Log("[LevelLoader] Level containers initialized");
+        // Debug.Log("[LevelLoader] Level containers initialized");
     }
     
     /// <summary>
@@ -350,7 +350,7 @@ public class LevelLoader : MonoBehaviour
             return levelCompare != 0 ? levelCompare : string.Compare(a.version, b.version, System.StringComparison.Ordinal);
         });
         
-        Debug.Log($"[LevelLoader] Found {availableLevels.Count} level files");
+        // Debug.Log($"[LevelLoader] Found {availableLevels.Count} level files");
     }
     
     #if UNITY_EDITOR
@@ -359,15 +359,15 @@ public class LevelLoader : MonoBehaviour
         // Assets/Levels dizinindeki tüm .txt dosyalarını bul
         string[] guids = AssetDatabase.FindAssets("LEVEL_ t:TextAsset", new[] { levelsDirectoryPath });
         
-        Debug.Log($"[LevelLoader] Scanning directory: {levelsDirectoryPath}");
-        Debug.Log($"[LevelLoader] Found {guids.Length} files with 'LEVEL_' in name");
+        // Debug.Log($"[LevelLoader] Scanning directory: {levelsDirectoryPath}");
+        // Debug.Log($"[LevelLoader] Found {guids.Length} files with 'LEVEL_' in name");
         
         foreach (string guid in guids)
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guid);
             string fileName = Path.GetFileNameWithoutExtension(assetPath);
             
-            Debug.Log($"[LevelLoader] Checking file: {assetPath}");
+            // Debug.Log($"[LevelLoader] Checking file: {assetPath}");
             
             // LEVEL_XXXX pattern kontrolü
             if (IsValidLevelFileName(fileName))
@@ -378,16 +378,16 @@ public class LevelLoader : MonoBehaviour
                 {
                     var levelEntry = ParseLevelFileName(fileName, assetPath, textAsset);
                     availableLevels.Add(levelEntry);
-                    Debug.Log($"[LevelLoader] Successfully loaded level: {fileName}");
+                    // Debug.Log($"[LevelLoader] Successfully loaded level: {fileName}");
                 }
                 else
                 {
-                    Debug.LogWarning($"[LevelLoader] Could not load as TextAsset: {assetPath}");
+                    // Debug.LogWarning($"[LevelLoader] Could not load as TextAsset: {assetPath}");
                 }
             }
             else
             {
-                Debug.Log($"[LevelLoader] File name doesn't match pattern: {fileName}");
+                // Debug.Log($"[LevelLoader] File name doesn't match pattern: {fileName}");
             }
         }
     }
@@ -460,7 +460,7 @@ public class LevelLoader : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"[LevelLoader] Failed to parse level file name '{fileName}': {e.Message}");
+            // Debug.LogWarning($"[LevelLoader] Failed to parse level file name '{fileName}': {e.Message}");
         }
         
         return entry;
@@ -471,7 +471,7 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadSelectedLevel()
     {
-        Debug.Log($"[LevelLoader] LoadSelectedLevel called - Available levels: {availableLevels.Count}");
+        // Debug.Log($"[LevelLoader] LoadSelectedLevel called - Available levels: {availableLevels.Count}");
         
         if (availableLevels.Count == 0)
         {
@@ -489,12 +489,12 @@ public class LevelLoader : MonoBehaviour
         
         var selectedLevel = availableLevels[selectedLevelIndex];
         
-        Debug.Log($"[LevelLoader] Loading level: {selectedLevel.fileName}");
+        // Debug.Log($"[LevelLoader] Loading level: {selectedLevel.fileName}");
         
         // Use LevelImporter for organized level loading
         if (LevelImporter.Instance != null)
         {
-            Debug.Log("[LevelLoader] Using LevelImporter for data import");
+            // Debug.Log("[LevelLoader] Using LevelImporter for data import");
             currentLevelData = LevelImporter.Instance.ImportLevel(selectedLevel.textAsset);
             
             if (currentLevelData == null)
@@ -515,7 +515,7 @@ public class LevelLoader : MonoBehaviour
                 return;
             }
             
-            Debug.LogWarning("[LevelLoader] LevelImporter not found - using fallback direct loading");
+            // Debug.LogWarning("[LevelLoader] LevelImporter not found - using fallback direct loading");
             currentLevelData = levelParser.ParseLevelData(selectedLevel.textAsset);
             if (currentLevelData != null)
             {
@@ -536,7 +536,7 @@ public class LevelLoader : MonoBehaviour
         if (index >= 0 && index < availableLevels.Count)
         {
             selectedLevelIndex = index;
-            Debug.Log($"[LevelLoader] Selected level: {availableLevels[index].fileName}");
+            // Debug.Log($"[LevelLoader] Selected level: {availableLevels[index].fileName}");
         }
     }
     
@@ -571,7 +571,7 @@ public class LevelLoader : MonoBehaviour
             LoadSelectedLevel();
             return true;
         }
-        Debug.Log("[LevelLoader] Already at the last level");
+        // Debug.Log("[LevelLoader] Already at the last level");
         return false; // Son level'dayız
     }
     
@@ -586,7 +586,7 @@ public class LevelLoader : MonoBehaviour
             LoadSelectedLevel();
             return true;
         }
-        Debug.Log("[LevelLoader] Already at the first level");
+        // Debug.Log("[LevelLoader] Already at the first level");
         return false; // İlk level'dayız
     }
     
@@ -602,7 +602,7 @@ public class LevelLoader : MonoBehaviour
             LoadSelectedLevel();
             return true;
         }
-        Debug.LogWarning($"[LevelLoader] Level {levelNumber} not found!");
+        // Debug.LogWarning($"[LevelLoader] Level {levelNumber} not found!");
         return false;
     }
     
@@ -619,7 +619,7 @@ public class LevelLoader : MonoBehaviour
             LoadSelectedLevel();
             return true;
         }
-        Debug.LogWarning($"[LevelLoader] Level {levelNumber} v{version} not found!");
+        // Debug.LogWarning($"[LevelLoader] Level {levelNumber} v{version} not found!");
         return false;
     }
     
@@ -632,7 +632,7 @@ public class LevelLoader : MonoBehaviour
         {
             SelectLevel(0);
             LoadSelectedLevel();
-            Debug.Log("[LevelLoader] Reset to first level");
+            // Debug.Log("[LevelLoader] Reset to first level");
         }
     }
     
@@ -645,7 +645,7 @@ public class LevelLoader : MonoBehaviour
         {
             SelectLevel(availableLevels.Count - 1);
             LoadSelectedLevel();
-            Debug.Log("[LevelLoader] Selected last level");
+            // Debug.Log("[LevelLoader] Selected last level");
         }
     }
     
@@ -698,7 +698,7 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadLevelFromHoudiniData(HoudiniLevelData levelData)
     {
-        Debug.Log($"[LevelLoader] LoadLevelFromHoudiniData called");
+        // Debug.Log($"[LevelLoader] LoadLevelFromHoudiniData called");
         
         if (levelData == null)
         {
@@ -706,7 +706,7 @@ public class LevelLoader : MonoBehaviour
             return;
         }
 
-        Debug.Log($"[LevelLoader] Starting level loading process - clearing existing objects");
+        // Debug.Log($"[LevelLoader] Starting level loading process - clearing existing objects");
         
         // Clear existing level objects first
         ClearAllTiles();
@@ -715,8 +715,8 @@ public class LevelLoader : MonoBehaviour
         Width = levelData.gridWidth;
         Height = levelData.gridHeight;
         
-        Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
-        Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
+        // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
+        // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
         
         // Copy grid data
         levelMap = new char[Width, Height];
@@ -733,7 +733,7 @@ public class LevelLoader : MonoBehaviour
                     else
                     {
                         levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Empty);
-                        Debug.LogWarning($"[LevelLoader] Out of bounds access at ({x},{y}) - grid size is {levelData.grid.GetLength(0)}x{levelData.grid.GetLength(1)}");
+                        // Debug.LogWarning($"[LevelLoader] Out of bounds access at ({x},{y}) - grid size is {levelData.grid.GetLength(0)}x{levelData.grid.GetLength(1)}");
                     }
                 }
             }
@@ -767,12 +767,12 @@ public class LevelLoader : MonoBehaviour
         sb.AppendLine($"  Bottom-left: '{levelMap[0,Height-1]}' | Bottom-right: '{levelMap[Width-1,Height-1]}'");
         sb.AppendLine("==============================");
         
-        Debug.Log(sb.ToString());
+        // Debug.Log(sb.ToString());
         
         // Create visual objects after loading data
-        Debug.Log("[LevelLoader] Creating visual map objects...");
+        // Debug.Log("[LevelLoader] Creating visual map objects...");
         CreateMapVisual();
-        Debug.Log("[LevelLoader] LoadLevelFromHoudiniData completed successfully");
+        // Debug.Log("[LevelLoader] LoadLevelFromHoudiniData completed successfully");
     }
     
     /// <summary>
@@ -788,12 +788,12 @@ public class LevelLoader : MonoBehaviour
     // Sadece oyuncu oluşturma mantığını en sona taşıdık.
     void CreateMapVisual()
     {
-        Debug.Log($"[LevelLoader] *** CreateMapVisual CALLED *** - Dimensions: {Width}x{Height}");
-        Debug.Log($"[LevelLoader] Call Stack:\n{System.Environment.StackTrace}");
+        // Debug.Log($"[LevelLoader] *** CreateMapVisual CALLED *** - Dimensions: {Width}x{Height}");
+        // Debug.Log($"[LevelLoader] Call Stack:\n{System.Environment.StackTrace}");
         
         // 1. Referans haritalarımızı oluştur.
         tileObjects = new GameObject[Width, Height];
-        Debug.Log($"[LevelLoader] TileObjects array created: {Width}x{Height}");
+        // Debug.Log($"[LevelLoader] TileObjects array created: {Width}x{Height}");
 
         // 2. JENERİK TILE'LARI OLUŞTURMA DÖNGÜSÜ
         // Bu döngü, oyuncu DIŞINDAKİ her şeyi oluşturur.
@@ -816,10 +816,10 @@ public class LevelLoader : MonoBehaviour
                 {
                     if (tileBasePrefab != null)
                     {
-                        Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name} from symbol '{symbolChar}'");
+                        // Debug.Log($"[LevelLoader] Creating {type} at ({x},{y}) using prefab: {tileBasePrefab.name} from symbol '{symbolChar}'");
                         Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
                         Transform parentContainer = GetContainerForTileType(type);
-                        Debug.Log($"[LevelLoader] {type} will be created under parent: {parentContainer?.name ?? "NULL"} (full path: {GetFullPath(parentContainer)})");
+                        // Debug.Log($"[LevelLoader] {type} will be created under parent: {parentContainer?.name ?? "NULL"} (full path: {GetFullPath(parentContainer)})");
                         TileBase newTile = Instantiate(tileBasePrefab, pos, Quaternion.identity, parentContainer);
                         
                         // Yeni oluşturulan tile'ı kur.
@@ -845,11 +845,11 @@ public class LevelLoader : MonoBehaviour
                         
                         // Tile array'ine ve mantık haritasına ekle
                         tileObjects[x, y] = newTile.gameObject;
-                        Debug.Log($"[LevelLoader] Added to tileObjects[{x},{y}]: {newTile.gameObject.name}");
+                        // Debug.Log($"[LevelLoader] Added to tileObjects[{x},{y}]: {newTile.gameObject.name}");
                         // LevelMap'i güncelle - oluşturulan objenin gerçek tipini kullan
                         levelMap[x, y] = TileSymbols.TypeToDataSymbol(type);
                         
-                        Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(type)}' for {type}");
+                        // Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(type)}' for {type}");
                     }
                     else
                     {
@@ -874,13 +874,13 @@ public class LevelLoader : MonoBehaviour
         var existingPlayer = FindObjectOfType<PlayerController>();
         if (playerObject == null && existingPlayer == null)
         {
-            Debug.Log("[LevelLoader] No existing player found, creating new Player instance");
+            // Debug.Log("[LevelLoader] No existing player found, creating new Player instance");
             Transform playerParent = dynamicParent ?? levelContentParent;
-            Debug.Log($"[LevelLoader] Player will be created under parent: {playerParent?.name ?? "NULL"} (full path: {GetFullPath(playerParent)})");
+            // Debug.Log($"[LevelLoader] Player will be created under parent: {playerParent?.name ?? "NULL"} (full path: {GetFullPath(playerParent)})");
             if (playerPrefab != null)
             {
                 playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
-                Debug.Log("[LevelLoader] New Player instance created");
+                // Debug.Log("[LevelLoader] New Player instance created");
             }
             else
             {
@@ -893,7 +893,7 @@ public class LevelLoader : MonoBehaviour
         }
         else if (existingPlayer != null)
         {
-            Debug.Log("[LevelLoader] Found existing PlayerController in scene, using it");
+            // Debug.Log("[LevelLoader] Found existing PlayerController in scene, using it");
             playerObject = existingPlayer.gameObject;
             
             // Move to correct parent and position
@@ -906,7 +906,7 @@ public class LevelLoader : MonoBehaviour
         }
         else
         {
-            Debug.Log("[LevelLoader] Player already exists, reusing existing instance");
+            // Debug.Log("[LevelLoader] Player already exists, reusing existing instance");
             // Move existing player to correct parent and position
             Transform playerParent = dynamicParent ?? levelContentParent;
             if (playerObject.transform.parent != playerParent)
@@ -941,15 +941,15 @@ public class LevelLoader : MonoBehaviour
             // Oyuncunun mantıksal haritasına kaydet.
             levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
             tileObjects[playerStartX, playerStartY] = playerObject;
-            Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
+            // Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
             
-            Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
+            // Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }
         
         // f) Oyuncunun referansını, nesne haritasındaki doğru yere koy.
         tileObjects[playerStartX, playerStartY] = playerObject;
         
-        Debug.Log($"[LevelLoader] CreateMapVisual completed successfully");
+        // Debug.Log($"[LevelLoader] CreateMapVisual completed successfully");
         
         // Debug: Log TurnManager state after level creation
         if (TurnManager.Instance != null)
@@ -962,7 +962,7 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void ClearAllTiles()
     {
-        Debug.Log("[LevelLoader] ClearAllTiles - destroying existing level objects");
+        // Debug.Log("[LevelLoader] ClearAllTiles - destroying existing level objects");
         // Clear TurnManager registrations first to prevent null reference issues
         if (TurnManager.Instance != null)
         {
@@ -988,14 +988,14 @@ public class LevelLoader : MonoBehaviour
                         }
                         else if (isMLTrainingComponents)
                         {
-                            Debug.Log("[LevelLoader] Preserving ML-Agent components during level clear");
+                            // Debug.Log("[LevelLoader] Preserving ML-Agent components during level clear");
                         }
                         
                         tileObjects[x, y] = null;
                     }
                 }
             }
-            Debug.Log($"[LevelLoader] Destroyed {destroyedCount} existing objects");
+            // Debug.Log($"[LevelLoader] Destroyed {destroyedCount} existing objects");
         }
         
         // Clear ML-Agent tracking lists
@@ -1018,7 +1018,7 @@ public class LevelLoader : MonoBehaviour
             }
         }
         
-        Debug.Log("[LevelLoader] ClearAllTiles completed");
+        // Debug.Log("[LevelLoader] ClearAllTiles completed");
     }
     
         public void PlaceBombAt(int x, int y)
@@ -1026,15 +1026,15 @@ public class LevelLoader : MonoBehaviour
         // GÜVENLİK KİLİDİ: Eğer bu kare bir şekilde doluysa, hiçbir şey yapma.
         if (TileSymbols.DataSymbolToType(levelMap[x, y]) != TileType.Empty)
         {
-            Debug.LogWarning($"({x},{y}) dolu olduğu için bomba konulamadı. İçerik: {TileSymbols.DataSymbolToType(levelMap[x,y])}");
+            // Debug.LogWarning($"({x},{y}) dolu olduğu için bomba konulamadı. İçerik: {TileSymbols.DataSymbolToType(levelMap[x,y])}");
             return;
         }
 
         // Sözlükten Bomb prefabını al
         if (prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab))
         {
-            Debug.Log($"[LevelLoader] Found Bomb prefab: {bombTilePrefab?.name} (Type: {bombTilePrefab?.GetType().Name})");
-            Debug.Log($"[LevelLoader] Bomb prefab TileType property: {bombTilePrefab?.TileType}");
+            // Debug.Log($"[LevelLoader] Found Bomb prefab: {bombTilePrefab?.name} (Type: {bombTilePrefab?.GetType().Name})");
+            // Debug.Log($"[LevelLoader] Bomb prefab TileType property: {bombTilePrefab?.TileType}");
             
             Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
             // Use same parent logic as player for consistency
@@ -1045,24 +1045,24 @@ public class LevelLoader : MonoBehaviour
             newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
             (newBomb as IInitializable)?.Init(x, y);
             
-            Debug.Log($"[LevelLoader] Created bomb object: {newBomb.name} (Type: {newBomb.GetType().Name})");
-            Debug.Log($"[LevelLoader] Created bomb TileType property: {newBomb.TileType}");
+            // Debug.Log($"[LevelLoader] Created bomb object: {newBomb.name} (Type: {newBomb.GetType().Name})");
+            // Debug.Log($"[LevelLoader] Created bomb TileType property: {newBomb.TileType}");
             
             // Haritaları GÜNCELLE
             tileObjects[x, y] = newBomb.gameObject; // Nesne haritasını güncelle
-            Debug.Log($"[LevelLoader] PlaceBombAt - Added to tileObjects[{x},{y}]: {newBomb.gameObject.name}");
+            // Debug.Log($"[LevelLoader] PlaceBombAt - Added to tileObjects[{x},{y}]: {newBomb.gameObject.name}");
             levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb); // Mantıksal haritayı güncelle
             
-            Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(TileType.Bomb)}'");
+            // Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(TileType.Bomb)}'");
         }
         else
         {
             Debug.LogError($"[LevelLoader] No prefab found for TileType.Bomb in prefabMap!");
             // Debug prefabMap contents
-            Debug.Log($"[LevelLoader] prefabMap contents:");
+            // Debug.Log($"[LevelLoader] prefabMap contents:");
             foreach (var kvp in prefabMap)
             {
-                Debug.Log($"  {kvp.Key} -> {kvp.Value?.name}");
+                // Debug.Log($"  {kvp.Key} -> {kvp.Value?.name}");
             }
         }
         /// <summary>
@@ -1118,7 +1118,7 @@ public class LevelLoader : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"[LevelLoader] RemoveEnemy - Enemy {enemy.name} not found in enemies list");
+            // Debug.LogWarning($"[LevelLoader] RemoveEnemy - Enemy {enemy.name} not found in enemies list");
         }
     }
     
@@ -1132,7 +1132,7 @@ public class LevelLoader : MonoBehaviour
         
         if (collectible == null)
         {
-            Debug.LogWarning("[LevelLoader] RemoveCollectible - collectible is null!");
+            // Debug.LogWarning("[LevelLoader] RemoveCollectible - collectible is null!");
             return;
         }
         
@@ -1166,11 +1166,11 @@ public class LevelLoader : MonoBehaviour
             // Clear the object reference
             tileObjects[x, y] = null;
             
-            Debug.Log($"[LevelLoader] Cleared tile at ({x}, {y})");
+            // Debug.Log($"[LevelLoader] Cleared tile at ({x}, {y})");
         }
         else
         {
-            Debug.LogWarning($"[LevelLoader] ClearTile called with invalid coordinates ({x}, {y})");
+            // Debug.LogWarning($"[LevelLoader] ClearTile called with invalid coordinates ({x}, {y})");
         }
     }
     
@@ -1179,7 +1179,7 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void CleanupNullReferences()
     {
-        Debug.Log("[LevelLoader] CleanupNullReferences - Starting cleanup");
+        // Debug.Log("[LevelLoader] CleanupNullReferences - Starting cleanup");
         
         int cleanedObjects = 0;
         
@@ -1191,7 +1191,7 @@ public class LevelLoader : MonoBehaviour
                 Transform child = collectiblesContainer.GetChild(i);
                 if (child == null || child.gameObject == null)
                 {
-                    Debug.Log($"[LevelLoader] Found null child at index {i} in collectibles container");
+                    // Debug.Log($"[LevelLoader] Found null child at index {i} in collectibles container");
                     cleanedObjects++;
                 }
             }
@@ -1205,7 +1205,7 @@ public class LevelLoader : MonoBehaviour
                 Transform child = enemiesContainer.GetChild(i);
                 if (child == null || child.gameObject == null)
                 {
-                    Debug.Log($"[LevelLoader] Found null child at index {i} in enemies container");
+                    // Debug.Log($"[LevelLoader] Found null child at index {i} in enemies container");
                     cleanedObjects++;
                 }
             }
@@ -1224,14 +1224,14 @@ public class LevelLoader : MonoBehaviour
                     Transform child = containers[c].GetChild(i);
                     if (child == null || child.gameObject == null)
                     {
-                        Debug.Log($"[LevelLoader] Found null child at index {i} in {containerNames[c]} container");
+                        // Debug.Log($"[LevelLoader] Found null child at index {i} in {containerNames[c]} container");
                         cleanedObjects++;
                     }
                 }
             }
         }
         
-        Debug.Log($"[LevelLoader] CleanupNullReferences completed - cleaned {cleanedObjects} null references");
+        // Debug.Log($"[LevelLoader] CleanupNullReferences completed - cleaned {cleanedObjects} null references");
     }
     
     public Vector2Int WorldToGrid(Vector3 worldPosition)
@@ -1327,7 +1327,7 @@ public class LevelLoader : MonoBehaviour
         GameObject tileObject = tileObjects[x, y];
         if (tileObject == null)
         {
-            Debug.Log($"[LevelLoader] DestroyTileAt - No tile to destroy at ({x}, {y})");
+            // Debug.Log($"[LevelLoader] DestroyTileAt - No tile to destroy at ({x}, {y})");
             return true; // Not an error, position is already empty
         }
         
@@ -1389,7 +1389,7 @@ public class LevelLoader : MonoBehaviour
             if (!playerObject.activeInHierarchy)
             {
                 playerObject.SetActive(true);
-                Debug.Log("[LevelLoader] Reactivated existing Player instance");
+                // Debug.Log("[LevelLoader] Reactivated existing Player instance");
             }
             
             // Move player to correct parent in level hierarchy
@@ -1397,20 +1397,20 @@ public class LevelLoader : MonoBehaviour
             if (playerObject.transform.parent != playerParent)
             {
                 playerObject.transform.SetParent(playerParent);
-                Debug.Log($"[LevelLoader] Moved player to correct parent: {playerParent.name}");
+                // Debug.Log($"[LevelLoader] Moved player to correct parent: {playerParent.name}");
             }
             
             playerObject.transform.position = playerPos;
-            Debug.Log("[LevelLoader] Using existing Player instance and repositioning");
+            // Debug.Log("[LevelLoader] Using existing Player instance and repositioning");
         }
         else
         {
             if (playerPrefab != null)
             {
-                Debug.Log("[LevelLoader] Singleton Player not found - creating new instance");
+                // Debug.Log("[LevelLoader] Singleton Player not found - creating new instance");
                 Transform playerParent = dynamicParent ?? levelContentParent;
                 playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
-                Debug.Log("[LevelLoader] New Player instance created");
+                // Debug.Log("[LevelLoader] New Player instance created");
             }
             else
             {
@@ -1438,9 +1438,9 @@ public class LevelLoader : MonoBehaviour
             
             levelMap[playerStartX, playerStartY] = TileSymbols.TypeToDataSymbol(TileType.Player);
             tileObjects[playerStartX, playerStartY] = playerObject;
-            Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
+            // Debug.Log($"[LevelLoader] Player - Added to tileObjects[{playerStartX},{playerStartY}]: {playerObject.name}");
             
-            Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
+            // Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }
     }
     
@@ -1472,18 +1472,18 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     private void AutoDiscoverPrefabs()
     {
-        Debug.Log("[LevelLoader] === AUTO PREFAB DISCOVERY ===");
+        // Debug.Log("[LevelLoader] === AUTO PREFAB DISCOVERY ===");
         
         // Resources/Prefabs klasöründen tüm TileBase prefab'larını yükle
         TileBase[] allTilePrefabs = Resources.LoadAll<TileBase>("Prefabs");
         
         if (allTilePrefabs.Length == 0)
         {
-            Debug.LogWarning("[LevelLoader] No prefabs found in Resources/Prefabs. Trying root Resources folder...");
+            // Debug.LogWarning("[LevelLoader] No prefabs found in Resources/Prefabs. Trying root Resources folder...");
             allTilePrefabs = Resources.LoadAll<TileBase>("");
         }
         
-        Debug.Log($"[LevelLoader] Found {allTilePrefabs.Length} TileBase prefabs in Resources");
+        // Debug.Log($"[LevelLoader] Found {allTilePrefabs.Length} TileBase prefabs in Resources");
         
         foreach (var prefab in allTilePrefabs)
         {
@@ -1499,7 +1499,7 @@ public class LevelLoader : MonoBehaviour
                 }
                 
                 prefabMap.Add(prefabType, prefab);
-                Debug.Log($"[LevelLoader] Auto-discovered: {prefabType} -> {prefab.name}");
+                // Debug.Log($"[LevelLoader] Auto-discovered: {prefabType} -> {prefab.name}");
             }
         }
         
@@ -1513,6 +1513,6 @@ public class LevelLoader : MonoBehaviour
             }
         }
         
-        Debug.Log("[LevelLoader] ================================");
+        // Debug.Log("[LevelLoader] ================================");
     }
 }
