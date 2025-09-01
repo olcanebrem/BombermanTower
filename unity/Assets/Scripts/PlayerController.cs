@@ -270,15 +270,21 @@ public class PlayerController : TileBase, IMovable, ITurnBased, IInitializable, 
 
         Debug.Log($"[PlayerController] Trying to place bomb at ({targetX}, {targetY}), player at ({X}, {Y})");
 
-        if (targetX >= 0 && targetX < ll.Width && targetY >= 0 && targetY < ll.Height &&
-            TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY]) == TileType.Empty)
+        // Use atomic operation to prevent race conditions
+        if (ll.TryPlaceBombAt(targetX, targetY, out GameObject placedBomb))
         {
-            Debug.Log("[PlayerController] Calling ll.PlaceBombAt()");
-            ll.PlaceBombAt(targetX, targetY);
+            // Set bomb owner for layered system
+            var bombComponent = placedBomb.GetComponent<BombTile>();
+            if (bombComponent != null)
+            {
+                bombComponent.Owner = this.gameObject;
+            }
+            
+            Debug.Log($"[PlayerController] Successfully placed bomb at ({targetX}, {targetY})");
             return true;
         }
 
-        Debug.Log($"Bomba koyulacak yer dolu veya geçersiz! TileType: {TileSymbols.DataSymbolToType(ll.levelMap[targetX, targetY])}");
+        Debug.Log($"[PlayerController] Failed to place bomb at ({targetX}, {targetY}) - position occupied or invalid");
         return false;
     }
     

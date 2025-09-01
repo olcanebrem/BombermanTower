@@ -11,7 +11,8 @@
       "Bash(winget install:*)",
       "Bash(curl:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": [],

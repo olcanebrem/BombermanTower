@@ -134,7 +134,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualImage: {fileID: 7288676102663986377}
-  explosionRange: 2
+  explosionRange: 6
   turnsToExplode: 3
   explosionPrefab: {fileID: 618472659354836283, guid: 1a98a8e16944dbf41a5ca59fb2de826d, type: 3}
   movingExplosionPrefab: {fileID: 9048555102869179715, guid: 57d9a7c9ae897794b8001b18b63c0168, type: 3}

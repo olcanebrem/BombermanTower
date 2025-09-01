@@ -52,8 +52,14 @@ public class LevelLoader : MonoBehaviour
     public int Width { get; set; }
     public int Height { get; set; }
     
+    // Legacy single-layer system (kept for compatibility)
     public char[,] levelMap;
     public GameObject[,] tileObjects;
+    
+    // New layered system
+    private LayeredGridService layeredGrid;
+    private bool useLayeredSystem = true; // Toggle for gradual migration
+    
     private GameObject playerObject; // Runtime player instance reference
     public int playerStartX, playerStartY;
     
@@ -132,6 +138,22 @@ public class LevelLoader : MonoBehaviour
         else
         {
             // Debug.Log("[LevelLoader] HoudiniLevelParser found via Singleton");
+        }
+        
+        // Initialize LayeredGridService
+        if (useLayeredSystem)
+        {
+            if (LayeredGridService.Instance == null)
+            {
+                var layeredGridGO = new GameObject("LayeredGridService");
+                layeredGrid = layeredGridGO.AddComponent<LayeredGridService>();
+                // Debug.Log("[LevelLoader] LayeredGridService created automatically");
+            }
+            else
+            {
+                layeredGrid = LayeredGridService.Instance;
+                // Debug.Log("[LevelLoader] LayeredGridService found via Singleton");
+            }
         }
 
         // Prefab sözlüğünü doldur - önce otomatik keşif dene
@@ -715,6 +737,13 @@ public class LevelLoader : MonoBehaviour
         Width = levelData.gridWidth;
         Height = levelData.gridHeight;
         
+        // Initialize layered grid system
+        if (useLayeredSystem && layeredGrid != null)
+        {
+            layeredGrid.Initialize(Width, Height);
+            Debug.Log($"[LevelLoader] Layered grid system initialized: {Width}x{Height}");
+        }
+        
         // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
         // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
         
@@ -1021,56 +1050,138 @@ public class LevelLoader : MonoBehaviour
         // Debug.Log("[LevelLoader] ClearAllTiles completed");
     }
     
-        public void PlaceBombAt(int x, int y)
+        /// <summary>
+    /// Atomic bomb placement - checks and places in single operation
+    /// Returns true if successfully placed, false if position occupied
+    /// </summary>
+    public bool TryPlaceBombAt(int x, int y, out GameObject placedBomb)
     {
-        // GÜVENLİK KİLİDİ: Eğer bu kare bir şekilde doluysa, hiçbir şey yapma.
-        if (TileSymbols.DataSymbolToType(levelMap[x, y]) != TileType.Empty)
+        placedBomb = null;
+        
+        // Use layered system if enabled
+        if (useLayeredSystem && layeredGrid != null)
         {
-            // Debug.LogWarning($"({x},{y}) dolu olduğu için bomba konulamadı. İçerik: {TileSymbols.DataSymbolToType(levelMap[x,y])}");
-            return;
+            return TryPlaceBombAtLayered(x, y, out placedBomb);
         }
-
-        // Sözlükten Bomb prefabını al
-        if (prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab))
+        
+        // Legacy single-layer system
+        return TryPlaceBombAtLegacy(x, y, out placedBomb);
+    }
+    
+    /// <summary>
+    /// Layered system bomb placement
+    /// </summary>
+    private bool TryPlaceBombAtLayered(int x, int y, out GameObject placedBomb)
+    {
+        placedBomb = null;
+        
+        // Check bounds
+        if (!layeredGrid.IsValidPosition(x, y))
         {
-            // Debug.Log($"[LevelLoader] Found Bomb prefab: {bombTilePrefab?.name} (Type: {bombTilePrefab?.GetType().Name})");
-            // Debug.Log($"[LevelLoader] Bomb prefab TileType property: {bombTilePrefab?.TileType}");
-            
-            Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
-            // Use same parent logic as player for consistency
-            Transform bombParent = dynamicParent ?? levelContentParent;
-            TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, bombParent);
+            return false;
+        }
+        
+        // Check if position already has a bomb
+        if (layeredGrid.GetBombAt(x, y) != null)
+        {
+            Debug.LogWarning($"[LevelLoader] Bomb position ({x}, {y}) already occupied");
+            return false;
+        }
+        
+        // Check if position is walkable (no walls, breakables)
+        if (!layeredGrid.IsWalkable(x, y))
+        {
+            Debug.LogWarning($"[LevelLoader] Cannot place bomb at ({x}, {y}) - position not walkable");
+            return false;
+        }
+        
+        // Get bomb prefab
+        if (!prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab) || bombTilePrefab == null)
+        {
+            Debug.LogError($"[LevelLoader] No bomb prefab found in prefabMap!");
+            return false;
+        }
+        
+        // Create bomb
+        Vector3 pos = layeredGrid.GridToWorld(x, y);
+        Transform bombParent = dynamicParent ?? levelContentParent;
+        TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, bombParent);
 
-            // Bombayı kur
-            newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
-            (newBomb as IInitializable)?.Init(x, y);
+        // Setup bomb
+        newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
+        (newBomb as IInitializable)?.Init(x, y);
+        
+        // Place bomb in layered system
+        bool placementSuccess = layeredGrid.PlaceBomb(newBomb.gameObject, x, y);
+        if (placementSuccess)
+        {
+            // Update legacy system for compatibility
+            tileObjects[x, y] = newBomb.gameObject;
+            levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb);
             
-            // Debug.Log($"[LevelLoader] Created bomb object: {newBomb.name} (Type: {newBomb.GetType().Name})");
-            // Debug.Log($"[LevelLoader] Created bomb TileType property: {newBomb.TileType}");
-            
-            // Haritaları GÜNCELLE
-            tileObjects[x, y] = newBomb.gameObject; // Nesne haritasını güncelle
-            // Debug.Log($"[LevelLoader] PlaceBombAt - Added to tileObjects[{x},{y}]: {newBomb.gameObject.name}");
-            levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb); // Mantıksal haritayı güncelle
-            
-            // Debug.Log($"[LevelLoader] Updated levelMap[{x},{y}] = '{TileSymbols.TypeToDataSymbol(TileType.Bomb)}'");
+            placedBomb = newBomb.gameObject;
+            Debug.Log($"[LevelLoader] Successfully placed bomb at ({x},{y}) using layered system");
+            return true;
         }
         else
         {
-            Debug.LogError($"[LevelLoader] No prefab found for TileType.Bomb in prefabMap!");
-            // Debug prefabMap contents
-            // Debug.Log($"[LevelLoader] prefabMap contents:");
-            foreach (var kvp in prefabMap)
-            {
-                // Debug.Log($"  {kvp.Key} -> {kvp.Value?.name}");
-            }
+            // Clean up if placement failed
+            Destroy(newBomb.gameObject);
+            return false;
         }
-        /// <summary>
-        /// Mantıksal haritanın (levelMap) o anki durumunu konsola okunaklı bir şekilde yazdırır.
-        /// Hata ayıklama için çok faydalıdır.
-        /// </summary>
-        /// <param name="turnNumber">Log'da gösterilecek olan mevcut tur sayısı.</param>
+    }
+    
+    /// <summary>
+    /// Legacy bomb placement system
+    /// </summary>
+    private bool TryPlaceBombAtLegacy(int x, int y, out GameObject placedBomb)
+    {
+        placedBomb = null;
         
+        // Bounds check
+        if (x < 0 || x >= Width || y < 0 || y >= Height)
+        {
+            return false;
+        }
+        
+        // Atomic check-and-place: check both logical and physical maps
+        if (TileSymbols.DataSymbolToType(levelMap[x, y]) != TileType.Empty || tileObjects[x, y] != null)
+        {
+            // Debug.LogWarning($"({x},{y}) occupied, cannot place bomb. Content: {TileSymbols.DataSymbolToType(levelMap[x,y])}, Object: {tileObjects[x,y]?.name}");
+            return false;
+        }
+
+        // Get bomb prefab
+        if (!prefabMap.TryGetValue(TileType.Bomb, out var bombTilePrefab) || bombTilePrefab == null)
+        {
+            Debug.LogError($"[LevelLoader] No bomb prefab found in prefabMap!");
+            return false;
+        }
+        
+        // Create bomb
+        Vector3 pos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
+        Transform bombParent = dynamicParent ?? levelContentParent;
+        TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, bombParent);
+
+        // Setup bomb
+        newBomb.SetVisual(spriteDatabase.GetSprite(TileType.Bomb));
+        (newBomb as IInitializable)?.Init(x, y);
+        
+        // ATOMIC UPDATE: Update both maps together
+        tileObjects[x, y] = newBomb.gameObject;
+        levelMap[x, y] = TileSymbols.TypeToDataSymbol(TileType.Bomb);
+        
+        placedBomb = newBomb.gameObject;
+        Debug.Log($"[LevelLoader] Successfully placed bomb at ({x},{y}) using legacy system");
+        return true;
+    }
+    
+    /// <summary>
+    /// Legacy method for backward compatibility - now uses atomic operation
+    /// </summary>
+    public void PlaceBombAt(int x, int y)
+    {
+        TryPlaceBombAt(x, y, out _);
     }
     
     // ML-Agent support methods
@@ -1442,6 +1553,134 @@ public class LevelLoader : MonoBehaviour
             
             // Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
         }
+    }
+    
+    /// <summary>
+    /// Atomic movement operation - checks and moves in single operation
+    /// Returns true if movement successful, false if destination occupied
+    /// </summary>
+    public bool TryMoveObject(GameObject obj, int fromX, int fromY, int toX, int toY)
+    {
+        // Use layered system if enabled
+        if (useLayeredSystem && layeredGrid != null)
+        {
+            return TryMoveObjectLayered(obj, fromX, fromY, toX, toY);
+        }
+        
+        // Legacy single-layer system
+        return TryMoveObjectLegacy(obj, fromX, fromY, toX, toY);
+    }
+    
+    /// <summary>
+    /// Layered system movement (new approach)
+    /// </summary>
+    private bool TryMoveObjectLayered(GameObject obj, int fromX, int fromY, int toX, int toY)
+    {
+        if (!layeredGrid.IsValidPosition(toX, toY))
+        {
+            return false;
+        }
+        
+        // Check if destination is walkable
+        if (!layeredGrid.IsWalkable(toX, toY, obj))
+        {
+            return false;
+        }
+        
+        // Determine object type and move in appropriate layer
+        var tileBase = obj.GetComponent<TileBase>();
+        if (tileBase != null)
+        {
+            switch (tileBase.TileType)
+            {
+                case TileType.Player:
+                case TileType.Enemy:
+                case TileType.EnemyShooter:
+                    bool moveSuccess = layeredGrid.MoveActor(obj, fromX, fromY, toX, toY);
+                    if (moveSuccess)
+                    {
+                        UpdateObjectTransform(obj, toX, toY);
+                        // Also update legacy system for compatibility
+                        UpdateLegacyMaps(obj, fromX, fromY, toX, toY, tileBase.TileType);
+                    }
+                    return moveSuccess;
+                    
+                // Other object types can be added here
+                default:
+                    // Fall back to legacy system for unknown types
+                    return TryMoveObjectLegacy(obj, fromX, fromY, toX, toY);
+            }
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// Legacy single-layer system (for backward compatibility)
+    /// </summary>
+    private bool TryMoveObjectLegacy(GameObject obj, int fromX, int fromY, int toX, int toY)
+    {
+        // Bounds check
+        if (toX < 0 || toX >= Width || toY < 0 || toY >= Height)
+        {
+            return false;
+        }
+        
+        // Check if destination is walkable (not occupied by static objects)
+        char destCell = levelMap[toX, toY];
+        TileType destType = TileSymbols.DataSymbolToType(destCell);
+        
+        // Can't move to walls, breakables, or occupied cells
+        if (destType == TileType.Wall || destType == TileType.Breakable || 
+            (tileObjects[toX, toY] != null && tileObjects[toX, toY] != obj))
+        {
+            return false;
+        }
+        
+        // ATOMIC UPDATE: Clear old position and set new position
+        if (fromX >= 0 && fromX < Width && fromY >= 0 && fromY < Height)
+        {
+            tileObjects[fromX, fromY] = null;
+            levelMap[fromX, fromY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        }
+        
+        tileObjects[toX, toY] = obj;
+        
+        // Update levelMap based on object type
+        var tileBase = obj.GetComponent<TileBase>();
+        if (tileBase != null)
+        {
+            levelMap[toX, toY] = TileSymbols.TypeToDataSymbol(tileBase.TileType);
+        }
+        
+        UpdateObjectTransform(obj, toX, toY);
+        return true;
+    }
+    
+    /// <summary>
+    /// Update object's world transform
+    /// </summary>
+    private void UpdateObjectTransform(GameObject obj, int x, int y)
+    {
+        Vector3 newPos = new Vector3(x * tileSize, (Height - y - 1) * tileSize, 0);
+        obj.transform.position = newPos;
+    }
+    
+    /// <summary>
+    /// Update legacy maps for backward compatibility
+    /// </summary>
+    private void UpdateLegacyMaps(GameObject obj, int fromX, int fromY, int toX, int toY, TileType tileType)
+    {
+        // Clear old position
+        if (fromX >= 0 && fromX < Width && fromY >= 0 && fromY < Height)
+        {
+            tileObjects[fromX, fromY] = null;
+            levelMap[fromX, fromY] = TileSymbols.TypeToDataSymbol(TileType.Empty);
+        }
+        
+        // Set new position
+        tileObjects[toX, toY] = obj;
+        levelMap[toX, toY] = TileSymbols.TypeToDataSymbol(tileType);
     }
     
     /// <summary>

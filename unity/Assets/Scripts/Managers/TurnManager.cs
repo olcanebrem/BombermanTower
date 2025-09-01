@@ -311,6 +311,8 @@ public class TurnManager : MonoBehaviour
 
         // First, collect all actions without executing them
         // Debug.Log($"[TurnManager] Processing {unitsToPlay.Count} turn-based objects this turn");
+        List<(IGameAction action, int priority, int entityId)> actionList = new List<(IGameAction, int, int)>();
+        
         foreach (var unit in unitsToPlay)
         {
             try
@@ -319,8 +321,10 @@ public class TurnManager : MonoBehaviour
                 IGameAction action = unit.GetAction();
                 if (action != null)
                 {
+                    int priority = GetExecutionOrder(unit);
+                    int entityId = unit.GetHashCode(); // Deterministic tie-breaker
+                    actionList.Add((action, priority, entityId));
                     // Debug.Log($"[TurnManager] {unit.GetType().Name} provided action: {action.GetType().Name}");
-                    actionQueue.Enqueue(action);
                 }
                 // else - Unit returned NULL action (normal, no movement this turn)
             }
@@ -328,6 +332,20 @@ public class TurnManager : MonoBehaviour
             {
                 Debug.LogError($"Error getting action from {unit}: {e.Message}");
             }
+        }
+        
+        // Sort actions deterministically: priority first, then entityId for tie-breaking
+        actionList.Sort((a, b) => 
+        {
+            int priorityCompare = a.priority.CompareTo(b.priority);
+            return priorityCompare != 0 ? priorityCompare : a.entityId.CompareTo(b.entityId);
+        });
+        
+        // Convert back to queue for existing code compatibility
+        actionQueue.Clear();
+        foreach (var item in actionList)
+        {
+            actionQueue.Enqueue(item.action);
         }
 
         // Then execute all actions without waiting between them

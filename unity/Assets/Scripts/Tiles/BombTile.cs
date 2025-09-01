@@ -14,6 +14,9 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
     public override TileType TileType => TileType.Bomb;
     public bool HasActedThisTurn { get; set; }
     
+    // Owner property for layered system - who placed this bomb
+    public GameObject Owner { get; set; }
+    
     // IDamageable implementation
     public int CurrentHealth { get; private set; } = 1;
     public int MaxHealth => 1;
