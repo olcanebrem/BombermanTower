@@ -126,7 +126,7 @@ public class PlayerAgent : Agent, ITurnBased
             
             Debug.Log($"[PlayerAgent] Registering PlayerAgent: {gameObject.name}");
             TurnManager.Instance?.RegisterMLAgent(this);
-            Debug.Log("[PlayerAgent] ML-Agent registered with TurnManager.");
+            Debug.Log("[PlayerAgent] ML-Agent registered with TurnManager (mlAgent reference updated automatically)");
         }
         else
         {
