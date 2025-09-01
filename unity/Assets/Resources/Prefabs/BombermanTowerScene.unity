@@ -380,7 +380,7 @@ MonoBehaviour:
   maxSteps: 100000
   keepCheckpoints: 5
   isTraining: 1
-  heuristicMode: 0
+  heuristicMode: 1
   autoParseResults: 1
   statusCheckInterval: 10
   pythonExecutable: C:\Users\olcan\AppData\Local\Programs\Python\Python310\python.exe
