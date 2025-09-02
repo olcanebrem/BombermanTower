@@ -513,28 +513,46 @@ public class LayeredGridService : MonoBehaviour
     /// </summary>
     public void ClearAllLayers()
     {
+        Debug.Log($"[🧹 LAYER_CLEAR] Starting complete layer cleanup - Grid: {width}x{height}");
+        
         if (staticLayer != null)
         {
+            int clearedPositions = 0;
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height; y++)
                 {
+                    // Clear all layer masks
                     staticLayer[x, y] = LayerMask.None;
                     destructibleLayer[x, y] = LayerMask.None;
+                    
+                    // Clear all GameObject references
                     destructibleObjectLayer[x, y] = null;
                     actorLayer[x, y] = null;
                     bombLayer[x, y] = null;
                     effectLayer[x, y] = null;
                     itemLayer[x, y] = null;
+                    
+                    clearedPositions++;
                 }
             }
+            Debug.Log($"[🧹 LAYER_CLEAR] Cleared {clearedPositions} grid positions");
         }
+        else
+        {
+            Debug.LogWarning("[🧹 LAYER_CLEAR] staticLayer is null - cannot clear layers!");
+        }
+        
+        // Clear tracking lists
+        int actorCount = allActors.Count;
+        int bombCount = allBombs.Count; 
+        int itemCount = allItems.Count;
         
         allActors.Clear();
         allBombs.Clear();
         allItems.Clear();
         
-        Debug.Log("[LayeredGridService] All layers cleared");
+        Debug.Log($"[🧹 LAYER_CLEAR] Complete layer cleanup finished - Cleared {actorCount} actors, {bombCount} bombs, {itemCount} items");
     }
     
     /// <summary>

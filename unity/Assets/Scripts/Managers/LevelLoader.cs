@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
@@ -755,35 +756,54 @@ public class LevelLoader : MonoBehaviour
             Debug.Log($"[🎯 HOUDINI_DATA] Enemy positions: {levelData.enemyPositions.Count}, Coins: {levelData.coinPositions.Count}");
         }
 
-        // Debug.Log($"[LevelLoader] Starting level loading process - clearing existing objects");
+        Debug.Log($"[🚀 LEVEL_LOAD] Starting complete level loading process for: {levelData.levelName}");
         
-        // Clear existing level objects first
+        // STEP 1: Complete cleanup of existing level
+        Debug.Log("[🚀 LEVEL_LOAD] STEP 1: Clearing all existing tiles and objects");
         ClearAllTiles();
 
-        // Set dimensions from Houdini data
+        // STEP 2: Set new dimensions
+        Debug.Log($"[🚀 LEVEL_LOAD] STEP 2: Setting dimensions to {levelData.gridWidth}x{levelData.gridHeight}");
         Width = levelData.gridWidth;
         Height = levelData.gridHeight;
         
-        // Initialize layered grid system
+        // STEP 3: Initialize and verify layered grid system
         if (layeredGrid != null)
         {
+            Debug.Log("[🚀 LEVEL_LOAD] STEP 3: Initializing layered grid system");
             layeredGrid.Initialize(Width, Height);
-            Debug.Log($"[LevelLoader] Layered grid system initialized: {Width}x{Height}");
+            Debug.Log($"[🚀 LEVEL_LOAD] ✅ Layered grid system initialized: {Width}x{Height}");
+            
+            // Verify layers are completely clear
+            Debug.Log("[🚀 LEVEL_LOAD] STEP 3a: Verifying layer cleanup...");
+            bool layersClean = VerifyLayersClean();
+            if (!layersClean)
+            {
+                Debug.LogError("[🚀 LEVEL_LOAD] ❌ Layers not properly cleared! Level sequencing may fail!");
+                return;
+            }
+            Debug.Log("[🚀 LEVEL_LOAD] ✅ Layer cleanup verification successful");
+        }
+        else
+        {
+            Debug.LogError("[🚀 LEVEL_LOAD] ❌ LayeredGridService is null! Cannot proceed with level loading!");
+            return;
         }
         
         // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
         // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
         
-        // Setup layered system with static tiles
+        // STEP 4: Setup layered system with new static tiles
         if (layeredGrid != null && levelData.grid != null)
         {
-            Debug.Log($"[🎯 GRID_PROCESS] Processing grid data for level: {levelData.levelName}");
-            Debug.Log($"[🎯 GRID_PROCESS] Player spawn in level data: {levelData.playerSpawn}");
+            Debug.Log($"[🚀 LEVEL_LOAD] STEP 4: Processing grid data for level: {levelData.levelName}");
+            Debug.Log($"[🚀 LEVEL_LOAD] Player spawn in level data: {levelData.playerSpawn}");
             
             // Sample a few key positions to verify data integrity
             char sampleChar1 = levelData.grid[levelData.playerSpawn.x, levelData.playerSpawn.y];
-            Debug.Log($"[🎯 GRID_PROCESS] Character at player spawn ({levelData.playerSpawn.x},{levelData.playerSpawn.y}): '{sampleChar1}'");
+            Debug.Log($"[🚀 LEVEL_LOAD] Character at player spawn ({levelData.playerSpawn.x},{levelData.playerSpawn.y}): '{sampleChar1}'");
             
+            int wallCount = 0, breakableCount = 0;
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
@@ -798,18 +818,26 @@ public class LevelLoader : MonoBehaviour
                     if (cellType == TileType.Wall)
                     {
                         layeredGrid.SetStaticTile(x, y, LayeredGridService.LayerMask.BlocksMovement | LayeredGridService.LayerMask.BlocksFire);
+                        wallCount++;
                     }
                     else if (cellType == TileType.Breakable)
                     {
                         layeredGrid.SetDestructibleTile(x, y, LayeredGridService.LayerMask.BlocksMovement | LayeredGridService.LayerMask.BlocksFire | LayeredGridService.LayerMask.Destructible);
+                        breakableCount++;
                     }
                 }
             }
             
-            Debug.Log($"[🎯 GRID_PROCESS] Finished processing grid data for level: {levelData.levelName}");
+            Debug.Log($"[🚀 LEVEL_LOAD] ✅ STEP 4 completed - Processed {wallCount} walls, {breakableCount} breakables for level: {levelData.levelName}");
+        }
+        else
+        {
+            Debug.LogError("[🚀 LEVEL_LOAD] ❌ Cannot process grid data - layeredGrid or levelData.grid is null!");
+            return;
         }
         
-        // Set player spawn position
+        // STEP 5: Set player spawn position
+        Debug.Log($"[🚀 LEVEL_LOAD] STEP 5: Setting player spawn to ({levelData.playerSpawn.x}, {levelData.playerSpawn.y})");
         playerStartX = levelData.playerSpawn.x;
         playerStartY = levelData.playerSpawn.y;
         
@@ -825,10 +853,10 @@ public class LevelLoader : MonoBehaviour
         
         // Debug.Log(sb.ToString());
         
-        // Create visual objects after loading data
-        // Debug.Log("[LevelLoader] Creating visual map objects...");
+        // STEP 6: Create visual objects after loading data
+        Debug.Log("[🚀 LEVEL_LOAD] STEP 6: Creating visual map objects and player");
         CreateMapVisual();
-        // Debug.Log("[LevelLoader] LoadLevelFromHoudiniData completed successfully");
+        Debug.Log($"[🚀 LEVEL_LOAD] ✅ COMPLETE! Successfully loaded level: {levelData.levelName} (ID: {levelData.levelId})");
     }
     
     /// <summary>
@@ -1132,6 +1160,40 @@ public class LevelLoader : MonoBehaviour
         }
         
         Debug.Log("[LevelLoader] ClearAllTiles completed - FULL CLEANUP DONE");
+    }
+    
+    /// <summary>
+    /// Verify that all layers are completely clean before loading new level
+    /// </summary>
+    private bool VerifyLayersClean()
+    {
+        if (layeredGrid == null) return false;
+        
+        // Sample check a few key positions to verify cleanup
+        int sampleCount = Math.Min(10, layeredGrid.Width * layeredGrid.Height);
+        int cleanCount = 0;
+        
+        for (int i = 0; i < sampleCount; i++)
+        {
+            int x = i % layeredGrid.Width;
+            int y = i / layeredGrid.Width;
+            
+            var staticMask = layeredGrid.GetStaticTile(x, y);
+            var destructibleMask = layeredGrid.GetDestructibleTile(x, y);
+            var actor = layeredGrid.GetActorAt(x, y);
+            var bomb = layeredGrid.GetBombAt(x, y);
+            
+            if (staticMask == LayeredGridService.LayerMask.None && 
+                destructibleMask == LayeredGridService.LayerMask.None &&
+                actor == null && bomb == null)
+            {
+                cleanCount++;
+            }
+        }
+        
+        bool isClean = (cleanCount == sampleCount);
+        Debug.Log($"[🔍 VERIFY_CLEAN] Sampled {sampleCount} positions, {cleanCount} clean - Result: {(isClean ? "✅ CLEAN" : "❌ DIRTY")}");
+        return isClean;
     }
     
         /// <summary>
