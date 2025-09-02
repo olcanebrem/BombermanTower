@@ -856,7 +856,26 @@ public class LevelLoader : MonoBehaviour
         // STEP 6: Create visual objects after loading data
         Debug.Log("[🚀 LEVEL_LOAD] STEP 6: Creating visual map objects and player");
         CreateMapVisual();
-        Debug.Log($"[🚀 LEVEL_LOAD] ✅ COMPLETE! Successfully loaded level: {levelData.levelName} (ID: {levelData.levelId})");
+        
+        // STEP 7: CRITICAL - Verify tile counts match level data
+        Debug.Log("[🚀 LEVEL_LOAD] STEP 7: Verifying tile counts match level data");
+        bool tileCountsMatch = VerifyTileCounts(levelData);
+        
+        if (!tileCountsMatch)
+        {
+            Debug.LogError($"[🚀 LEVEL_LOAD] ❌ CRITICAL ERROR: Tile counts don't match for level {levelData.levelName}!");
+            Debug.LogError("[🚀 LEVEL_LOAD] This indicates a serious level loading issue - STOPPING GAME!");
+            
+            // Stop the game/application
+            #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+            #else
+                Application.Quit();
+            #endif
+            return;
+        }
+        
+        Debug.Log($"[🚀 LEVEL_LOAD] ✅ COMPLETE! Successfully loaded and verified level: {levelData.levelName} (ID: {levelData.levelId})");
     }
     
     /// <summary>
@@ -1194,6 +1213,72 @@ public class LevelLoader : MonoBehaviour
         bool isClean = (cleanCount == sampleCount);
         Debug.Log($"[🔍 VERIFY_CLEAN] Sampled {sampleCount} positions, {cleanCount} clean - Result: {(isClean ? "✅ CLEAN" : "❌ DIRTY")}");
         return isClean;
+    }
+    
+    /// <summary>
+    /// Verify that scene tile counts match expected counts from level data
+    /// </summary>
+    private bool VerifyTileCounts(HoudiniLevelData levelData)
+    {
+        if (levelData == null || layeredGrid == null)
+        {
+            Debug.LogError("[🔍 TILE_VERIFY] Cannot verify - levelData or layeredGrid is null!");
+            return false;
+        }
+        
+        Debug.Log("[🔍 TILE_VERIFY] Starting tile count verification...");
+        
+        // Get expected counts from level data
+        var expectedCounts = levelData.GetExpectedTileCounts();
+        
+        // Get actual counts from scene
+        var actualCounts = layeredGrid.CountCurrentTiles();
+        
+        bool allMatch = true;
+        var mismatches = new List<string>();
+        
+        // Compare counts for important tile types
+        var criticalTileTypes = new[] { 
+            TileType.Wall, 
+            TileType.Breakable, 
+            TileType.Player, 
+            TileType.Enemy, 
+            TileType.EnemyShooter,
+            TileType.Coin, 
+            TileType.Health 
+        };
+        
+        foreach (var tileType in criticalTileTypes)
+        {
+            int expected = expectedCounts.ContainsKey(tileType) ? expectedCounts[tileType] : 0;
+            int actual = actualCounts.ContainsKey(tileType) ? actualCounts[tileType] : 0;
+            
+            if (expected != actual)
+            {
+                allMatch = false;
+                mismatches.Add($"{tileType}: Expected {expected}, Got {actual}");
+                Debug.LogError($"[🔍 TILE_VERIFY] ❌ MISMATCH - {tileType}: Expected {expected}, Got {actual}");
+            }
+            else if (expected > 0) // Only log non-zero matches to reduce spam
+            {
+                Debug.Log($"[🔍 TILE_VERIFY] ✅ MATCH - {tileType}: {expected}");
+            }
+        }
+        
+        if (allMatch)
+        {
+            Debug.Log("[🔍 TILE_VERIFY] ✅ All tile counts match! Level loaded correctly.");
+        }
+        else
+        {
+            Debug.LogError($"[🔍 TILE_VERIFY] ❌ TILE COUNT MISMATCH DETECTED! Level: {levelData.levelName}");
+            Debug.LogError($"[🔍 TILE_VERIFY] Mismatches: {string.Join(", ", mismatches)}");
+            
+            // Additional debugging - show first few mismatching positions
+            Debug.LogError("[🔍 TILE_VERIFY] This indicates level loading failed - stopping game!");
+        }
+        
+        return allMatch;
     }
     
         /// <summary>

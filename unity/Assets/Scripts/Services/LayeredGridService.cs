@@ -556,6 +556,72 @@ public class LayeredGridService : MonoBehaviour
     }
     
     /// <summary>
+    /// Count tiles of specific types in the scene for verification
+    /// </summary>
+    public Dictionary<TileType, int> CountCurrentTiles()
+    {
+        var tileCounts = new Dictionary<TileType, int>();
+        
+        if (staticLayer == null) return tileCounts;
+        
+        // Initialize all tile type counts
+        foreach (TileType tileType in System.Enum.GetValues(typeof(TileType)))
+        {
+            tileCounts[tileType] = 0;
+        }
+        
+        // Count static and destructible tiles from layers
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                // Check static layer (walls)
+                if ((staticLayer[x, y] & LayerMask.BlocksMovement) != 0)
+                {
+                    tileCounts[TileType.Wall]++;
+                }
+                // Check destructible layer (breakables)
+                else if ((destructibleLayer[x, y] & LayerMask.Destructible) != 0)
+                {
+                    tileCounts[TileType.Breakable]++;
+                }
+                // If nothing in layers, count as empty
+                else if (actorLayer[x, y] == null && bombLayer[x, y] == null && 
+                         itemLayer[x, y] == null && effectLayer[x, y] == null)
+                {
+                    tileCounts[TileType.Empty]++;
+                }
+                
+                // Count objects in layers
+                if (actorLayer[x, y] != null)
+                {
+                    var tileBase = actorLayer[x, y].GetComponent<TileBase>();
+                    if (tileBase != null)
+                    {
+                        tileCounts[tileBase.TileType]++;
+                    }
+                }
+                
+                if (bombLayer[x, y] != null)
+                {
+                    tileCounts[TileType.Bomb]++;
+                }
+                
+                if (itemLayer[x, y] != null)
+                {
+                    var tileBase = itemLayer[x, y].GetComponent<TileBase>();
+                    if (tileBase != null)
+                    {
+                        tileCounts[tileBase.TileType]++;
+                    }
+                }
+            }
+        }
+        
+        return tileCounts;
+    }
+    
+    /// <summary>
     /// Convert grid position to world position
     /// </summary>
     public Vector3 GridToWorld(int x, int y)

@@ -52,6 +52,42 @@ public class HoudiniLevelData
         healthPositions = new List<Vector2Int>();
         breakablePositions = new List<Vector2Int>();
     }
+    
+    /// <summary>
+    /// Count expected tiles from level data for verification
+    /// </summary>
+    public Dictionary<TileType, int> GetExpectedTileCounts()
+    {
+        var expectedCounts = new Dictionary<TileType, int>();
+        
+        // Initialize all tile type counts
+        foreach (TileType tileType in System.Enum.GetValues(typeof(TileType)))
+        {
+            expectedCounts[tileType] = 0;
+        }
+        
+        if (grid == null) return expectedCounts;
+        
+        // Count tiles from grid data
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                if (x < grid.GetLength(0) && y < grid.GetLength(1))
+                {
+                    char symbol = grid[x, y];
+                    TileType tileType = TileSymbols.DataSymbolToType(symbol);
+                    expectedCounts[tileType]++;
+                }
+                else
+                {
+                    expectedCounts[TileType.Empty]++;
+                }
+            }
+        }
+        
+        return expectedCounts;
+    }
 }
 
 [System.Serializable]
