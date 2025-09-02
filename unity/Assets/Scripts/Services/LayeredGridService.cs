@@ -671,7 +671,20 @@ public class LayeredGridService : MonoBehaviour
     /// </summary>
     public Vector3 GridToWorld(int x, int y)
     {
-        return new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+        // COORDINATE SYSTEM FIX: Use direct mapping for level file compatibility
+        // Level files use (0,0) at top-left, Unity world uses (0,0) at bottom-left
+        // But our level data seems to be in direct coordinate system
+        Vector3 directPos = new Vector3(x * tileSize, y * tileSize, 0);
+        Vector3 flippedPos = new Vector3(x * tileSize, (height - y - 1) * tileSize, 0);
+        
+        // Debug both for comparison (only for first few calls to avoid spam)
+        if (x < 3 && y < 3)
+        {
+            Debug.Log($"[🎯 GRID_TO_WORLD] ({x},{y}) → Direct: {directPos}, Y-flipped: {flippedPos}");
+        }
+        
+        // Use direct position for now - level file coordinates seem to match this
+        return directPos;
     }
     
     /// <summary>

@@ -1740,6 +1740,8 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void CreatePlayerAtSpawn()
     {
+        Debug.Log($"[🎮 PLAYER_SPAWN] === Starting player creation for level: {currentLevelData?.levelName} ===");
+        
         // Early validation
         if (playerPrefab == null)
         {
@@ -1747,16 +1749,30 @@ public class LevelLoader : MonoBehaviour
             return;
         }
 
-        // TEST: Direct coordinate system without Y-flip
-        Vector3 playerPos = new Vector3(playerStartX * tileSize, playerStartY * tileSize, 0);
+        // Debug: Show expected vs actual spawn data
+        Debug.Log($"[🎮 PLAYER_SPAWN] Level data player spawn: ({currentLevelData?.playerSpawn.x}, {currentLevelData?.playerSpawn.y})");
+        Debug.Log($"[🎮 PLAYER_SPAWN] LevelLoader playerStart: ({playerStartX}, {playerStartY})");
+        Debug.Log($"[🎮 PLAYER_SPAWN] Grid dimensions: {Width}x{Height}, TileSize: {tileSize}");
+
+        // Use LayeredGridService coordinate conversion for consistency
+        Vector3 playerPos = layeredGrid.GridToWorld(playerStartX, playerStartY);
+        Debug.Log($"[🎮 PLAYER_SPAWN] LayeredGrid world position: {playerPos}");
         
-        // DEBUG: Show both calculations
+        // Show alternative calculations for comparison
+        Vector3 directPos = new Vector3(playerStartX * tileSize, playerStartY * tileSize, 0);
         Vector3 originalPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
-        Debug.Log($"[🎮 COORDINATE_TEST] Original Y-flip pos: {originalPos}");
-        Debug.Log($"[🎮 COORDINATE_TEST] Direct coordinate pos: {playerPos}");
+        Debug.Log($"[🎮 PLAYER_SPAWN] Direct calculation: {directPos}");
+        Debug.Log($"[🎮 PLAYER_SPAWN] Y-flip calculation: {originalPos}");
         
-        Debug.Log($"[🎮 SPAWN_POS] Player spawn data: StartX={playerStartX}, StartY={playerStartY}, Height={Height}");
-        Debug.Log($"[🎮 SPAWN_POS] Calculated world position: {playerPos} (tileSize={tileSize})");
+        // Verify the spawn position has correct tile type
+        if (currentLevelData?.grid != null && 
+            playerStartX < currentLevelData.grid.GetLength(0) && 
+            playerStartY < currentLevelData.grid.GetLength(1))
+        {
+            char spawnChar = currentLevelData.grid[playerStartX, playerStartY];
+            TileType spawnTileType = TileSymbols.DataSymbolToType(spawnChar);
+            Debug.Log($"[🎮 PLAYER_SPAWN] Tile at spawn position ({playerStartX},{playerStartY}): '{spawnChar}' → {spawnTileType}");
+        }
         
         // Since ClearAllTiles now destroys everything, we should have clean slate
         var allExistingPlayers = FindObjectsOfType<PlayerController>();
@@ -1773,9 +1789,10 @@ public class LevelLoader : MonoBehaviour
         
         // FRESH CREATION: Always create new player since ClearAllTiles destroyed everything
         Debug.Log("[🎮 FRESH_CREATE] Creating completely new player instance");
-        Transform playerParent = dynamicParent ?? levelContentParent;
+        Transform playerParent = GetContainerForTileType(TileType.Player);
+        Debug.Log($"[🎮 FRESH_CREATE] Player parent container: {playerParent?.name}");
         playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
-        Debug.Log($"[🎮 FRESH_CREATE] New Player instance created: {playerObject.name}");
+        Debug.Log($"[🎮 FRESH_CREATE] New Player instance created: {playerObject.name} at {playerPos}");
         
         // Setup player components
         var playerController = playerObject.GetComponent<PlayerController>();
@@ -1788,24 +1805,31 @@ public class LevelLoader : MonoBehaviour
         
         if (playerController != null)
         {
+            Debug.Log($"[🎮 PLAYER_INIT] Initializing PlayerController with grid coords: ({playerStartX}, {playerStartY})");
             playerController.Init(playerStartX, playerStartY);
+            
+            // Verify initialization worked
+            Debug.Log($"[🎮 PLAYER_INIT] PlayerController after init - X: {playerController.X}, Y: {playerController.Y}");
             
             // Register with GameManager
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.RegisterPlayer(playerController);
+                Debug.Log($"[🎮 PLAYER_INIT] Registered with GameManager");
             }
             
             // Register with PlayerAgentManager (for ML-Agent functionality)
             if (PlayerAgentManager.Instance != null)
             {
                 PlayerAgentManager.Instance.RegisterPlayer(playerController);
+                Debug.Log($"[🎮 PLAYER_INIT] Registered with PlayerAgentManager");
             }
             
             // Place in layered system
             if (layeredGrid != null)
             {
-                layeredGrid.PlaceActor(playerObject, playerStartX, playerStartY);
+                bool placementSuccess = layeredGrid.PlaceActor(playerObject, playerStartX, playerStartY);
+                Debug.Log($"[🎮 PLAYER_INIT] LayeredGrid placement result: {placementSuccess}");
             }
             
             Debug.Log($"[🎮 SPAWN_COMPLETE] Player initialized at grid({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
