@@ -105,15 +105,20 @@ public class PlayerAgentManager : Agent, ITurnBased
     /// </summary>
     public void RegisterPlayer(PlayerController playerController)
     {
+        Debug.Log($"[🤖 AGENT_REG] RegisterPlayer called with: {playerController?.name}");
+        Debug.Log($"[🤖 AGENT_REG] Previous player: {currentPlayerController?.name}");
+        
         currentPlayerController = playerController;
         
         // Check if the new player has PlayerAgent component (optional)
         currentPlayerAgent = playerController.GetComponent<PlayerAgent>();
+        Debug.Log($"[🤖 AGENT_REG] Player has PlayerAgent component: {currentPlayerAgent != null}");
         
         // If player has PlayerAgent component, disable it since we're managing ML-Agent functionality centrally
         if (currentPlayerAgent != null)
         {
             currentPlayerAgent.enabled = false;
+            Debug.Log($"[🤖 AGENT_REG] Disabled PlayerAgent component on {playerController.name}");
         }
         
         // Re-initialize helper classes with new player
@@ -121,6 +126,8 @@ public class PlayerAgentManager : Agent, ITurnBased
         
         // Reset episode state
         ResetEpisode();
+        
+        Debug.Log($"[🤖 AGENT_REG] Registration complete for: {currentPlayerController?.name}");
     }
     
     /// <summary>
@@ -165,9 +172,17 @@ public class PlayerAgentManager : Agent, ITurnBased
 
     public IGameAction GetAction()
     {
+        // Debug GetAction calls (limit to avoid spam)
+        if (UnityEngine.Random.Range(0, 100) < 5) // 5% chance to log
+        {
+            Debug.Log($"[🎮 AGENT_ACTION] GetAction called - Player: {currentPlayerController?.name}, HasActed: {HasActedThisTurn}");
+        }
+        
         // If no current player or already acted, return null
         if (currentPlayerController == null || HasActedThisTurn)
         {
+            if (currentPlayerController == null)
+                Debug.LogWarning("[🎮 AGENT_ACTION] GetAction: currentPlayerController is null!");
             return null;
         }
         
@@ -230,8 +245,13 @@ public class PlayerAgentManager : Agent, ITurnBased
         var playerAction = currentPlayerController.GetAction();
         if (playerAction != null)
         {
+            Debug.Log($"[🎮 AGENT_ACTION] Manual input action received: {playerAction.GetType().Name}");
             HasActedThisTurn = true;
             episodeSteps++;
+        }
+        else if (UnityEngine.Random.Range(0, 100) < 2) // 2% chance to log null actions
+        {
+            Debug.Log($"[🎮 AGENT_ACTION] No manual input from PlayerController");
         }
         return playerAction;
     }

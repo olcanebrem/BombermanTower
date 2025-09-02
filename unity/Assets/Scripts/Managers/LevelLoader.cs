@@ -1823,6 +1823,34 @@ public class LevelLoader : MonoBehaviour
             {
                 PlayerAgentManager.Instance.RegisterPlayer(playerController);
                 Debug.Log($"[🎮 PLAYER_INIT] Registered with PlayerAgentManager");
+                
+                // Notify TurnManager to refresh ML-Agent registration after new player creation
+                if (TurnManager.Instance != null)
+                {
+                    // Simple approach: Just register PlayerAgentManager directly if it's not already registered
+                    var turnManager = TurnManager.Instance;
+                    var playerAgentManager = PlayerAgentManager.Instance;
+                    
+                    // Check if PlayerAgentManager is in TurnManager's registered objects
+                    bool isAlreadyRegistered = false;
+                    try 
+                    {
+                        // Force TurnManager to register PlayerAgentManager if ML is active
+                        if (playerAgentManager.IsMLAgentActive())
+                        {
+                            turnManager.Register(playerAgentManager);
+                            Debug.Log($"[🎮 PLAYER_INIT] Ensured PlayerAgentManager registration with TurnManager");
+                        }
+                        else
+                        {
+                            Debug.Log($"[🎮 PLAYER_INIT] PlayerAgentManager ML not active, skipping TurnManager registration");
+                        }
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"[🎮 PLAYER_INIT] Error ensuring TurnManager registration: {e.Message}");
+                    }
+                }
             }
             
             // Place in layered system
