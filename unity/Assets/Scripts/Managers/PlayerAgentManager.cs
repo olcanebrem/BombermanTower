@@ -79,6 +79,13 @@ public class PlayerAgentManager : Agent, ITurnBased
         envManager = FindObjectOfType<EnvManager>();
         rewardSystem = FindObjectOfType<RewardSystem>();
         
+        // Subscribe to events
+        if (GameEventBus.Instance != null)
+        {
+            GameEventBus.Instance.Subscribe<PlayerSpawned>(OnPlayerSpawned);
+            GameEventBus.Instance.Subscribe<LevelCleanupStarted>(OnLevelCleanupStarted);
+        }
+        
         // Register with TurnManager
         if (TurnManager.Instance != null)
         {
@@ -94,6 +101,13 @@ public class PlayerAgentManager : Agent, ITurnBased
     private void OnDisable() 
     {
         PlayerController.OnPlayerDeath -= HandlePlayerDeath;
+        
+        // Unsubscribe from events
+        if (GameEventBus.Instance != null)
+        {
+            GameEventBus.Instance.Unsubscribe<PlayerSpawned>(OnPlayerSpawned);
+            GameEventBus.Instance.Unsubscribe<LevelCleanupStarted>(OnLevelCleanupStarted);
+        }
     }
 
     #endregion
@@ -205,6 +219,9 @@ public class PlayerAgentManager : Agent, ITurnBased
             // Epsilon-greedy decision: should we use heuristic?
             bool shouldUseHeuristic = false;
             
+            // Publish decision requested event
+            GameEventBus.Instance?.Publish(new AgentDecisionRequested(currentPlayerController, false));
+            
             // Check epsilon-greedy controller
             if (EpsilonGreedyController.Instance != null && Academy.Instance.IsCommunicatorOn)
             {
@@ -303,6 +320,10 @@ public class PlayerAgentManager : Agent, ITurnBased
             {
                 LastActionDirection = ma.Direction;
             }
+            
+            // Publish action received event
+            GameEventBus.Instance?.Publish(new AgentActionReceived(
+                currentPlayerController, moveAction, bombAction, pendingAction));
         }
     }
 
@@ -426,6 +447,13 @@ public class PlayerAgentManager : Agent, ITurnBased
 
     public void EndEpisode()
     {
+        if (currentPlayerController != null)
+        {
+            // Publish episode ended event
+            GameEventBus.Instance?.Publish(new AgentEpisodeEnded(
+                currentPlayerController, "Manual", episodeSteps));
+        }
+        
         if (currentPlayerAgent != null)
         {
             currentPlayerAgent.EndEpisode();
@@ -438,6 +466,8 @@ public class PlayerAgentManager : Agent, ITurnBased
     {
         if (deadPlayer == currentPlayerController)
         {
+            // Publish player destroyed event
+            GameEventBus.Instance?.Publish(new PlayerDestroyed(deadPlayer, "Death"));
             EndEpisode();
         }
     }
@@ -467,5 +497,27 @@ public class PlayerAgentManager : Agent, ITurnBased
         return shouldUseML;
     }
 
+    #endregion
+    
+    #region EVENT HANDLERS
+    
+    /// <summary>
+    /// Handle player spawned event from LevelLoader
+    /// </summary>
+    private void OnPlayerSpawned(PlayerSpawned eventData)
+    {
+        Debug.Log($"[🎮 AGENT_EVENT] PlayerSpawned event received - registering player: {eventData.Player?.name}");
+        RegisterPlayer(eventData.Player);
+    }
+    
+    /// <summary>
+    /// Handle level cleanup started event
+    /// </summary>
+    private void OnLevelCleanupStarted(LevelCleanupStarted eventData)
+    {
+        Debug.Log($"[🧹 AGENT_EVENT] Level cleanup started - unregistering current player");
+        UnregisterPlayer();
+    }
+    
     #endregion
 }

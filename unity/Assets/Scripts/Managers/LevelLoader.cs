@@ -149,6 +149,13 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         instance = this;
+        
+        // Ensure GameEventBus is available
+        if (GameEventBus.Instance == null)
+        {
+            var eventBusGO = new GameObject("GameEventBus");
+            eventBusGO.AddComponent<GameEventBus>();
+        }
         // Debug.Log($"[LevelLoader] Singleton instance set to: {this.gameObject.name}");
 
         // Component references - find HoudiniLevelParser (Singleton or scene)
@@ -752,49 +759,39 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadLevelFromHoudiniData(HoudiniLevelData levelData)
     {
-        Debug.Log($"[🎯 HOUDINI_DATA] LoadLevelFromHoudiniData called - Level: {levelData?.levelName} (ID: {levelData?.levelId})");
-        
         if (levelData == null)
         {
             Debug.LogError("[LevelLoader] HoudiniLevelData is null!");
             return;
         }
-
-        // Log detailed grid data for debugging
-        if (levelData.grid != null)
-        {
-            Debug.Log($"[🎯 HOUDINI_DATA] Grid array: {levelData.grid.GetLength(0)}x{levelData.grid.GetLength(1)}");
-            Debug.Log($"[🎯 HOUDINI_DATA] First row sample: '{new string(Enumerable.Range(0, Math.Min(10, levelData.grid.GetLength(0))).Select(x => levelData.grid[x, 0]).ToArray())}'");
-            Debug.Log($"[🎯 HOUDINI_DATA] Enemy positions: {levelData.enemyPositions.Count}, Coins: {levelData.coinPositions.Count}");
-        }
-
-        Debug.Log($"[🚀 LEVEL_LOAD] Starting complete level loading process for: {levelData.levelName}");
         
-        // STEP 1: Complete cleanup of existing level
-        Debug.Log("[🚀 LEVEL_LOAD] STEP 1: Clearing all existing tiles and objects");
-        ClearAllTiles();
+        // Publish level load started event
+        GameEventBus.Instance?.Publish(new LevelLoadStarted(levelData.levelId, levelData.levelName));
 
-        // STEP 2: Set new dimensions
-        Debug.Log($"[🚀 LEVEL_LOAD] STEP 2: Setting dimensions to {levelData.gridWidth}x{levelData.gridHeight}");
+        // Complete cleanup of existing level
+        string previousLevelId = currentLevelData?.levelId ?? "Unknown";
+        GameEventBus.Instance?.Publish(new LevelCleanupStarted(previousLevelId));
+        
+        ClearAllTiles();
+        
+        GameEventBus.Instance?.Publish(new LevelCleanupCompleted(previousLevelId, true));
+
+        // Set new dimensions
         Width = levelData.gridWidth;
         Height = levelData.gridHeight;
         
-        // STEP 3: Initialize and verify layered grid system
+        // Initialize and verify layered grid system
         if (layeredGrid != null)
         {
-            Debug.Log("[🚀 LEVEL_LOAD] STEP 3: Initializing layered grid system");
             layeredGrid.Initialize(Width, Height);
-            Debug.Log($"[🚀 LEVEL_LOAD] ✅ Layered grid system initialized: {Width}x{Height}");
             
             // Verify layers are completely clear
-            Debug.Log("[🚀 LEVEL_LOAD] STEP 3a: Verifying layer cleanup...");
             bool layersClean = VerifyLayersClean();
             if (!layersClean)
             {
                 Debug.LogError("[🚀 LEVEL_LOAD] ❌ Layers not properly cleared! Level sequencing may fail!");
                 return;
             }
-            Debug.Log("[🚀 LEVEL_LOAD] ✅ Layer cleanup verification successful");
         }
         else
         {
@@ -802,25 +799,15 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         
-        // STEP 3b: Create level-specific containers
-        Debug.Log("[🚀 LEVEL_LOAD] STEP 3b: Creating level-specific container hierarchy");
+        // Create level-specific containers
         CreateLevelSpecificContainers(levelData);
-        Debug.Log("[🚀 LEVEL_LOAD] ✅ Level-specific containers created");
         
         // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
         // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
         
-        // STEP 4: Setup layered system with new static tiles
+        // Setup layered system with new static tiles
         if (layeredGrid != null && levelData.grid != null)
         {
-            Debug.Log($"[🚀 LEVEL_LOAD] STEP 4: Processing grid data for level: {levelData.levelName}");
-            Debug.Log($"[🚀 LEVEL_LOAD] Player spawn in level data: {levelData.playerSpawn}");
-            
-            // Sample a few key positions to verify data integrity
-            char sampleChar1 = levelData.grid[levelData.playerSpawn.x, levelData.playerSpawn.y];
-            Debug.Log($"[🚀 LEVEL_LOAD] Character at player spawn ({levelData.playerSpawn.x},{levelData.playerSpawn.y}): '{sampleChar1}'");
-            
-            int wallCount = 0, breakableCount = 0;
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
@@ -835,17 +822,13 @@ public class LevelLoader : MonoBehaviour
                     if (cellType == TileType.Wall)
                     {
                         layeredGrid.SetStaticTile(x, y, LayeredGridService.LayerMask.BlocksMovement | LayeredGridService.LayerMask.BlocksFire);
-                        wallCount++;
                     }
                     else if (cellType == TileType.Breakable)
                     {
                         layeredGrid.SetDestructibleTile(x, y, LayeredGridService.LayerMask.BlocksMovement | LayeredGridService.LayerMask.BlocksFire | LayeredGridService.LayerMask.Destructible);
-                        breakableCount++;
                     }
                 }
             }
-            
-            Debug.Log($"[🚀 LEVEL_LOAD] ✅ STEP 4 completed - Processed {wallCount} walls, {breakableCount} breakables for level: {levelData.levelName}");
         }
         else
         {
@@ -853,35 +836,22 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         
-        // STEP 5: Set player spawn position
-        Debug.Log($"[🚀 LEVEL_LOAD] STEP 5: Setting player spawn to ({levelData.playerSpawn.x}, {levelData.playerSpawn.y})");
+        // Set player spawn position
         playerStartX = levelData.playerSpawn.x;
         playerStartY = levelData.playerSpawn.y;
         
-        // Debug info for layered system
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.AppendLine($"\n=== LAYERED LEVEL LOADER DEBUG INFO ===");
-        sb.AppendLine($"Level: {levelData.levelName} (v{levelData.version})");
-        sb.AppendLine($"Dimensions: {Width}x{Height}");
-        sb.AppendLine($"Player spawn: ({playerStartX}, {playerStartY})");
-        sb.AppendLine($"Enemies: {levelData.enemyPositions.Count}");
-        sb.AppendLine($"Layered Grid Service: {(layeredGrid != null ? "Active" : "NULL")}");
-        sb.AppendLine("=====================================");
-        
-        // Debug.Log(sb.ToString());
-        
-        // STEP 6: Create visual objects after loading data
-        Debug.Log("[🚀 LEVEL_LOAD] STEP 6: Creating visual map objects and player");
+        // Create visual objects after loading data
         CreateMapVisual();
         
-        // STEP 7: CRITICAL - Verify tile counts match level data
-        Debug.Log("[🚀 LEVEL_LOAD] STEP 7: Verifying tile counts match level data");
+        // Verify tile counts match level data
         bool tileCountsMatch = VerifyTileCounts(levelData);
         
         if (!tileCountsMatch)
         {
-            Debug.LogError($"[🚀 LEVEL_LOAD] ❌ CRITICAL ERROR: Tile counts don't match for level {levelData.levelName}!");
-            Debug.LogError("[🚀 LEVEL_LOAD] This indicates a serious level loading issue - STOPPING GAME!");
+            Debug.LogError($"[LEVEL_LOAD] CRITICAL ERROR: Tile counts don't match for level {levelData.levelName}!");
+            
+            // Publish level load failed event
+            GameEventBus.Instance?.Publish(new LevelLoadCompleted(levelData.levelId, levelData.levelName, levelData, false));
             
             // Stop the game/application
             #if UNITY_EDITOR
@@ -892,7 +862,8 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         
-        Debug.Log($"[🚀 LEVEL_LOAD] ✅ COMPLETE! Successfully loaded and verified level: {levelData.levelName} (ID: {levelData.levelId})");
+        // Publish level load completed event
+        GameEventBus.Instance?.Publish(new LevelLoadCompleted(levelData.levelId, levelData.levelName, levelData, true));
     }
     
     /// <summary>
@@ -900,13 +871,8 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadFromLevelData(HoudiniLevelData levelData)
     {
-        Debug.Log($"[🔄 LEVEL_LOADER] LoadFromLevelData called with level: {levelData?.levelName} (ID: {levelData?.levelId})");
-        Debug.Log($"[🔄 LEVEL_LOADER] Grid dimensions: {levelData?.gridWidth}x{levelData?.gridHeight}");
-        Debug.Log($"[🔄 LEVEL_LOADER] Player spawn: {levelData?.playerSpawn}");
-        
-        // CRITICAL FIX: Update currentLevelData to prevent caching issues
+        // Update currentLevelData to prevent caching issues
         currentLevelData = levelData;
-        Debug.Log($"[🔄 LEVEL_LOADER] Updated currentLevelData reference");
         
         LoadLevelFromHoudiniData(levelData);
     }
@@ -1066,15 +1032,10 @@ public class LevelLoader : MonoBehaviour
                 
             case TileType.Breakable:
                 // BreakableTiles need both layer mask AND GameObject reference for damage handling
-                Debug.Log($"[🧱 BREAKABLE_CREATE] Attempting to place {tileObj.name} at ({x},{y}) for level: {currentLevelData?.levelName}");
                 if (!layeredGrid.PlaceDestructibleObject(tileObj, x, y))
                 {
-                    Debug.LogError($"[🧱 BREAKABLE_CREATE] ❌ Failed to place BreakableTile at ({x},{y}) - destroying object!");
+                    Debug.LogError($"[BREAKABLE] Failed to place BreakableTile at ({x},{y}) - destroying object!");
                     Destroy(tileObj);
-                }
-                else
-                {
-                    Debug.Log($"[🧱 BREAKABLE_CREATE] ✅ Successfully created and placed breakable at ({x},{y})");
                 }
                 break;
                 
@@ -1226,7 +1187,7 @@ public class LevelLoader : MonoBehaviour
         }
         
         bool isClean = (cleanCount == sampleCount);
-        Debug.Log($"[🔍 VERIFY_CLEAN] Sampled {sampleCount} positions, {cleanCount} clean - Result: {(isClean ? "✅ CLEAN" : "❌ DIRTY")}");
+        bool isClean = (cleanCount == sampleCount);
         return isClean;
     }
     
@@ -1241,8 +1202,6 @@ public class LevelLoader : MonoBehaviour
         GameObject levelContainerObj = new GameObject($"Level_{levelName}");
         currentLevelContainer = levelContainerObj.transform;
         currentLevelContainer.SetParent(levelContentParent);
-        
-        Debug.Log($"[📁 CONTAINER] Created level container: {levelContainerObj.name}");
         
         // Create category containers under level container
         GameObject staticContainerObj = new GameObject("Static");
@@ -1273,8 +1232,6 @@ public class LevelLoader : MonoBehaviour
         // Update legacy references for compatibility
         gridParent = currentStaticContainer;
         dynamicParent = currentDynamicContainer;
-        
-        Debug.Log($"[📁 CONTAINER] Hierarchy created: {levelName} > [Static, Destructible, Dynamic]");
     }
     
     /// <summary>
@@ -1284,11 +1241,9 @@ public class LevelLoader : MonoBehaviour
     {
         if (levelData == null || layeredGrid == null)
         {
-            Debug.LogError("[🔍 TILE_VERIFY] Cannot verify - levelData or layeredGrid is null!");
+            Debug.LogError("[TILE_VERIFY] Cannot verify - levelData or layeredGrid is null!");
             return false;
         }
-        
-        Debug.Log("[🔍 TILE_VERIFY] Starting tile count verification...");
         
         // Get expected counts from level data
         var expectedCounts = levelData.GetExpectedTileCounts();
@@ -1319,25 +1274,14 @@ public class LevelLoader : MonoBehaviour
             {
                 allMatch = false;
                 mismatches.Add($"{tileType}: Expected {expected}, Got {actual}");
-                Debug.LogError($"[🔍 TILE_VERIFY] ❌ MISMATCH - {tileType}: Expected {expected}, Got {actual}");
-            }
-            else if (expected > 0) // Only log non-zero matches to reduce spam
-            {
-                Debug.Log($"[🔍 TILE_VERIFY] ✅ MATCH - {tileType}: {expected}");
+                Debug.LogError($"[TILE_VERIFY] MISMATCH - {tileType}: Expected {expected}, Got {actual}");
             }
         }
         
-        if (allMatch)
+        if (!allMatch)
         {
-            Debug.Log("[🔍 TILE_VERIFY] ✅ All tile counts match! Level loaded correctly.");
-        }
-        else
-        {
-            Debug.LogError($"[🔍 TILE_VERIFY] ❌ TILE COUNT MISMATCH DETECTED! Level: {levelData.levelName}");
-            Debug.LogError($"[🔍 TILE_VERIFY] Mismatches: {string.Join(", ", mismatches)}");
-            
-            // Additional debugging - show first few mismatching positions
-            Debug.LogError("[🔍 TILE_VERIFY] This indicates level loading failed - stopping game!");
+            Debug.LogError($"[TILE_VERIFY] TILE COUNT MISMATCH DETECTED! Level: {levelData.levelName}");
+            Debug.LogError($"[TILE_VERIFY] Mismatches: {string.Join(", ", mismatches)}");
         }
         
         return allMatch;
@@ -1798,6 +1742,13 @@ public class LevelLoader : MonoBehaviour
         var playerController = playerObject.GetComponent<PlayerController>();
         var playerTileBase = playerObject.GetComponent<TileBase>();
         
+        // Publish player spawned event
+        if (playerController != null)
+        {
+            Vector2Int gridPos = new Vector2Int(playerStartX, playerStartY);
+            GameEventBus.Instance?.Publish(new PlayerSpawned(playerController, gridPos, playerPos));
+        }
+        
         if (playerTileBase != null && spriteDatabase != null)
         {
             playerTileBase.SetVisual(spriteDatabase.GetSprite(TileType.Player));
@@ -1818,11 +1769,7 @@ public class LevelLoader : MonoBehaviour
                 Debug.Log($"[🎮 PLAYER_INIT] Registered with GameManager");
             }
             
-            // Register with PlayerAgentManager (for ML-Agent functionality)
-            if (PlayerAgentManager.Instance != null)
-            {
-                PlayerAgentManager.Instance.RegisterPlayer(playerController);
-                Debug.Log($"[🎮 PLAYER_INIT] Registered with PlayerAgentManager");
+            // PlayerAgentManager registration now handled via event bus (PlayerSpawned event)
                 
                 // Notify TurnManager to refresh ML-Agent registration after new player creation
                 if (TurnManager.Instance != null)
