@@ -9,7 +9,7 @@ public class TurnManager : MonoBehaviour
     public static TurnManager Instance { get; private set; }
     
     // ML-Agent Integration
-    private PlayerAgent mlAgent;
+    private ITurnBased mlAgent; // Can be PlayerAgentManager or PlayerAgent
     private MLAgentsTrainingController trainingController;
     private LevelSequencer levelSequencer;
 
@@ -69,14 +69,14 @@ public class TurnManager : MonoBehaviour
         
         // Player death handling is now done directly via PlayerAgent
         
-        // Start coroutine to find PlayerAgent after level loads
+        // Start coroutine to find PlayerAgentManager after level loads
         StartCoroutine(DelayedPlayerAgentSearch());
         
         Debug.Log($"[TurnManager] Training controller: {trainingController != null}, Level sequencer: {levelSequencer != null}");
     }
     
     /// <summary>
-    /// Search for PlayerAgent after level loading is complete
+    /// Search for PlayerAgentManager after level loading is complete
     /// </summary>
     private System.Collections.IEnumerator DelayedPlayerAgentSearch()
     {
@@ -88,24 +88,42 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
             attempts++;
             
-            mlAgent = FindObjectOfType<PlayerAgent>();
-            Debug.Log($"[TurnManager] PlayerAgent search attempt {attempts}: {mlAgent?.name ?? "NULL"}");
+            // First try to find PlayerAgentManager (preferred)
+            var playerAgentManager = PlayerAgentManager.Instance;
+            if (playerAgentManager != null)
+            {
+                mlAgent = playerAgentManager;
+                Debug.Log($"[TurnManager] PlayerAgentManager found: {playerAgentManager.name}");
+                break;
+            }
+            
+            // Fallback: try to find PlayerAgent component on player
+            var foundPlayerAgent = FindObjectOfType<PlayerAgent>();
+            if (foundPlayerAgent != null)
+            {
+                mlAgent = foundPlayerAgent;
+            }
+            Debug.Log($"[TurnManager] ML-Agent search attempt {attempts}: PlayerAgentManager={PlayerAgentManager.Instance != null}, PlayerAgent={foundPlayerAgent?.name ?? "NULL"}");
         }
         
         if (mlAgent != null)
         {
-            Debug.Log($"[TurnManager] PlayerAgent found after {attempts} attempts: {mlAgent.name}");
+            string agentName = "";
+            if (mlAgent is MonoBehaviour mb) agentName = mb.name;
+            else if (mlAgent is PlayerAgentManager pam) agentName = pam.name;
             
-            // Now that we found the PlayerAgent, check if it needs to be registered
+            Debug.Log($"[TurnManager] ML-Agent found after {attempts} attempts: {agentName} (Type: {mlAgent.GetType().Name})");
+            
+            // Now that we found the ML-Agent, check if it needs to be registered
             if (IsMLAgentActive && !turnBasedObjects.Contains(mlAgent))
             {
                 RegisterMLAgent(mlAgent);
-                Debug.Log("[TurnManager] PlayerAgent auto-registered after delayed discovery");
+                Debug.Log("[TurnManager] ML-Agent auto-registered after delayed discovery");
             }
         }
         else
         {
-            Debug.LogError($"[TurnManager] PlayerAgent not found after {maxAttempts} attempts!");
+            Debug.LogError($"[TurnManager] ML-Agent (PlayerAgentManager or PlayerAgent) not found after {maxAttempts} attempts!");
         }
     }
     
@@ -213,6 +231,12 @@ public class TurnManager : MonoBehaviour
                 else if ((destructibleMask & LayeredGridService.LayerMask.Destructible) != 0)
                 {
                     debugGrid[x, y] = GetDebugSymbol(TileType.Breakable);
+                    
+                    // Debug excessive breakable tiles in upper area
+                    if (y < 5)
+                    {
+                        Debug.Log($"[DEBUG] Breakable at ({x},{y}) - StaticMask: {staticMask}, DestructibleMask: {destructibleMask}");
+                    }
                 }
                 else
                 {
@@ -264,6 +288,13 @@ public class TurnManager : MonoBehaviour
         // Build the entire map as a single string
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         sb.AppendLine($"\n=== TURN {TurnCount} LAYERED DEBUG MAP ===");
+        
+        // Add player position info
+        var playerController = FindObjectOfType<PlayerController>();
+        if (playerController != null)
+        {
+            sb.AppendLine($"Player at grid({playerController.X}, {playerController.Y}) - World pos: {playerController.transform.position}");
+        }
         
         // Add each row to the string builder
         for (int y = 0; y < ll.Height; y++)
@@ -500,8 +531,8 @@ public class TurnManager : MonoBehaviour
     // Sıralamayı belirleyen merkezi kural motoru.
     private int GetExecutionOrder(ITurnBased unit)
     {
-        // ML-Agent gets priority when active
-        if (IsMLAgentActive && unit is PlayerAgent) return -1;
+        // ML-Agent gets priority when active (PlayerAgentManager or PlayerAgent)
+        if (IsMLAgentActive && (unit is PlayerAgentManager || unit is PlayerAgent)) return -1;
         if (unit is PlayerController) return 0;
         if (unit is EnemyShooterTile || unit is EnemyTile) return 1;
         if (unit is MovingExplosion) return 2; // Moving explosions execute before static explosions
@@ -519,7 +550,20 @@ public class TurnManager : MonoBehaviour
             bool tcExists = trainingController != null;
             bool tcTraining = tcExists && trainingController.IsTraining;
             bool agentExists = mlAgent != null;
-            bool agentUseML = agentExists && mlAgent.UseMLAgent;
+            
+            // Check if we have PlayerAgentManager (preferred) or PlayerAgent
+            bool agentUseML = false;
+            if (agentExists)
+            {
+                if (mlAgent is PlayerAgentManager playerAgentManager)
+                {
+                    agentUseML = playerAgentManager.IsMLAgentActive();
+                }
+                else if (mlAgent is PlayerAgent playerAgent)
+                {
+                    agentUseML = playerAgent.UseMLAgent;
+                }
+            }
             
             bool isActive = tcExists && tcTraining && agentExists && agentUseML;
             
@@ -542,7 +586,14 @@ public class TurnManager : MonoBehaviour
             LoadNextLevelInTrainingSequence();
             
             // End current episode - new level will start fresh episode
-            mlAgent.EndEpisode();
+            if (mlAgent is PlayerAgentManager playerAgentManager)
+            {
+                playerAgentManager.EndEpisode();
+            }
+            else if (mlAgent is PlayerAgent playerAgent)
+            {
+                playerAgent.EndEpisode();
+            }
         }
         else
         {
@@ -611,13 +662,16 @@ public class TurnManager : MonoBehaviour
     /// Register ML-Agent when training starts
     /// This ensures proper turn-based integration
     /// </summary>
-    public void RegisterMLAgent(PlayerAgent agent)
+    public void RegisterMLAgent(ITurnBased agent)
     {
         if (!turnBasedObjects.Contains(agent))
         {
             mlAgent = agent;
             Register(agent);
-            Debug.Log($"[TurnManager] ML-Agent registered for turn-based control - Total objects: {turnBasedObjects.Count}");
+            string agentName = "";
+            if (agent is MonoBehaviour mb) agentName = mb.name;
+            else if (agent is PlayerAgentManager pam) agentName = pam.name;
+            Debug.Log($"[TurnManager] ML-Agent registered for turn-based control ({agentName}) - Total objects: {turnBasedObjects.Count}");
         }
         else
         {

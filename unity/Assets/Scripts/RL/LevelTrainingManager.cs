@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Globalization;
-using Newtonsoft.Json;
 
 public class LevelTrainingManager : MonoBehaviour
 {
@@ -269,7 +268,7 @@ public class LevelTrainingManager : MonoBehaviour
                 trainingData = allTraining
             };
             
-            string json = JsonConvert.SerializeObject(exportData, Formatting.Indented);
+            string json = JsonUtility.ToJson(exportData, true);
             File.WriteAllText(exportPath, json);
             
             if (enableTrainingLogging)
@@ -296,7 +295,7 @@ public class LevelTrainingManager : MonoBehaviour
             string json = File.ReadAllText(importPath);
             
             // Create a proper class for import data instead of using dynamic
-            var importData = JsonConvert.DeserializeObject<TrainingExportData>(json);
+            var importData = JsonUtility.FromJson<TrainingExportData>(json);
             var trainingList = importData.trainingData;
             
             foreach (var training in trainingList)
@@ -335,7 +334,7 @@ public class LevelTrainingManager : MonoBehaviour
                 allLevelsData = allData
             };
             
-            string json = JsonConvert.SerializeObject(exportData, Formatting.Indented);
+            string json = JsonUtility.ToJson(exportData, true);
             File.WriteAllText(exportPath, json);
             
             if (enableTrainingLogging)

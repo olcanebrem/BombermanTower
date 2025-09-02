@@ -240,14 +240,28 @@ public class LevelSequencer : MonoBehaviour
     /// </summary>
     public void LoadNextLevel()
     {
+        Debug.Log($"[🔄 LEVEL_SEQ] LoadNextLevel called - Current index: {currentLevelIndex}, Total levels: {availableLevels.Count}");
+        Debug.Log($"[🔄 LEVEL_SEQ] useMultiLevelSequence: {useMultiLevelSequence}");
+        
         if (!useMultiLevelSequence || availableLevels.Count == 0)
         {
             Debug.LogWarning("[LevelSequencer] Multi-level sequence disabled or no levels available");
             return;
         }
 
+        // Show current level before change
+        var currentLevel = availableLevels[currentLevelIndex];
+        Debug.Log($"[🔄 LEVEL_SEQ] Current level: '{currentLevel.fileName}' (index {currentLevelIndex})");
+
         // Move to next level
+        int oldIndex = currentLevelIndex;
         currentLevelIndex = (currentLevelIndex + 1) % availableLevels.Count;
+        
+        Debug.Log($"[🔄 LEVEL_SEQ] Index changed: {oldIndex} → {currentLevelIndex}");
+
+        // Show new level after change
+        var nextLevel = availableLevels[currentLevelIndex];
+        Debug.Log($"[🔄 LEVEL_SEQ] Next level: '{nextLevel.fileName}' (index {currentLevelIndex})");
 
         // Check if we completed a full cycle
         if (currentLevelIndex == 0)
@@ -262,7 +276,7 @@ public class LevelSequencer : MonoBehaviour
         // Notify listeners
         OnLevelSequenceChanged?.Invoke(currentLevelIndex, availableLevels.Count);
 
-        Debug.Log($"[LevelSequencer] Loaded next level: {currentLevelIndex + 1}/{availableLevels.Count}");
+        Debug.Log($"[🔄 LEVEL_SEQ] Loaded next level: '{nextLevel.fileName}' ({currentLevelIndex + 1}/{availableLevels.Count})");
     }
 
     /// <summary>
@@ -309,6 +323,8 @@ public class LevelSequencer : MonoBehaviour
     /// </summary>
     private void LoadCurrentLevel()
     {
+        Debug.Log($"[📋 LOAD_CURRENT] LoadCurrentLevel called - currentLevelIndex: {currentLevelIndex}, availableLevels.Count: {availableLevels.Count}");
+        
         if (currentLevelIndex >= availableLevels.Count)
         {
             Debug.LogError($"[LevelSequencer] Current level index {currentLevelIndex} out of range");
@@ -316,6 +332,7 @@ public class LevelSequencer : MonoBehaviour
         }
 
         var levelEntry = availableLevels[currentLevelIndex];
+        Debug.Log($"[📋 LOAD_CURRENT] Selected level entry: '{levelEntry.fileName}' at index {currentLevelIndex}");
 
         if (levelEntry.textAsset == null)
         {
@@ -324,7 +341,7 @@ public class LevelSequencer : MonoBehaviour
         }
 
         // Load level using new organized system
-        Debug.Log($"[LevelSequencer] Loading level: {levelEntry.fileName}");
+        Debug.Log($"[📋 LOAD_CURRENT] About to load level: '{levelEntry.fileName}' via LevelImporter");
         
         if (levelImporter != null)
         {
@@ -475,6 +492,30 @@ public class LevelSequencer : MonoBehaviour
 #if UNITY_EDITOR
     [Header("Editor Tools")]
     [SerializeField] private bool showDebugInfo = true;
+    
+    [ContextMenu("Debug Test Level Sequence")]
+    public void DebugTestLevelSequence()
+    {
+        Debug.Log("=== TESTING LEVEL SEQUENCE DEBUG ===");
+        
+        // Test parsing both level files
+        if (availableLevels.Count >= 2)
+        {
+            Debug.Log($"Testing Level 0: {availableLevels[0].fileName}");
+            var levelData1 = levelImporter.ImportLevel(availableLevels[0].textAsset);
+            Debug.Log($"Level 0 player spawn: {levelData1?.playerSpawn} - Level name: {levelData1?.levelName}");
+            
+            Debug.Log($"Testing Level 1: {availableLevels[1].fileName}");
+            var levelData2 = levelImporter.ImportLevel(availableLevels[1].textAsset);
+            Debug.Log($"Level 1 player spawn: {levelData2?.playerSpawn} - Level name: {levelData2?.levelName}");
+            
+            Debug.Log($"Levels are {(levelData1?.playerSpawn == levelData2?.playerSpawn ? "SAME" : "DIFFERENT")}!");
+        }
+        else
+        {
+            Debug.LogError("Need at least 2 levels for testing");
+        }
+    }
 
     private void OnDrawGizmosSelected()
     {

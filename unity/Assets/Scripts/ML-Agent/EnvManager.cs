@@ -43,20 +43,38 @@ public class EnvManager : MonoBehaviour
         }
     }
     
+    // Flag to prevent recursive reset calls
+    public bool IsResettingEnvironment { get; private set; } = false;
+    
     // Episode reset for ML-Agent
     public void ResetEnvironment()
     {
-        // Clear tracking lists
-        bombs.Clear();
-        explosions.Clear();
-        
-        // Reset level through LevelManager
-        if (levelManager != null)
+        if (IsResettingEnvironment)
         {
-            levelManager.ResetLevel();
+            Debug.LogWarning("[EnvManager] Already resetting environment, skipping duplicate call");
+            return;
         }
         
-        Debug.Log("[EnvManager] Environment reset completed");
+        IsResettingEnvironment = true;
+        
+        try
+        {
+            // Clear tracking lists
+            bombs.Clear();
+            explosions.Clear();
+            
+            // Reset level through LevelManager
+            if (levelManager != null)
+            {
+                levelManager.ResetLevel();
+            }
+            
+            Debug.Log("[EnvManager] Environment reset completed");
+        }
+        finally
+        {
+            IsResettingEnvironment = false;
+        }
     }
     
     // Coordinate conversion - delegate to LevelLoader

@@ -66,6 +66,7 @@ public class LayeredGridService : MonoBehaviour
     /// </summary>
     public void Initialize(int gridWidth, int gridHeight)
     {
+        Debug.Log($"[🏗️ LAYERED_INIT] Initialize called with dimensions: {gridWidth}x{gridHeight}");
         width = gridWidth;
         height = gridHeight;
         
@@ -83,7 +84,7 @@ public class LayeredGridService : MonoBehaviour
         allBombs.Clear();
         allItems.Clear();
         
-        Debug.Log($"[LayeredGridService] Initialized {width}x{height} layered grid");
+        Debug.Log($"[🏗️ LAYERED_INIT] Successfully initialized {width}x{height} layered grid system");
     }
     
     /// <summary>
@@ -219,6 +220,12 @@ public class LayeredGridService : MonoBehaviour
     {
         if (!IsValidPosition(x, y)) return;
         staticLayer[x, y] = mask;
+        
+        // Debug only first few tiles to avoid spam
+        if ((x < 3 && y < 3) || (x == 0) || (y == 0))
+        {
+            Debug.Log($"[🧱 STATIC_TILE] Set static tile at ({x},{y}) with mask: {mask}");
+        }
     }
     
     public LayerMask GetStaticTile(int x, int y)
@@ -514,6 +521,7 @@ public class LayeredGridService : MonoBehaviour
                 {
                     staticLayer[x, y] = LayerMask.None;
                     destructibleLayer[x, y] = LayerMask.None;
+                    destructibleObjectLayer[x, y] = null;
                     actorLayer[x, y] = null;
                     bombLayer[x, y] = null;
                     effectLayer[x, y] = null;
@@ -555,4 +563,27 @@ public class LayeredGridService : MonoBehaviour
     public List<GameObject> AllActors => new List<GameObject>(allActors);
     public List<GameObject> AllBombs => new List<GameObject>(allBombs);
     public List<GameObject> AllItems => new List<GameObject>(allItems);
+    
+    // Get all effects from effect layer
+    public List<GameObject> AllEffects
+    {
+        get
+        {
+            var effects = new List<GameObject>();
+            if (effectLayer != null)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        if (effectLayer[x, y] != null)
+                        {
+                            effects.Add(effectLayer[x, y]);
+                        }
+                    }
+                }
+            }
+            return effects;
+        }
+    }
 }

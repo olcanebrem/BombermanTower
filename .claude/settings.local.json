@@ -13,7 +13,8 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(mv:*)",
-      "Bash(\"C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.46f1\\Editor\\Unity.exe\" -batchmode -quit -projectPath \"E:\\UNITY\\BombermanTower\\Unity\" -executeMethod UnityEditor.EditorApplication.Exit -logFile build_check.log)"
+      "Bash(\"C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.46f1\\Editor\\Unity.exe\" -batchmode -quit -projectPath \"E:\\UNITY\\BombermanTower\\Unity\" -executeMethod UnityEditor.EditorApplication.Exit -logFile build_check.log)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],

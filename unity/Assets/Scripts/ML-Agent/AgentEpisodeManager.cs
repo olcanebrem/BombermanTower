@@ -25,7 +25,13 @@ public class AgentEpisodeManager
     {
         if (debugActions) Debug.Log("[AgentEpisodeManager] Episode starting...");
         episodeStartTime = Time.time;
-        envManager?.ResetEnvironment();
+        
+        // Only reset environment on first episode or manual reset, not on every episode begin
+        if (envManager != null && !envManager.IsResettingEnvironment)
+        {
+            envManager.ResetEnvironment();
+        }
+        
         rewardSystem?.OnEpisodeBegin();
     }
 

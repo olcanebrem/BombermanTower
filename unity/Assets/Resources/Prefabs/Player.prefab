@@ -86,10 +86,7 @@ GameObject:
   - component: {fileID: 7276255944586928271}
   - component: {fileID: 8342231042879676228}
   - component: {fileID: -4926589044178424912}
-  - component: {fileID: -3097801023920919497}
-  - component: {fileID: -94589322604941226}
   - component: {fileID: 2152867227875350981}
-  - component: {fileID: 7529146257465458938}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -141,50 +138,6 @@ MonoBehaviour:
   bombPrefab: {fileID: 9048555102869179715, guid: 1836c43e7c4f24c41802b2a5078017da, type: 3}
   explosionPrefab: {fileID: 618472659354836283, guid: 1a98a8e16944dbf41a5ca59fb2de826d, type: 3}
   diagonalBufferTime: 0.1
---- !u!114 &-3097801023920919497
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9048555102869179715}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d1c4e0b1822b495aa52bc52839ecb30, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_BrainParameters:
-    VectorObservationSize: 116
-    NumStackedVectorObservations: 5
-    m_ActionSpec:
-      m_NumContinuousActions: 0
-      BranchSizes: 0900000002000000
-    VectorActionSize: 0900000002000000
-    VectorActionDescriptions: []
-    VectorActionSpaceType: 0
-    hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
-  m_InferenceDevice: 0
-  m_BehaviorType: 0
-  m_BehaviorName: PlayerAgent
-  TeamId: 0
-  m_UseChildSensors: 1
-  m_UseChildActuators: 1
-  m_ObservableAttributeHandling: 0
---- !u!114 &-94589322604941226
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9048555102869179715}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a5c9d521e5ef4759a8246a07d52221e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  DecisionPeriod: 5
-  TakeActionsBetweenDecisions: 1
 --- !u!114 &2152867227875350981
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -198,27 +151,3 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualImage: {fileID: 0}
---- !u!114 &7529146257465458938
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9048555102869179715}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8628c1cf3af7b0346bc25d245ff19473, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  agentParameters:
-    maxStep: 0
-  hasUpgradedFromAgentParameters: 1
-  MaxStep: 0
-  behaviorName: PlayerAgent
-  observationRadius: 2
-  useDistanceObservations: 1
-  useGridObservations: 1
-  debugActions: 1
-  debugObservations: 1
-  useRandomHeuristic: 1
-  enableManualInput: 0

@@ -739,12 +739,20 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadLevelFromHoudiniData(HoudiniLevelData levelData)
     {
-        // Debug.Log($"[LevelLoader] LoadLevelFromHoudiniData called");
+        Debug.Log($"[🎯 HOUDINI_DATA] LoadLevelFromHoudiniData called - Level: {levelData?.levelName} (ID: {levelData?.levelId})");
         
         if (levelData == null)
         {
             Debug.LogError("[LevelLoader] HoudiniLevelData is null!");
             return;
+        }
+
+        // Log detailed grid data for debugging
+        if (levelData.grid != null)
+        {
+            Debug.Log($"[🎯 HOUDINI_DATA] Grid array: {levelData.grid.GetLength(0)}x{levelData.grid.GetLength(1)}");
+            Debug.Log($"[🎯 HOUDINI_DATA] First row sample: '{new string(Enumerable.Range(0, Math.Min(10, levelData.grid.GetLength(0))).Select(x => levelData.grid[x, 0]).ToArray())}'");
+            Debug.Log($"[🎯 HOUDINI_DATA] Enemy positions: {levelData.enemyPositions.Count}, Coins: {levelData.coinPositions.Count}");
         }
 
         // Debug.Log($"[LevelLoader] Starting level loading process - clearing existing objects");
@@ -769,6 +777,13 @@ public class LevelLoader : MonoBehaviour
         // Setup layered system with static tiles
         if (layeredGrid != null && levelData.grid != null)
         {
+            Debug.Log($"[🎯 GRID_PROCESS] Processing grid data for level: {levelData.levelName}");
+            Debug.Log($"[🎯 GRID_PROCESS] Player spawn in level data: {levelData.playerSpawn}");
+            
+            // Sample a few key positions to verify data integrity
+            char sampleChar1 = levelData.grid[levelData.playerSpawn.x, levelData.playerSpawn.y];
+            Debug.Log($"[🎯 GRID_PROCESS] Character at player spawn ({levelData.playerSpawn.x},{levelData.playerSpawn.y}): '{sampleChar1}'");
+            
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
@@ -790,6 +805,8 @@ public class LevelLoader : MonoBehaviour
                     }
                 }
             }
+            
+            Debug.Log($"[🎯 GRID_PROCESS] Finished processing grid data for level: {levelData.levelName}");
         }
         
         // Set player spawn position
@@ -819,6 +836,14 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void LoadFromLevelData(HoudiniLevelData levelData)
     {
+        Debug.Log($"[🔄 LEVEL_LOADER] LoadFromLevelData called with level: {levelData?.levelName} (ID: {levelData?.levelId})");
+        Debug.Log($"[🔄 LEVEL_LOADER] Grid dimensions: {levelData?.gridWidth}x{levelData?.gridHeight}");
+        Debug.Log($"[🔄 LEVEL_LOADER] Player spawn: {levelData?.playerSpawn}");
+        
+        // CRITICAL FIX: Update currentLevelData to prevent caching issues
+        currentLevelData = levelData;
+        Debug.Log($"[🔄 LEVEL_LOADER] Updated currentLevelData reference");
+        
         LoadLevelFromHoudiniData(levelData);
     }
     
@@ -839,86 +864,8 @@ public class LevelLoader : MonoBehaviour
             CreateVisualTiles();
         }
 
-        // --- 3. OYUNCUYU OLUŞTURMA BLOĞU ---
-        // Tüm jenerik tile'lar oluşturulduktan sonra, oyuncuyu özel olarak ele al.
-
-        // a) Oyuncunun başlangıç pozisyonunu hesapla.
-        Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
-        
-        // b) Check if player already exists (to avoid duplicates)
-        // Also check scene for existing player
-        var existingPlayer = FindObjectOfType<PlayerController>();
-        if (playerObject == null && existingPlayer == null)
-        {
-            // Debug.Log("[LevelLoader] No existing player found, creating new Player instance");
-            Transform playerParent = dynamicParent ?? levelContentParent;
-            // Debug.Log($"[LevelLoader] Player will be created under parent: {playerParent?.name ?? "NULL"} (full path: {GetFullPath(playerParent)})");
-            if (playerPrefab != null)
-            {
-                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
-                // Debug.Log("[LevelLoader] New Player instance created");
-            }
-            else
-            {
-                Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
-                // Create empty GameObject as fallback
-                playerObject = new GameObject("Player (Missing Prefab)");
-                playerObject.transform.position = playerPos;
-                playerObject.transform.SetParent(playerParent);
-            }
-        }
-        else if (existingPlayer != null)
-        {
-            // Debug.Log("[LevelLoader] Found existing PlayerController in scene, using it");
-            playerObject = existingPlayer.gameObject;
-            
-            // Move to correct parent and position
-            Transform playerParent = dynamicParent ?? levelContentParent;
-            if (playerObject.transform.parent != playerParent)
-            {
-                playerObject.transform.SetParent(playerParent);
-            }
-            playerObject.transform.position = playerPos;
-        }
-        else
-        {
-            // Debug.Log("[LevelLoader] Player already exists, reusing existing instance");
-            // Move existing player to correct parent and position
-            Transform playerParent = dynamicParent ?? levelContentParent;
-            if (playerObject.transform.parent != playerParent)
-            {
-                playerObject.transform.SetParent(playerParent);
-            }
-            playerObject.transform.position = playerPos;
-        }
-        
-        // c) Gerekli bileşen referanslarını SADECE BİR KERE al.
-        var playerController = playerObject.GetComponent<PlayerController>();
-        var playerTileBase = playerObject.GetComponent<TileBase>();
-
-        // d) Oyuncunun görselini ayarla.
-        if (playerTileBase != null)
-        {
-            playerTileBase.SetVisual(spriteDatabase.GetSprite(TileType.Player));
-        }
-
-        // e) Oyuncunun mantığını kur ve diğer yöneticilere kaydettir.
-        if (playerController != null)
-        {
-            // Player'ı reset et ve yeni pozisyonda initialize et
-            playerController.Init(playerStartX, playerStartY);
-            
-            // GameManager'a register et (eğer varsa)
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.RegisterPlayer(playerController);
-            }
-
-            // Place player in layered system
-            layeredGrid.PlaceActor(playerObject, playerStartX, playerStartY);
-            
-            // Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
-        }
+        // Player creation with fresh instantiation
+        CreatePlayerAtSpawn();
         
         // Debug.Log($"[LevelLoader] CreateMapVisual completed successfully");
         
@@ -944,8 +891,8 @@ public class LevelLoader : MonoBehaviour
                     
                 TileType type = TileSymbols.DataSymbolToType(symbolChar);
 
-                // Skip empty cells and player spawn (player created separately)
-                if (type == TileType.Empty || type == TileType.PlayerSpawn)
+                // Skip empty cells, player spawn, and player tiles (player created in CreatePlayerAtSpawn)
+                if (type == TileType.Empty || type == TileType.PlayerSpawn || type == TileType.Player)
                 {
                     continue;
                 }
@@ -988,6 +935,27 @@ public class LevelLoader : MonoBehaviour
         switch (type)
         {
             case TileType.Player:
+                // Special handling for Player - save reference and register with systems
+                playerObject = tileObj;
+                var playerController = tileObj.GetComponent<PlayerController>();
+                if (playerController != null)
+                {
+                    // Register with GameManager
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.RegisterPlayer(playerController);
+                    }
+                    Debug.Log($"[🎮 VISUAL_SPAWN] Player created from level data at ({x},{y})");
+                }
+                
+                if (!layeredGrid.PlaceActor(tileObj, x, y))
+                {
+                    Debug.LogWarning($"[LevelLoader] Failed to place Player at ({x},{y}) - position occupied!");
+                    Destroy(tileObj);
+                    playerObject = null;
+                }
+                break;
+                
             case TileType.Enemy:
             case TileType.EnemyShooter:
                 if (!layeredGrid.PlaceActor(tileObj, x, y))
@@ -1035,7 +1003,23 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void ClearAllTiles()
     {
-        // Debug.Log("[LevelLoader] ClearAllTiles - destroying existing level objects");
+        Debug.Log("[LevelLoader] ClearAllTiles - destroying existing level objects");
+        
+        // Unregister current player from singleton managers before cleanup
+        if (PlayerAgentManager.Instance != null)
+        {
+            PlayerAgentManager.Instance.UnregisterPlayer();
+        }
+        
+        // First, let's check all players in scene before cleanup
+        var allPlayersBeforeCleanup = FindObjectsOfType<PlayerController>();
+        Debug.Log($"[🧹 CLEANUP] Before cleanup: Found {allPlayersBeforeCleanup.Length} PlayerController(s) in scene");
+        for (int i = 0; i < allPlayersBeforeCleanup.Length; i++)
+        {
+            var player = allPlayersBeforeCleanup[i];
+            Debug.Log($"  Player {i+1}: '{player.name}' (Active: {player.gameObject.activeInHierarchy})");
+        }
+        
         // Clear TurnManager registrations first to prevent null reference issues
         if (TurnManager.Instance != null)
         {
@@ -1047,15 +1031,26 @@ public class LevelLoader : MonoBehaviour
         {
             int destroyedCount = 0;
             
+            Debug.Log($"[🧹 LAYERED_CLEAR] BEFORE CLEARING:");
+            Debug.Log($"[🧹 LAYERED_CLEAR] Grid Size: {layeredGrid.Width}x{layeredGrid.Height}");
+            
             // Destroy all objects from all layers
             var allActors = layeredGrid.AllActors;
             var allBombs = layeredGrid.AllBombs;
             var allItems = layeredGrid.AllItems;
+            var allEffects = layeredGrid.AllEffects; // Include effects layer
+            
+            Debug.Log($"[🧹 LAYERED_CLEAR] Found - Actors: {allActors.Count}, Bombs: {allBombs.Count}, Items: {allItems.Count}, Effects: {allEffects.Count}");
             
             foreach (var actor in allActors)
             {
                 if (actor != null && actor.name != "RL_TRAINING_PARAMETERS")
                 {
+                    // COMPLETE CLEANUP: Destroy ALL actors including player
+                    Debug.Log($"[🧹 TOTAL_CLEANUP] Destroying actor: {actor.name}");
+                    
+                    // First deactivate immediately, then destroy
+                    actor.SetActive(false);
                     Destroy(actor);
                     destroyedCount++;
                 }
@@ -1079,10 +1074,45 @@ public class LevelLoader : MonoBehaviour
                 }
             }
             
+            // Destroy all explosion effects (ExplosionTiles, etc.)
+            foreach (var effect in allEffects)
+            {
+                if (effect != null)
+                {
+                    Destroy(effect);
+                    destroyedCount++;
+                }
+            }
+            
             // Clear all layers
             layeredGrid.ClearAllLayers();
             
             // Debug.Log($"[LevelLoader] Destroyed {destroyedCount} objects from layered system");
+        }
+        
+        // Manual cleanup of any orphaned explosion objects not tracked by layered grid
+        var orphanedExplosions = FindObjectsOfType<MovingExplosion>();
+        var orphanedExplosionTiles = FindObjectsOfType<ExplosionTile>();
+        
+        foreach (var explosion in orphanedExplosions)
+        {
+            if (explosion != null)
+            {
+                Destroy(explosion.gameObject);
+            }
+        }
+        
+        foreach (var explosionTile in orphanedExplosionTiles)
+        {
+            if (explosionTile != null)
+            {
+                Destroy(explosionTile.gameObject);
+            }
+        }
+        
+        if (orphanedExplosions.Length > 0 || orphanedExplosionTiles.Length > 0)
+        {
+            Debug.Log($"[LevelLoader] Manual cleanup: {orphanedExplosions.Length} MovingExplosions, {orphanedExplosionTiles.Length} ExplosionTiles");
         }
         
         // Clear ML-Agent tracking lists
@@ -1090,10 +1120,18 @@ public class LevelLoader : MonoBehaviour
         collectibles.Clear();
         exitObject = null;
         
-        // Clear player reference so new player can be created
+        // COMPLETE CLEANUP: Clear playerObject reference since we're destroying everything
         playerObject = null;
         
-        // Debug.Log("[LevelLoader] ClearAllTiles completed");
+        // CRITICAL: Clear all layered grid layers (static, destructible, etc.)
+        if (layeredGrid != null)
+        {
+            Debug.Log("[🧹 FINAL_CLEAR] Clearing all layered grid layers");
+            layeredGrid.ClearAllLayers();
+            Debug.Log("[🧹 FINAL_CLEAR] All layers cleared successfully");
+        }
+        
+        Debug.Log("[LevelLoader] ClearAllTiles completed - FULL CLEANUP DONE");
     }
     
         /// <summary>
@@ -1488,47 +1526,49 @@ public class LevelLoader : MonoBehaviour
     }
     
     /// <summary>
-    /// Create player at spawn position (used by LevelImporter)
+    /// CENTRALIZED PLAYER SPAWNING - Create player at spawn position ONLY ONCE
+    /// This is the ONLY method that should create/spawn players in the game
     /// </summary>
     public void CreatePlayerAtSpawn()
     {
-        Vector3 playerPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
-        
-        if (playerObject != null)
+        // Early validation
+        if (playerPrefab == null)
         {
-            if (!playerObject.activeInHierarchy)
-            {
-                playerObject.SetActive(true);
-                // Debug.Log("[LevelLoader] Reactivated existing Player instance");
-            }
-            
-            // Move player to correct parent in level hierarchy
-            Transform playerParent = dynamicParent ?? levelContentParent;
-            if (playerObject.transform.parent != playerParent)
-            {
-                playerObject.transform.SetParent(playerParent);
-                // Debug.Log($"[LevelLoader] Moved player to correct parent: {playerParent.name}");
-            }
-            
-            playerObject.transform.position = playerPos;
-            // Debug.Log("[LevelLoader] Using existing Player instance and repositioning");
+            Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
+            return;
         }
-        else
+
+        // TEST: Direct coordinate system without Y-flip
+        Vector3 playerPos = new Vector3(playerStartX * tileSize, playerStartY * tileSize, 0);
+        
+        // DEBUG: Show both calculations
+        Vector3 originalPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
+        Debug.Log($"[🎮 COORDINATE_TEST] Original Y-flip pos: {originalPos}");
+        Debug.Log($"[🎮 COORDINATE_TEST] Direct coordinate pos: {playerPos}");
+        
+        Debug.Log($"[🎮 SPAWN_POS] Player spawn data: StartX={playerStartX}, StartY={playerStartY}, Height={Height}");
+        Debug.Log($"[🎮 SPAWN_POS] Calculated world position: {playerPos} (tileSize={tileSize})");
+        
+        // Since ClearAllTiles now destroys everything, we should have clean slate
+        var allExistingPlayers = FindObjectsOfType<PlayerController>();
+        if (allExistingPlayers.Length > 0)
         {
-            if (playerPrefab != null)
+            Debug.LogWarning($"[🎮 FRESH_SPAWN] Found {allExistingPlayers.Length} existing players after cleanup - this shouldn't happen!");
+            // Clean any remaining players
+            foreach (var player in allExistingPlayers)
             {
-                // Debug.Log("[LevelLoader] Singleton Player not found - creating new instance");
-                Transform playerParent = dynamicParent ?? levelContentParent;
-                playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
-                // Debug.Log("[LevelLoader] New Player instance created");
-            }
-            else
-            {
-                Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
-                return;
+                Debug.LogWarning($"[🎮 FRESH_SPAWN] Destroying leftover player: '{player.name}'");
+                Destroy(player.gameObject);
             }
         }
         
+        // FRESH CREATION: Always create new player since ClearAllTiles destroyed everything
+        Debug.Log("[🎮 FRESH_CREATE] Creating completely new player instance");
+        Transform playerParent = dynamicParent ?? levelContentParent;
+        playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
+        Debug.Log($"[🎮 FRESH_CREATE] New Player instance created: {playerObject.name}");
+        
+        // Setup player components
         var playerController = playerObject.GetComponent<PlayerController>();
         var playerTileBase = playerObject.GetComponent<TileBase>();
         
@@ -1541,14 +1581,33 @@ public class LevelLoader : MonoBehaviour
         {
             playerController.Init(playerStartX, playerStartY);
             
+            // Register with GameManager
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.RegisterPlayer(playerController);
             }
             
-            // Note: Player placement in layered system is handled above
+            // Register with PlayerAgentManager (for ML-Agent functionality)
+            if (PlayerAgentManager.Instance != null)
+            {
+                PlayerAgentManager.Instance.RegisterPlayer(playerController);
+            }
             
-            // Debug.Log($"[LevelLoader] Player initialized at ({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
+            // Place in layered system
+            if (layeredGrid != null)
+            {
+                layeredGrid.PlaceActor(playerObject, playerStartX, playerStartY);
+            }
+            
+            Debug.Log($"[🎮 SPAWN_COMPLETE] Player initialized at grid({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
+            Debug.Log($"[🎮 SPAWN_COMPLETE] Player world position: {playerObject.transform.position}");
+        }
+        
+        // Final verification - ensure only one PlayerController exists in scene
+        var finalPlayerCount = FindObjectsOfType<PlayerController>().Length;
+        if (finalPlayerCount != 1)
+        {
+            Debug.LogWarning($"[🎮 SPAWN_WARNING] Expected 1 PlayerController but found {finalPlayerCount}!");
         }
     }
     
