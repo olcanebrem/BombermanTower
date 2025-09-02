@@ -251,7 +251,9 @@ public class LayeredGridService : MonoBehaviour
         // Check if position is already occupied by a destructible object
         if (destructibleObjectLayer[x, y] != null)
         {
-            Debug.LogWarning($"[LayeredGridService] Destructible position ({x}, {y}) already occupied by {destructibleObjectLayer[x, y].name}");
+            GameObject existing = destructibleObjectLayer[x, y];
+            Debug.LogError($"[🔴 BREAKABLE_ERROR] Position ({x},{y}) already occupied by {existing.name} - cannot place {destructibleObj.name}!");
+            Debug.LogError($"[🔴 BREAKABLE_ERROR] This indicates incomplete cleanup from previous level!");
             return false;
         }
         
@@ -259,7 +261,7 @@ public class LayeredGridService : MonoBehaviour
         destructibleLayer[x, y] = LayerMask.Destructible | LayerMask.BlocksMovement | LayerMask.BlocksFire;
         destructibleObjectLayer[x, y] = destructibleObj;
         
-        Debug.Log($"[LayeredGridService] Placed destructible object {destructibleObj.name} at ({x}, {y})");
+        Debug.Log($"[🧱 BREAKABLE_PLACE] Successfully placed {destructibleObj.name} at ({x},{y})");
         return true;
     }
     
@@ -518,15 +520,58 @@ public class LayeredGridService : MonoBehaviour
         if (staticLayer != null)
         {
             int clearedPositions = 0;
+            int destroyedObjects = 0;
+            
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height; y++)
                 {
+                    // CRITICAL FIX: Destroy actual GameObjects before clearing references
+                    if (destructibleObjectLayer[x, y] != null)
+                    {
+                        GameObject destructibleObj = destructibleObjectLayer[x, y];
+                        Debug.Log($"[🧹 LAYER_CLEAR] Destroying destructible object at ({x},{y}): {destructibleObj.name}");
+                        UnityEngine.Object.Destroy(destructibleObj);
+                        destroyedObjects++;
+                    }
+                    
+                    if (actorLayer[x, y] != null && actorLayer[x, y].name != "RL_TRAINING_PARAMETERS")
+                    {
+                        GameObject actorObj = actorLayer[x, y];
+                        Debug.Log($"[🧹 LAYER_CLEAR] Destroying actor object at ({x},{y}): {actorObj.name}");
+                        UnityEngine.Object.Destroy(actorObj);
+                        destroyedObjects++;
+                    }
+                    
+                    if (bombLayer[x, y] != null)
+                    {
+                        GameObject bombObj = bombLayer[x, y];
+                        Debug.Log($"[🧹 LAYER_CLEAR] Destroying bomb object at ({x},{y}): {bombObj.name}");
+                        UnityEngine.Object.Destroy(bombObj);
+                        destroyedObjects++;
+                    }
+                    
+                    if (effectLayer[x, y] != null)
+                    {
+                        GameObject effectObj = effectLayer[x, y];
+                        Debug.Log($"[🧹 LAYER_CLEAR] Destroying effect object at ({x},{y}): {effectObj.name}");
+                        UnityEngine.Object.Destroy(effectObj);
+                        destroyedObjects++;
+                    }
+                    
+                    if (itemLayer[x, y] != null)
+                    {
+                        GameObject itemObj = itemLayer[x, y];
+                        Debug.Log($"[🧹 LAYER_CLEAR] Destroying item object at ({x},{y}): {itemObj.name}");
+                        UnityEngine.Object.Destroy(itemObj);
+                        destroyedObjects++;
+                    }
+                    
                     // Clear all layer masks
                     staticLayer[x, y] = LayerMask.None;
                     destructibleLayer[x, y] = LayerMask.None;
                     
-                    // Clear all GameObject references
+                    // Clear all GameObject references AFTER destroying objects
                     destructibleObjectLayer[x, y] = null;
                     actorLayer[x, y] = null;
                     bombLayer[x, y] = null;
@@ -536,7 +581,7 @@ public class LayeredGridService : MonoBehaviour
                     clearedPositions++;
                 }
             }
-            Debug.Log($"[🧹 LAYER_CLEAR] Cleared {clearedPositions} grid positions");
+            Debug.Log($"[🧹 LAYER_CLEAR] Cleared {clearedPositions} grid positions, destroyed {destroyedObjects} GameObjects");
         }
         else
         {

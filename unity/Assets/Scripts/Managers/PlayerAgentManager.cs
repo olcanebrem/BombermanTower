@@ -3,7 +3,6 @@ using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using System.Collections;
-using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Singleton Manager for Player ML-Agent functionality
@@ -64,11 +63,9 @@ public class PlayerAgentManager : Agent, ITurnBased
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log("[PlayerAgentManager] Singleton instance created");
         }
         else if (Instance != this)
         {
-            Debug.Log("[PlayerAgentManager] Duplicate instance destroyed");
             Destroy(gameObject);
             return;
         }
@@ -86,19 +83,16 @@ public class PlayerAgentManager : Agent, ITurnBased
         if (TurnManager.Instance != null)
         {
             TurnManager.Instance.Register(this);
-            Debug.Log("[PlayerAgentManager] Registered with TurnManager");
         }
     }
     
     private void OnEnable() 
     {
-        Debug.Log($"[PlayerAgentManager] OnEnable() called");
         PlayerController.OnPlayerDeath += HandlePlayerDeath;
     }
     
     private void OnDisable() 
     {
-        Debug.Log($"[PlayerAgentManager] OnDisable() called");
         PlayerController.OnPlayerDeath -= HandlePlayerDeath;
     }
 
@@ -111,11 +105,6 @@ public class PlayerAgentManager : Agent, ITurnBased
     /// </summary>
     public void RegisterPlayer(PlayerController playerController)
     {
-        if (currentPlayerController != null)
-        {
-            Debug.Log($"[PlayerAgentManager] Switching from old player '{currentPlayerController.name}' to new player '{playerController.name}'");
-        }
-        
         currentPlayerController = playerController;
         
         // Check if the new player has PlayerAgent component (optional)
@@ -124,11 +113,8 @@ public class PlayerAgentManager : Agent, ITurnBased
         // If player has PlayerAgent component, disable it since we're managing ML-Agent functionality centrally
         if (currentPlayerAgent != null)
         {
-            Debug.Log($"[PlayerAgentManager] Found PlayerAgent component on player - disabling it for centralized control");
             currentPlayerAgent.enabled = false;
         }
-        
-        Debug.Log($"[PlayerAgentManager] Registered new player: {playerController.name} (PlayerAgent disabled: {currentPlayerAgent != null})");
         
         // Re-initialize helper classes with new player
         InitializeHelperClasses();
@@ -142,7 +128,6 @@ public class PlayerAgentManager : Agent, ITurnBased
     /// </summary>
     public void UnregisterPlayer()
     {
-        Debug.Log($"[PlayerAgentManager] Unregistering current player: {currentPlayerController?.name ?? "null"}");
         currentPlayerController = null;
         currentPlayerAgent = null;
     }
@@ -155,8 +140,6 @@ public class PlayerAgentManager : Agent, ITurnBased
     {
         // Call base Agent Initialize
         base.Initialize();
-        
-        Debug.Log($"[PlayerAgentManager] Components initialized");
     }
     
     private void InitializeHelperClasses()
@@ -168,8 +151,6 @@ public class PlayerAgentManager : Agent, ITurnBased
         // actionHandler = new AgentActionHandler(this);
         // rewardHandler = new AgentRewardHandler(this);
         // episodeManager = new AgentEpisodeManager(this);
-        
-        Debug.Log($"[PlayerAgentManager] Helper classes initialized for player: {currentPlayerController.name}");
     }
 
     #endregion
@@ -184,12 +165,9 @@ public class PlayerAgentManager : Agent, ITurnBased
 
     public IGameAction GetAction()
     {
-        Debug.Log($"[PlayerAgentManager] GetAction called - Current Player: {currentPlayerController?.name ?? "null"}, HasActed: {HasActedThisTurn}");
-        
         // If no current player or already acted, return null
         if (currentPlayerController == null || HasActedThisTurn)
         {
-            Debug.Log("[PlayerAgentManager] GetAction early return - no player or already acted");
             return null;
         }
         
@@ -199,7 +177,6 @@ public class PlayerAgentManager : Agent, ITurnBased
             IGameAction actionToExecute = pendingAction;
             pendingAction = null; 
             HasActedThisTurn = true;
-            Debug.Log($"[PlayerAgentManager] ✅ Returning pending ML-Agent Action: {actionToExecute.GetType().Name}");
             return actionToExecute;
         }
         
@@ -207,7 +184,6 @@ public class PlayerAgentManager : Agent, ITurnBased
         if (needsDecision)
         {
             needsDecision = false;
-            Debug.Log("[PlayerAgentManager] Requesting ML-Agent decision...");
             RequestDecision();
             Academy.Instance.EnvironmentStep();
             
@@ -218,19 +194,15 @@ public class PlayerAgentManager : Agent, ITurnBased
             if (EpsilonGreedyController.Instance != null && Academy.Instance.IsCommunicatorOn)
             {
                 shouldUseHeuristic = EpsilonGreedyController.Instance.ShouldUseHeuristic();
-                Debug.Log($"[🎯 EPSILON] Decision: {(shouldUseHeuristic ? "🎲 Using Heuristic" : "🐍 Waiting for Python")}");
             }
             // Fallback to heuristic if no communicator
             else if (!Academy.Instance.IsCommunicatorOn || useRandomHeuristic)
             {
                 shouldUseHeuristic = true;
-                Debug.Log("[PlayerAgentManager] Fallback: Using heuristic (no communicator or random enabled)");
             }
             
             if (shouldUseHeuristic)
             {
-                Debug.Log($"[🎯 HEURISTIC_CALL] About to call Heuristic() - useRandom:{useRandomHeuristic}, enableManual:{enableManualInput}");
-                
                 // Generate heuristic action immediately
                 var discreteActionsFloat = new float[2]; // move + bomb actions
                 var heuristicBuffers = ActionBuffers.FromDiscreteActions(discreteActionsFloat);
@@ -239,7 +211,6 @@ public class PlayerAgentManager : Agent, ITurnBased
                 
                 // Get the actual modified values from the buffer and process them
                 var actualActions = heuristicBuffers.DiscreteActions;
-                Debug.Log($"[📤 HEURISTIC] Generated actions: [{actualActions[0]}, {actualActions[1]}]");
                 
                 // Process the heuristic action immediately
                 OnActionReceived(heuristicBuffers);
@@ -250,14 +221,12 @@ public class PlayerAgentManager : Agent, ITurnBased
                     IGameAction actionToExecute = pendingAction;
                     pendingAction = null;
                     HasActedThisTurn = true;
-                    Debug.Log($"[PlayerAgentManager] ✅ Returning heuristic Action: {actionToExecute.GetType().Name}");
                     return actionToExecute;
                 }
             }
         }
         
         // Fall back to PlayerController for manual input
-        Debug.Log("[PlayerAgentManager] No ML-Agent action available, falling back to PlayerController");
         var playerAction = currentPlayerController.GetAction();
         if (playerAction != null)
         {
@@ -271,8 +240,6 @@ public class PlayerAgentManager : Agent, ITurnBased
     {
         if (HasActedThisTurn || currentPlayerController == null) return;
 
-        Debug.Log($"[PlayerAgentManager] ExecuteTurn - Episode Steps: {episodeSteps}");
-        
         // This method might not be needed anymore since TurnManager uses GetAction
         // But keeping for compatibility
         if (needsDecision && currentPlayerAgent != null)
@@ -288,12 +255,9 @@ public class PlayerAgentManager : Agent, ITurnBased
 
     public override void OnActionReceived(ActionBuffers actionBuffers)
     {
-        Debug.Log($"[PlayerAgentManager] OnActionReceived called");
-        
         // Handle action directly for the current player
         if (currentPlayerController == null)
         {
-            Debug.LogWarning("[PlayerAgentManager] OnActionReceived: No current player!");
             return;
         }
 
@@ -301,14 +265,7 @@ public class PlayerAgentManager : Agent, ITurnBased
         episodeSteps++;
         needsDecision = false;
 
-        // Check if this is from Python (communicator) or heuristic
-        bool fromPython = Academy.Instance.IsCommunicatorOn;
-        string source = fromPython ? "🐍 Python" : "🧠 Heuristic";
-        
         var discreteActions = actionBuffers.DiscreteActions;
-        string actionStr = discreteActions.Length >= 2 ? $"Move:{discreteActions[0]}, Bomb:{discreteActions[1]}" : "No Actions";
-        
-        Debug.Log($"[PlayerAgentManager] {source} OnActionReceived! Step: {episodeSteps} - Actions: [{actionStr}]");
         
         if (discreteActions.Length >= 2)
         {
@@ -326,8 +283,6 @@ public class PlayerAgentManager : Agent, ITurnBased
             {
                 LastActionDirection = ma.Direction;
             }
-            
-            Debug.Log($"[PlayerAgentManager] Created action: {CurrentActionType}");
         }
     }
 
@@ -341,7 +296,6 @@ public class PlayerAgentManager : Agent, ITurnBased
         {
             // Use last action direction for bomb placement, default to down if no direction
             Vector2Int bombDirection = LastActionDirection != Vector2Int.zero ? LastActionDirection : Vector2Int.down;
-            Debug.Log($"[PlayerAgentManager] Creating PlaceBombAction with direction: {bombDirection}");
             return new PlaceBombAction(currentPlayerController, bombDirection);
         }
         
@@ -359,24 +313,19 @@ public class PlayerAgentManager : Agent, ITurnBased
             
             if (moveDirection != Vector2Int.zero)
             {
-                Debug.Log($"[PlayerAgentManager] Creating MoveAction: {moveDirection}");
                 return new MoveAction(currentPlayerController, moveDirection);
             }
         }
         
         // No action
-        Debug.Log($"[PlayerAgentManager] No valid action created (Move:{moveIndex}, Bomb:{bombIndex})");
         return null;
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        Debug.Log($"[PlayerAgentManager] CollectObservations called");
-        
         // Collect observations for the current player
         if (currentPlayerController == null)
         {
-            Debug.LogWarning("[PlayerAgentManager] CollectObservations: No current player!");
             return;
         }
         
@@ -384,7 +333,6 @@ public class PlayerAgentManager : Agent, ITurnBased
         if (observationHandler != null)
         {
             // observationHandler.CollectObservations(sensor);
-            Debug.Log("[PlayerAgentManager] Using observation handler");
         }
         else
         {
@@ -392,19 +340,15 @@ public class PlayerAgentManager : Agent, ITurnBased
             sensor.AddObservation(currentPlayerController.X);
             sensor.AddObservation(currentPlayerController.Y);
             sensor.AddObservation(currentPlayerController.CurrentHealth);
-            Debug.Log($"[PlayerAgentManager] Basic observations: Pos({currentPlayerController.X},{currentPlayerController.Y}), Health({currentPlayerController.CurrentHealth})");
         }
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        Debug.Log($"[PlayerAgentManager] Heuristic called");
-        
         // Provide heuristic behavior directly
         var discreteActionsOut = actionsOut.DiscreteActions;
         if (discreteActionsOut.Length == 0) 
         {
-            Debug.LogWarning("[PlayerAgentManager] Heuristic: discreteActionsOut.Length is 0!");
             return;
         }
 
@@ -418,7 +362,6 @@ public class PlayerAgentManager : Agent, ITurnBased
             else if (Input.GetKey(KeyCode.S)) moveAction = 3; // South
             else if (Input.GetKey(KeyCode.A)) moveAction = 4; // West
             bombAction = Input.GetKey(KeyCode.Space) ? 1 : 0;
-            Debug.Log($"[🎮 MANUAL_HEURISTIC] Move={moveAction}, Bomb={bombAction}");
         }
         else if (useRandomHeuristic)
         {
@@ -427,23 +370,14 @@ public class PlayerAgentManager : Agent, ITurnBased
                 moveAction = UnityEngine.Random.Range(1, 5);
             
             bombAction = (UnityEngine.Random.Range(0, 10) < 1) ? 1 : 0;
-            Debug.Log($"[🎲 RANDOM_HEURISTIC] Move={moveAction}, Bomb={bombAction}");
-        }
-        else
-        {
-            Debug.Log("[❌ HEURISTIC] Neither manual nor random enabled - returning no action");
         }
         
         discreteActionsOut[0] = moveAction;
         if (discreteActionsOut.Length > 1) discreteActionsOut[1] = bombAction;
-        
-        Debug.Log($"[✅ HEURISTIC] Final Output: [{moveAction}, {bombAction}]");
     }
 
     public override void Initialize()
     {
-        Debug.Log($"[PlayerAgentManager] Agent Initialize() called");
-        
         // Initialize Academy settings
         var academy = Academy.Instance;
         if (academy != null) academy.AutomaticSteppingEnabled = false;
@@ -456,8 +390,6 @@ public class PlayerAgentManager : Agent, ITurnBased
                 behaviorParams.BehaviorName = behaviorName;
             }
         }
-        
-        Debug.Log($"[PlayerAgentManager] Agent initialized - Academy found: {academy != null}");
     }
 
     #endregion
@@ -470,8 +402,6 @@ public class PlayerAgentManager : Agent, ITurnBased
         pendingAction = null;
         needsDecision = true;
         HasActedThisTurn = false;
-        
-        Debug.Log("[PlayerAgentManager] Episode reset");
     }
 
     public void EndEpisode()
@@ -482,14 +412,12 @@ public class PlayerAgentManager : Agent, ITurnBased
         }
         
         ResetEpisode();
-        Debug.Log("[PlayerAgentManager] Episode ended");
     }
 
     private void HandlePlayerDeath(PlayerController deadPlayer)
     {
         if (deadPlayer == currentPlayerController)
         {
-            Debug.Log("[PlayerAgentManager] Current player died - ending episode");
             EndEpisode();
         }
     }
@@ -515,8 +443,6 @@ public class PlayerAgentManager : Agent, ITurnBased
         bool hasActivePlayerAgent = currentPlayerAgent != null && currentPlayerAgent.enabled && currentPlayerAgent.UseMLAgent;
         
         bool shouldUseML = isTrainingActive || hasActivePlayerAgent;
-        
-        Debug.Log($"[PlayerAgentManager] IsMLAgentActive: {shouldUseML} (Training: {isTrainingActive}, PlayerAgent: {hasActivePlayerAgent})");
         
         return shouldUseML;
     }

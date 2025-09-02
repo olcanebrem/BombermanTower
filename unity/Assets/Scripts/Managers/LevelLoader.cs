@@ -928,6 +928,9 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     private void CreateVisualTiles()
     {
+        Debug.Log($"[🎨 CREATE_VISUAL] Starting visual tiles creation for level: {currentLevelData?.levelName} ({Width}x{Height})");
+        int createdBreakables = 0, createdEnemies = 0, createdCoins = 0, createdHealth = 0;
+        
         for (int y = 0; y < Height; y++)
         {
             for (int x = 0; x < Width; x++)
@@ -972,6 +975,9 @@ public class LevelLoader : MonoBehaviour
                 }
             }
         }
+        
+        Debug.Log($"[🎨 CREATE_VISUAL] ✅ Completed visual tiles creation for level: {currentLevelData?.levelName}");
+        Debug.Log($"[🎨 CREATE_VISUAL] Created {createdBreakables} breakables, {createdEnemies} enemies, {createdCoins} coins, {createdHealth} health items");
     }
     
     /// <summary>
@@ -1033,10 +1039,16 @@ public class LevelLoader : MonoBehaviour
                 
             case TileType.Breakable:
                 // BreakableTiles need both layer mask AND GameObject reference for damage handling
+                Debug.Log($"[🧱 BREAKABLE_CREATE] Attempting to place {tileObj.name} at ({x},{y}) for level: {currentLevelData?.levelName}");
                 if (!layeredGrid.PlaceDestructibleObject(tileObj, x, y))
                 {
-                    Debug.LogWarning($"[LevelLoader] Failed to place BreakableTile at ({x},{y}) - position occupied!");
+                    Debug.LogError($"[🧱 BREAKABLE_CREATE] ❌ Failed to place BreakableTile at ({x},{y}) - destroying object!");
                     Destroy(tileObj);
+                }
+                else
+                {
+                    Debug.Log($"[🧱 BREAKABLE_CREATE] ✅ Successfully created and placed breakable at ({x},{y})");
+                    createdBreakables++;
                 }
                 break;
                 
@@ -1073,68 +1085,23 @@ public class LevelLoader : MonoBehaviour
             TurnManager.Instance.ClearAllRegistersExceptPlayer();
         }
         
-        // Clear layered grid system
+        // Clear layered grid system - LayeredGridService now handles GameObject destruction internally
         if (layeredGrid != null)
         {
-            int destroyedCount = 0;
-            
             Debug.Log($"[🧹 LAYERED_CLEAR] BEFORE CLEARING:");
             Debug.Log($"[🧹 LAYERED_CLEAR] Grid Size: {layeredGrid.Width}x{layeredGrid.Height}");
             
-            // Destroy all objects from all layers
+            // Just get counts for logging
             var allActors = layeredGrid.AllActors;
             var allBombs = layeredGrid.AllBombs;
             var allItems = layeredGrid.AllItems;
-            var allEffects = layeredGrid.AllEffects; // Include effects layer
+            var allEffects = layeredGrid.AllEffects;
             
             Debug.Log($"[🧹 LAYERED_CLEAR] Found - Actors: {allActors.Count}, Bombs: {allBombs.Count}, Items: {allItems.Count}, Effects: {allEffects.Count}");
             
-            foreach (var actor in allActors)
-            {
-                if (actor != null && actor.name != "RL_TRAINING_PARAMETERS")
-                {
-                    // COMPLETE CLEANUP: Destroy ALL actors including player
-                    Debug.Log($"[🧹 TOTAL_CLEANUP] Destroying actor: {actor.name}");
-                    
-                    // First deactivate immediately, then destroy
-                    actor.SetActive(false);
-                    Destroy(actor);
-                    destroyedCount++;
-                }
-            }
-            
-            foreach (var bomb in allBombs)
-            {
-                if (bomb != null)
-                {
-                    Destroy(bomb);
-                    destroyedCount++;
-                }
-            }
-            
-            foreach (var item in allItems)
-            {
-                if (item != null)
-                {
-                    Destroy(item);
-                    destroyedCount++;
-                }
-            }
-            
-            // Destroy all explosion effects (ExplosionTiles, etc.)
-            foreach (var effect in allEffects)
-            {
-                if (effect != null)
-                {
-                    Destroy(effect);
-                    destroyedCount++;
-                }
-            }
-            
-            // Clear all layers
+            // LayeredGridService.ClearAllLayers() now handles all GameObject destruction internally
             layeredGrid.ClearAllLayers();
-            
-            // Debug.Log($"[LevelLoader] Destroyed {destroyedCount} objects from layered system");
+            Debug.Log("[🧹 FINAL_CLEAR] LayeredGridService cleanup completed");
         }
         
         // Manual cleanup of any orphaned explosion objects not tracked by layered grid
