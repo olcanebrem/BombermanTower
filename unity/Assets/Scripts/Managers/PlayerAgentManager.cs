@@ -116,23 +116,25 @@ public class PlayerAgentManager : Agent, ITurnBased
 
     /// <summary>
     /// Called when a new PlayerController is created during level transitions
+    /// Uses service-based approach for cleaner player management
     /// </summary>
     public void RegisterPlayer(PlayerController playerController)
     {
-        Debug.Log($"[🤖 AGENT_REG] RegisterPlayer called with: {playerController?.name}");
-        Debug.Log($"[🤖 AGENT_REG] Previous player: {currentPlayerController?.name}");
+        if (playerController == null)
+        {
+            Debug.LogWarning("[AGENT_REG] RegisterPlayer called with null playerController");
+            return;
+        }
         
         currentPlayerController = playerController;
         
         // Check if the new player has PlayerAgent component (optional)
         currentPlayerAgent = playerController.GetComponent<PlayerAgent>();
-        Debug.Log($"[🤖 AGENT_REG] Player has PlayerAgent component: {currentPlayerAgent != null}");
         
         // If player has PlayerAgent component, disable it since we're managing ML-Agent functionality centrally
         if (currentPlayerAgent != null)
         {
             currentPlayerAgent.enabled = false;
-            Debug.Log($"[🤖 AGENT_REG] Disabled PlayerAgent component on {playerController.name}");
         }
         
         // Re-initialize helper classes with new player
@@ -140,8 +142,6 @@ public class PlayerAgentManager : Agent, ITurnBased
         
         // Reset episode state
         ResetEpisode();
-        
-        Debug.Log($"[🤖 AGENT_REG] Registration complete for: {currentPlayerController?.name}");
     }
     
     /// <summary>
@@ -502,12 +502,14 @@ public class PlayerAgentManager : Agent, ITurnBased
     #region EVENT HANDLERS
     
     /// <summary>
-    /// Handle player spawned event from LevelLoader
+    /// Handle player spawned event from PlayerService via event bus
     /// </summary>
     private void OnPlayerSpawned(PlayerSpawned eventData)
     {
-        Debug.Log($"[🎮 AGENT_EVENT] PlayerSpawned event received - registering player: {eventData.Player?.name}");
-        RegisterPlayer(eventData.Player);
+        if (eventData.Player != null)
+        {
+            RegisterPlayer(eventData.Player);
+        }
     }
     
     /// <summary>
@@ -515,7 +517,6 @@ public class PlayerAgentManager : Agent, ITurnBased
     /// </summary>
     private void OnLevelCleanupStarted(LevelCleanupStarted eventData)
     {
-        Debug.Log($"[🧹 AGENT_EVENT] Level cleanup started - unregistering current player");
         UnregisterPlayer();
     }
     

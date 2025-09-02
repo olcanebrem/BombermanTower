@@ -40,12 +40,10 @@ public class LevelLoader : MonoBehaviour
     // --- Component References ---
     private HoudiniLevelParser levelParser;
     
-    // --- Level File Management ---
-    [SerializeField] private List<LevelFileEntry> availableLevels = new List<LevelFileEntry>();
-    [SerializeField] private int selectedLevelIndex = 0;
-    [SerializeField] private string levelsDirectoryPath = "Assets/Levels";
-    
-    // Multi-level sequence management moved to LevelSequencer.cs
+    // --- Service References ---
+    private ILevelDataService levelDataService;
+    private IContainerService containerService;
+    private IPlayerService playerService;
     
     // --- Current Level Data ---
     public HoudiniLevelData currentLevelData; 
@@ -178,18 +176,8 @@ public class LevelLoader : MonoBehaviour
             // Debug.Log("[LevelLoader] HoudiniLevelParser found via Singleton");
         }
         
-        // Initialize LayeredGridService
-        if (LayeredGridService.Instance == null)
-        {
-            var layeredGridGO = new GameObject("LayeredGridService");
-            layeredGrid = layeredGridGO.AddComponent<LayeredGridService>();
-            // Debug.Log("[LevelLoader] LayeredGridService created automatically");
-        }
-        else
-        {
-            layeredGrid = LayeredGridService.Instance;
-            // Debug.Log("[LevelLoader] LayeredGridService found via Singleton");
-        }
+        // Initialize services
+        InitializeServices();
 
         // Prefab sözlüğünü doldur - önce otomatik keşif dene
         prefabMap = new Dictionary<TileType, TileBase>();
@@ -235,70 +223,58 @@ public class LevelLoader : MonoBehaviour
             // Debug.LogWarning("[LevelLoader] spriteDatabase is null! Please assign SpriteDatabase in Inspector.");
         }
         
-        // Initialize level content containers EARLY - before any Start() methods can call LoadLevel
-        InitializeLevelContainers();
+        // Services handle container initialization now
     }
 
     void Start()
     {
-        ScanForLevelFiles();
-        // Level loading is now handled by LevelManager - don't auto-load here
-        // LoadSelectedLevel(); // Removed - causes duplicate loading
-        // Debug.Log("[LevelLoader] Start completed - level loading handled by LevelManager");
+        // Level data service handles file scanning
+        levelDataService?.ScanForLevelFiles();
     }
     
     /// <summary>
-    /// Initialize or find level content containers
+    /// Initialize service references
     /// </summary>
-    private void InitializeLevelContainers()
+    private void InitializeServices()
     {
-        // Find or create [LEVEL CONTENT] parent
-        if (levelContentParent == null)
+        // Get or create service instances
+        levelDataService = LevelDataService.Instance;
+        if (levelDataService == null)
         {
-            GameObject levelContentGO = GameObject.Find("[LEVEL CONTENT]");
-            if (levelContentGO == null)
+            var serviceGO = new GameObject("LevelDataService");
+            levelDataService = serviceGO.AddComponent<LevelDataService>();
+        }
+        
+        containerService = ContainerService.Instance;
+        if (containerService == null)
+        {
+            var serviceGO = new GameObject("ContainerService");
+            containerService = serviceGO.AddComponent<ContainerService>();
+        }
+        
+        playerService = PlayerService.Instance;
+        if (playerService == null)
+        {
+            var serviceGO = new GameObject("PlayerService");
+            playerService = serviceGO.AddComponent<PlayerService>();
+            
+            // Set player prefab on service
+            if (playerPrefab != null)
             {
-                levelContentGO = new GameObject("[LEVEL CONTENT]");
-                // Debug.Log("[LevelLoader] Created [LEVEL CONTENT] container");
+                playerService.PlayerPrefab = playerPrefab;
             }
-            else
-            {
-                // Debug.Log("[LevelLoader] Found existing [LEVEL CONTENT] container");
-            }
-            levelContentParent = levelContentGO.transform;
-            // Debug.Log($"[LevelLoader] Level content parent set to: {levelContentParent.name}");
         }
         
-        // Create grid parent
-        if (gridParent == null)
+        // Initialize LayeredGridService
+        if (LayeredGridService.Instance == null)
         {
-            GameObject gridGO = new GameObject("GridParent");
-            gridGO.transform.SetParent(levelContentParent);
-            gridParent = gridGO.transform;
-            // Debug.Log($"[LevelLoader] Created GridParent under: {levelContentParent.name}");
+            var layeredGridGO = new GameObject("LayeredGridService");
+            layeredGrid = layeredGridGO.AddComponent<LayeredGridService>();
         }
-        
-        // Create dynamic content parent  
-        if (dynamicParent == null)
+        else
         {
-            GameObject dynamicGO = new GameObject("Dynamic Content");
-            dynamicGO.transform.SetParent(levelContentParent);
-            dynamicParent = dynamicGO.transform;
-            // Debug.Log($"[LevelLoader] Created Dynamic Content under: {levelContentParent.name}");
+            layeredGrid = LayeredGridService.Instance;
         }
-        
-        // Create tile type containers under grid
-        CreateTileContainer(ref wallsContainer, "Walls", gridParent);
-        CreateTileContainer(ref breakablesContainer, "Breakables", gridParent);
-        CreateTileContainer(ref gatesContainer, "Gates", gridParent);
-        
-        // Create dynamic containers
-        CreateTileContainer(ref enemiesContainer, "Enemies", dynamicParent);
-        CreateTileContainer(ref collectiblesContainer, "Collectibles", dynamicParent);
-        CreateTileContainer(ref effectsContainer, "Effects", dynamicParent);
-        CreateTileContainer(ref projectilesContainer, "Projectiles", dynamicParent);
-        
-        // Debug.Log("[LevelLoader] Level containers initialized");
     }
     
     /// <summary>
@@ -334,43 +310,11 @@ public class LevelLoader : MonoBehaviour
     }
     
     /// <summary>
-    /// Get appropriate container for tile type
+    /// Get appropriate container for tile type using container service
     /// </summary>
     private Transform GetContainerForTileType(TileType tileType)
     {
-        // Use level-specific containers when available, fallback to legacy containers
-        switch (tileType)
-        {
-            case TileType.Wall:
-                return wallsContainer ?? currentStaticContainer ?? gridParent ?? levelContentParent;
-                
-            case TileType.Breakable:
-                return breakablesContainer ?? currentDestructibleContainer ?? gridParent ?? levelContentParent;
-                
-            case TileType.Gate:
-                return gatesContainer ?? currentStaticContainer ?? gridParent ?? levelContentParent;
-                
-            case TileType.Enemy:
-            case TileType.EnemyShooter:
-                return enemiesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
-                
-            case TileType.Coin:
-            case TileType.Health:
-                return collectiblesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
-                
-            case TileType.Player:
-            case TileType.PlayerSpawn:
-                return currentDynamicContainer ?? dynamicParent ?? levelContentParent;
-                
-            case TileType.Projectile:
-                return projectilesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
-                
-            case TileType.Explosion:
-                return effectsContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
-                
-            default:
-                return currentLevelContainer ?? levelContentParent;
-        }
+        return containerService?.GetContainerForTileType(tileType) ?? levelContentParent;
     }
     
     /// <summary>
@@ -378,7 +322,7 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public Transform GetProjectilesContainer()
     {
-        return projectilesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
+        return containerService?.GetProjectilesContainer() ?? levelContentParent;
     }
     
     #if UNITY_EDITOR
@@ -768,11 +712,11 @@ public class LevelLoader : MonoBehaviour
         // Publish level load started event
         GameEventBus.Instance?.Publish(new LevelLoadStarted(levelData.levelId, levelData.levelName));
 
-        // Complete cleanup of existing level
+        // Complete cleanup of existing level using services
         string previousLevelId = currentLevelData?.levelId ?? "Unknown";
         GameEventBus.Instance?.Publish(new LevelCleanupStarted(previousLevelId));
         
-        ClearAllTiles();
+        ClearAllTilesUsingServices();
         
         GameEventBus.Instance?.Publish(new LevelCleanupCompleted(previousLevelId, true));
 
@@ -799,8 +743,8 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         
-        // Create level-specific containers
-        CreateLevelSpecificContainers(levelData);
+        // Create level-specific containers using service
+        containerService?.CreateLevelContainers(levelData.levelId, levelData.levelName);
         
         // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
         // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
@@ -840,8 +784,9 @@ public class LevelLoader : MonoBehaviour
         playerStartX = levelData.playerSpawn.x;
         playerStartY = levelData.playerSpawn.y;
         
-        // Create visual objects after loading data
-        CreateMapVisual();
+        // Create visual objects and player using services
+        CreateMapVisualUsingServices();
+        CreatePlayerUsingService();
         
         // Verify tile counts match level data
         bool tileCountsMatch = VerifyTileCounts(levelData);
@@ -1933,4 +1878,120 @@ public class LevelLoader : MonoBehaviour
         
         // Debug.Log("[LevelLoader] ================================");
     }
+    
+    #region SERVICE-BASED METHODS
+    
+    /// <summary>
+    /// Clear all tiles using service layer
+    /// </summary>
+    private void ClearAllTilesUsingServices()
+    {
+        // Clear TurnManager registrations first to prevent null reference issues
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.ClearAllRegistersExceptPlayer();
+        }
+        
+        // Clear player using PlayerService
+        playerService?.DestroyCurrentPlayer();
+        
+        // Clear layered grid system - LayeredGridService now handles GameObject destruction internally
+        if (layeredGrid != null)
+        {
+            layeredGrid.ClearAllLayers();
+        }
+        
+        // Clear containers using ContainerService
+        containerService?.ClearCurrentContainers();
+        
+        // Manual cleanup of any orphaned explosion objects not tracked by layered grid
+        var orphanedExplosions = FindObjectsOfType<MovingExplosion>();
+        var orphanedExplosionTiles = FindObjectsOfType<ExplosionTile>();
+        
+        foreach (var explosion in orphanedExplosions)
+        {
+            if (explosion != null)
+            {
+                Destroy(explosion.gameObject);
+            }
+        }
+        
+        foreach (var explosionTile in orphanedExplosionTiles)
+        {
+            if (explosionTile != null)
+            {
+                Destroy(explosionTile.gameObject);
+            }
+        }
+        
+        // Clear ML-Agent tracking lists
+        enemies.Clear();
+        collectibles.Clear();
+        exitObject = null;
+        playerObject = null;
+        
+        // Clear legacy container references
+        wallsContainer = null;
+        breakablesContainer = null;
+        gatesContainer = null;
+        enemiesContainer = null;
+        collectiblesContainer = null;
+        effectsContainer = null;
+        projectilesContainer = null;
+        gridParent = null;
+        dynamicParent = null;
+    }
+    
+    /// <summary>
+    /// Create map visual using modern service approach
+    /// </summary>
+    private void CreateMapVisualUsingServices()
+    {
+        // Create visual objects from level data
+        if (currentLevelData != null && currentLevelData.grid != null)
+        {
+            CreateVisualTiles();
+        }
+    }
+    
+    /// <summary>
+    /// Internal method to create player using PlayerService
+    /// </summary>
+    private void CreatePlayerUsingService()
+    {
+        if (playerService == null)
+        {
+            Debug.LogError("[LevelLoader] PlayerService is null! Cannot create player.");
+            return;
+        }
+        
+        // Use LayeredGridService coordinate conversion for consistency
+        Vector3 playerPos = layeredGrid.GridToWorld(playerStartX, playerStartY);
+        Vector2Int gridPos = new Vector2Int(playerStartX, playerStartY);
+        
+        // Create player using service
+        var playerController = playerService.CreatePlayerAtPosition(gridPos, playerPos);
+        if (playerController != null)
+        {
+            playerObject = playerController.gameObject;
+            
+            // Notify TurnManager for ML-Agent registration
+            if (TurnManager.Instance != null && PlayerAgentManager.Instance != null)
+            {
+                try 
+                {
+                    if (PlayerAgentManager.Instance.IsMLAgentActive())
+                    {
+                        TurnManager.Instance.Register(PlayerAgentManager.Instance);
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[PLAYER_INIT] Error ensuring TurnManager registration: {e.Message}");
+                }
+            }
+        }
+    }
+    
+    #endregion
 }
