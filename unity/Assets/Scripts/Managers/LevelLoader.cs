@@ -964,6 +964,16 @@ public class LevelLoader : MonoBehaviour
                     // Place in appropriate layer
                     PlaceTileInLayer(newTile.gameObject, x, y, type);
                     
+                    // Count successfully created tiles
+                    switch (type)
+                    {
+                        case TileType.Breakable: createdBreakables++; break;
+                        case TileType.Enemy: 
+                        case TileType.EnemyShooter: createdEnemies++; break;
+                        case TileType.Coin: createdCoins++; break;
+                        case TileType.Health: createdHealth++; break;
+                    }
+                    
                     // Legacy ML-Agent tracking
                     UpdateMLAgentTracking(type, newTile.gameObject);
                     
@@ -1048,7 +1058,6 @@ public class LevelLoader : MonoBehaviour
                 else
                 {
                     Debug.Log($"[🧱 BREAKABLE_CREATE] ✅ Successfully created and placed breakable at ({x},{y})");
-                    createdBreakables++;
                 }
                 break;
                 
