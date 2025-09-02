@@ -61,7 +61,15 @@ public class LevelLoader : MonoBehaviour
     
     // --- Runtime Container References ---
     [Header("Level Content Containers")]
-    public Transform levelContentParent; // [LEVEL CONTENT] container
+    public Transform levelContentParent; // [LEVEL CONTENT] root container
+    
+    // Current level-specific containers
+    private Transform currentLevelContainer; // Current level's root container
+    private Transform currentStaticContainer; // Static tiles (walls, gates)
+    private Transform currentDestructibleContainer; // Destructible tiles (breakables)  
+    private Transform currentDynamicContainer; // Dynamic objects (enemies, items)
+    
+    // Legacy containers (kept for compatibility)
     public Transform gridParent;         // Grid tiles container  
     public Transform dynamicParent;      // Dynamic objects container
     public Transform wallsContainer;     // Walls container
@@ -323,34 +331,38 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     private Transform GetContainerForTileType(TileType tileType)
     {
+        // Use level-specific containers when available, fallback to legacy containers
         switch (tileType)
         {
             case TileType.Wall:
-                return wallsContainer ?? gridParent;
+                return wallsContainer ?? currentStaticContainer ?? gridParent ?? levelContentParent;
                 
             case TileType.Breakable:
-                return breakablesContainer ?? gridParent;
+                return breakablesContainer ?? currentDestructibleContainer ?? gridParent ?? levelContentParent;
                 
             case TileType.Gate:
-                return gatesContainer ?? gridParent;
+                return gatesContainer ?? currentStaticContainer ?? gridParent ?? levelContentParent;
                 
             case TileType.Enemy:
             case TileType.EnemyShooter:
-                return enemiesContainer ?? dynamicParent;
+                return enemiesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
                 
             case TileType.Coin:
             case TileType.Health:
-                return collectiblesContainer ?? dynamicParent;
+                return collectiblesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
                 
             case TileType.Player:
             case TileType.PlayerSpawn:
-                return dynamicParent ?? levelContentParent;
+                return currentDynamicContainer ?? dynamicParent ?? levelContentParent;
                 
             case TileType.Projectile:
-                return projectilesContainer ?? dynamicParent;
+                return projectilesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
+                
+            case TileType.Explosion:
+                return effectsContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
                 
             default:
-                return gridParent ?? levelContentParent;
+                return currentLevelContainer ?? levelContentParent;
         }
     }
     
@@ -359,7 +371,7 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public Transform GetProjectilesContainer()
     {
-        return projectilesContainer ?? dynamicParent ?? levelContentParent;
+        return projectilesContainer ?? currentDynamicContainer ?? dynamicParent ?? levelContentParent;
     }
     
     #if UNITY_EDITOR
@@ -790,6 +802,11 @@ public class LevelLoader : MonoBehaviour
             return;
         }
         
+        // STEP 3b: Create level-specific containers
+        Debug.Log("[🚀 LEVEL_LOAD] STEP 3b: Creating level-specific container hierarchy");
+        CreateLevelSpecificContainers(levelData);
+        Debug.Log("[🚀 LEVEL_LOAD] ✅ Level-specific containers created");
+        
         // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
         // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
         
@@ -1154,6 +1171,28 @@ public class LevelLoader : MonoBehaviour
             Debug.Log("[🧹 FINAL_CLEAR] All layers cleared successfully");
         }
         
+        // Clear level-specific containers
+        if (currentLevelContainer != null)
+        {
+            Debug.Log($"[🧹 CONTAINER_CLEAR] Destroying current level container: {currentLevelContainer.name}");
+            Destroy(currentLevelContainer.gameObject);
+            currentLevelContainer = null;
+            currentStaticContainer = null;
+            currentDestructibleContainer = null;
+            currentDynamicContainer = null;
+        }
+        
+        // Clear legacy container references
+        wallsContainer = null;
+        breakablesContainer = null;
+        gatesContainer = null;
+        enemiesContainer = null;
+        collectiblesContainer = null;
+        effectsContainer = null;
+        projectilesContainer = null;
+        gridParent = null;
+        dynamicParent = null;
+        
         Debug.Log("[LevelLoader] ClearAllTiles completed - FULL CLEANUP DONE");
     }
     
@@ -1189,6 +1228,53 @@ public class LevelLoader : MonoBehaviour
         bool isClean = (cleanCount == sampleCount);
         Debug.Log($"[🔍 VERIFY_CLEAN] Sampled {sampleCount} positions, {cleanCount} clean - Result: {(isClean ? "✅ CLEAN" : "❌ DIRTY")}");
         return isClean;
+    }
+    
+    /// <summary>
+    /// Create level-specific container hierarchy: Level > Category > Objects
+    /// </summary>
+    private void CreateLevelSpecificContainers(HoudiniLevelData levelData)
+    {
+        string levelName = levelData.levelName ?? levelData.levelId ?? "UnknownLevel";
+        
+        // Create main level container
+        GameObject levelContainerObj = new GameObject($"Level_{levelName}");
+        currentLevelContainer = levelContainerObj.transform;
+        currentLevelContainer.SetParent(levelContentParent);
+        
+        Debug.Log($"[📁 CONTAINER] Created level container: {levelContainerObj.name}");
+        
+        // Create category containers under level container
+        GameObject staticContainerObj = new GameObject("Static");
+        currentStaticContainer = staticContainerObj.transform;
+        currentStaticContainer.SetParent(currentLevelContainer);
+        
+        GameObject destructibleContainerObj = new GameObject("Destructible");  
+        currentDestructibleContainer = destructibleContainerObj.transform;
+        currentDestructibleContainer.SetParent(currentLevelContainer);
+        
+        GameObject dynamicContainerObj = new GameObject("Dynamic");
+        currentDynamicContainer = dynamicContainerObj.transform;
+        currentDynamicContainer.SetParent(currentLevelContainer);
+        
+        // Create sub-categories under Static
+        CreateTileContainer(ref wallsContainer, "Walls", currentStaticContainer);
+        CreateTileContainer(ref gatesContainer, "Gates", currentStaticContainer);
+        
+        // Create sub-categories under Destructible
+        CreateTileContainer(ref breakablesContainer, "Breakables", currentDestructibleContainer);
+        
+        // Create sub-categories under Dynamic  
+        CreateTileContainer(ref enemiesContainer, "Enemies", currentDynamicContainer);
+        CreateTileContainer(ref collectiblesContainer, "Collectibles", currentDynamicContainer);
+        CreateTileContainer(ref effectsContainer, "Effects", currentDynamicContainer);
+        CreateTileContainer(ref projectilesContainer, "Projectiles", currentDynamicContainer);
+        
+        // Update legacy references for compatibility
+        gridParent = currentStaticContainer;
+        dynamicParent = currentDynamicContainer;
+        
+        Debug.Log($"[📁 CONTAINER] Hierarchy created: {levelName} > [Static, Destructible, Dynamic]");
     }
     
     /// <summary>
