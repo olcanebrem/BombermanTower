@@ -40,12 +40,32 @@ public class TurnManager : MonoBehaviour
     private void OnDisable()
     {
         PlayerController.OnPlayerDeath -= HandlePlayerDeathEvent;
+        
+        // Unsubscribe from events
+        if (GameEventBus.Instance != null)
+        {
+            GameEventBus.Instance.Unsubscribe<PlayerSpawned>(OnPlayerSpawned);
+            GameEventBus.Instance.Unsubscribe<LevelLoadStarted>(OnLevelLoadStarted);
+        }
     }
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null) 
+        {
+            Instance = this;
+            
+            // Subscribe to service events
+            if (GameEventBus.Instance != null)
+            {
+                GameEventBus.Instance.Subscribe<PlayerSpawned>(OnPlayerSpawned);
+                GameEventBus.Instance.Subscribe<LevelLoadStarted>(OnLevelLoadStarted);
+            }
+        }
+        else 
+        {
+            Destroy(gameObject);
+        }
     }
     
     void Start()
@@ -724,4 +744,30 @@ public class TurnManager : MonoBehaviour
             Debug.Log("[TurnManager] ML-Agent unregistered from turn-based control");
         }
     }
+    
+    #region EVENT HANDLERS
+    
+    /// <summary>
+    /// Handle player spawned event to register with ML-Agent manager
+    /// </summary>
+    private void OnPlayerSpawned(PlayerSpawned eventData)
+    {
+        // Automatically register PlayerAgentManager if ML is active
+        if (PlayerAgentManager.Instance != null && PlayerAgentManager.Instance.IsMLAgentActive())
+        {
+            Register(PlayerAgentManager.Instance);
+            Debug.Log("[TurnManager] PlayerAgentManager registered via PlayerSpawned event");
+        }
+    }
+    
+    /// <summary>
+    /// Handle level load started event to prepare for new level
+    /// </summary>
+    private void OnLevelLoadStarted(LevelLoadStarted eventData)
+    {
+        // Clear existing registrations except essential ones
+        ClearAllRegistersExceptPlayer();
+    }
+    
+    #endregion
 }

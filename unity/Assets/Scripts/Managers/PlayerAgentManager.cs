@@ -36,11 +36,7 @@ public class PlayerAgentManager : Agent, ITurnBased
     private RewardSystem rewardSystem;
     private EnvManager envManager;
 
-    // --- Helper Class References ---
-    private AgentObservationHandler observationHandler;
-    private AgentActionHandler actionHandler;
-    private AgentRewardHandler rewardHandler;
-    private AgentEpisodeManager episodeManager;
+    // Helper classes deprecated - functionality integrated into singleton
 
     // --- ITurnBased & State Tracking ---
     public bool HasActedThisTurn { get; set; }
@@ -163,16 +159,7 @@ public class PlayerAgentManager : Agent, ITurnBased
         base.Initialize();
     }
     
-    private void InitializeHelperClasses()
-    {
-        if (currentPlayerController == null) return;
-        
-        // Initialize helper classes (these would need to be updated to work with singleton pattern)
-        // observationHandler = new AgentObservationHandler(this);
-        // actionHandler = new AgentActionHandler(this);
-        // rewardHandler = new AgentRewardHandler(this);
-        // episodeManager = new AgentEpisodeManager(this);
-    }
+    // Helper classes deprecated - functionality integrated
 
     #endregion
 
@@ -186,17 +173,11 @@ public class PlayerAgentManager : Agent, ITurnBased
 
     public IGameAction GetAction()
     {
-        // Debug GetAction calls (limit to avoid spam)
-        if (UnityEngine.Random.Range(0, 100) < 5) // 5% chance to log
-        {
-            Debug.Log($"[🎮 AGENT_ACTION] GetAction called - Player: {currentPlayerController?.name}, HasActed: {HasActedThisTurn}");
-        }
+        // Reduced debug logging
         
         // If no current player or already acted, return null
         if (currentPlayerController == null || HasActedThisTurn)
         {
-            if (currentPlayerController == null)
-                Debug.LogWarning("[🎮 AGENT_ACTION] GetAction: currentPlayerController is null!");
             return null;
         }
         
@@ -262,13 +243,8 @@ public class PlayerAgentManager : Agent, ITurnBased
         var playerAction = currentPlayerController.GetAction();
         if (playerAction != null)
         {
-            Debug.Log($"[🎮 AGENT_ACTION] Manual input action received: {playerAction.GetType().Name}");
             HasActedThisTurn = true;
             episodeSteps++;
-        }
-        else if (UnityEngine.Random.Range(0, 100) < 2) // 2% chance to log null actions
-        {
-            Debug.Log($"[🎮 AGENT_ACTION] No manual input from PlayerController");
         }
         return playerAction;
     }
@@ -370,18 +346,10 @@ public class PlayerAgentManager : Agent, ITurnBased
             return;
         }
         
-        // Basic observation collection - this needs proper implementation
-        if (observationHandler != null)
-        {
-            // observationHandler.CollectObservations(sensor);
-        }
-        else
-        {
-            // Basic fallback observations
-            sensor.AddObservation(currentPlayerController.X);
-            sensor.AddObservation(currentPlayerController.Y);
-            sensor.AddObservation(currentPlayerController.CurrentHealth);
-        }
+        // Basic observations for ML-Agent
+        sensor.AddObservation(currentPlayerController.X);
+        sensor.AddObservation(currentPlayerController.Y);
+        sensor.AddObservation(currentPlayerController.CurrentHealth);
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)

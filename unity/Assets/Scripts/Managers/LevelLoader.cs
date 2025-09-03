@@ -37,8 +37,7 @@ public class LevelLoader : MonoBehaviour
     public GameObject playerPrefab;
     public SpriteDatabase spriteDatabase;
     
-    // --- Component References ---
-    private HoudiniLevelParser levelParser;
+    // Component references minimized - services handle parsing
     
     // --- Service References ---
     private ILevelDataService levelDataService;
@@ -57,26 +56,28 @@ public class LevelLoader : MonoBehaviour
     private GameObject playerObject; // Runtime player instance reference
     public int playerStartX, playerStartY;
     
-    // --- Runtime Container References ---
-    [Header("Level Content Containers")]
-    public Transform levelContentParent; // [LEVEL CONTENT] root container
+    // Container management moved to ContainerService
+    // Legacy references kept for API compatibility
+    [Header("Legacy Containers - Deprecated")]
+    [System.Obsolete("Use ContainerService instead")]
+    public Transform levelContentParent;
+    [System.Obsolete("Use ContainerService instead")]
+    public Transform gridParent;
+    [System.Obsolete("Use ContainerService instead")]
+    public Transform dynamicParent;
     
-    // Current level-specific containers
-    private Transform currentLevelContainer; // Current level's root container
-    private Transform currentStaticContainer; // Static tiles (walls, gates)
-    private Transform currentDestructibleContainer; // Destructible tiles (breakables)  
-    private Transform currentDynamicContainer; // Dynamic objects (enemies, items)
-    
-    // Legacy containers (kept for compatibility)
-    public Transform gridParent;         // Grid tiles container  
-    public Transform dynamicParent;      // Dynamic objects container
-    public Transform wallsContainer;     // Walls container
-    public Transform breakablesContainer; // Breakables container
-    public Transform gatesContainer;     // Gates container
-    public Transform enemiesContainer;   // Enemies container
-    public Transform collectiblesContainer; // Collectibles container
-    public Transform effectsContainer;   // Effects container
-    public Transform projectilesContainer; // Projectiles container
+    // Private container references for backward compatibility
+    private Transform currentLevelContainer;
+    private Transform currentStaticContainer;
+    private Transform currentDestructibleContainer;
+    private Transform currentDynamicContainer;
+    private Transform wallsContainer;
+    private Transform breakablesContainer;
+    private Transform gatesContainer;
+    private Transform enemiesContainer;
+    private Transform collectiblesContainer;
+    private Transform effectsContainer;
+    private Transform projectilesContainer;
     
     // ML-Agent support - object tracking
     private List<GameObject> enemies = new List<GameObject>();
@@ -277,37 +278,9 @@ public class LevelLoader : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Helper method to get full hierarchy path for debugging
-    /// </summary>
-    private string GetFullPath(Transform transform)
-    {
-        if (transform == null) return "NULL";
-        
-        string path = transform.name;
-        Transform parent = transform.parent;
-        
-        while (parent != null)
-        {
-            path = parent.name + "/" + path;
-            parent = parent.parent;
-        }
-        
-        return path;
-    }
+    // Helper methods moved to ContainerService
     
-    /// <summary>
-    /// Helper to create container if it doesn't exist
-    /// </summary>
-    private void CreateTileContainer(ref Transform container, string containerName, Transform parent)
-    {
-        if (container == null)
-        {
-            GameObject containerGO = new GameObject(containerName + " Container");
-            containerGO.transform.SetParent(parent);
-            container = containerGO.transform;
-        }
-    }
+    // Container creation moved to ContainerService
     
     /// <summary>
     /// Get appropriate container for tile type using container service
@@ -325,374 +298,176 @@ public class LevelLoader : MonoBehaviour
         return containerService?.GetProjectilesContainer() ?? levelContentParent;
     }
     
-    #if UNITY_EDITOR
-    [ContextMenu("Refresh Level Files")]
-    public void RefreshLevelFilesInEditor()
-    {
-        ScanForLevelFiles();
-        EditorUtility.SetDirty(this);
-    }
-    #endif
+    // Level file scanning moved to LevelDataService
+    
+    // Level file scanning moved to LevelDataService
+    
+    // Level file scanning moved to LevelDataService
+    
+    // Level file validation moved to LevelDataService
+    
+    // Level file parsing moved to LevelDataService
     
     /// <summary>
-    /// Levels dizinini tarar ve .ini dosyalarını bulur
-    /// </summary>
-    public void ScanForLevelFiles()
-    {
-        availableLevels.Clear();
-        
-        #if UNITY_EDITOR
-        // Editor modunda AssetDatabase kullan
-        ScanLevelsWithAssetDatabase();
-        #else
-        // Build'de Resources veya StreamingAssets kullan
-        ScanLevelsFromResources();
-        #endif
-        
-        // Level'ları sırala (level numarasına göre, sonra versiyona göre)
-        availableLevels.Sort((a, b) => {
-            int levelCompare = a.levelNumber.CompareTo(b.levelNumber);
-            return levelCompare != 0 ? levelCompare : string.Compare(a.version, b.version, System.StringComparison.Ordinal);
-        });
-        
-        // Debug.Log($"[LevelLoader] Found {availableLevels.Count} level files");
-    }
-    
-    #if UNITY_EDITOR
-    private void ScanLevelsWithAssetDatabase()
-    {
-        // Assets/Levels dizinindeki tüm .txt dosyalarını bul
-        string[] guids = AssetDatabase.FindAssets("LEVEL_ t:TextAsset", new[] { levelsDirectoryPath });
-        
-        // Debug.Log($"[LevelLoader] Scanning directory: {levelsDirectoryPath}");
-        // Debug.Log($"[LevelLoader] Found {guids.Length} files with 'LEVEL_' in name");
-        
-        foreach (string guid in guids)
-        {
-            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
-            string fileName = Path.GetFileNameWithoutExtension(assetPath);
-            
-            // Debug.Log($"[LevelLoader] Checking file: {assetPath}");
-            
-            // LEVEL_XXXX pattern kontrolü
-            if (IsValidLevelFileName(fileName))
-            {
-                // .ini dosyalarını TextAsset olarak yükle
-                TextAsset textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
-                if (textAsset != null)
-                {
-                    var levelEntry = ParseLevelFileName(fileName, assetPath, textAsset);
-                    availableLevels.Add(levelEntry);
-                    // Debug.Log($"[LevelLoader] Successfully loaded level: {fileName}");
-                }
-                else
-                {
-                    // Debug.LogWarning($"[LevelLoader] Could not load as TextAsset: {assetPath}");
-                }
-            }
-            else
-            {
-                // Debug.Log($"[LevelLoader] File name doesn't match pattern: {fileName}");
-            }
-        }
-    }
-    #endif
-    
-    private void ScanLevelsFromResources()
-    {
-        // Runtime için Resources klasöründen yükleme
-        // Bu implementasyon gerekirse daha sonra genişletilebilir
-        TextAsset[] levelAssets = Resources.LoadAll<TextAsset>("Levels");
-        
-        foreach (TextAsset asset in levelAssets)
-        {
-            if (IsValidLevelFileName(asset.name))
-            {
-                string assetPath = "Resources/Levels/" + asset.name;
-                var levelEntry = ParseLevelFileName(asset.name, assetPath, asset);
-                availableLevels.Add(levelEntry);
-            }
-        }
-    }
-    
-    /// <summary>
-    /// Dosya adının LEVEL_XXXX formatında olup olmadığını kontrol eder
-    /// </summary>
-    private bool IsValidLevelFileName(string fileName)
-    {
-        // LEVEL_0001_v1.0.0_v4.3 gibi formatları kabul et
-        return fileName.StartsWith("LEVEL_") && fileName.Contains("_v");
-    }
-    
-    /// <summary>
-    /// Level dosya adını parse ederek bilgileri çıkarır
-    /// </summary>
-    private LevelFileEntry ParseLevelFileName(string fileName, string fullPath, TextAsset textAsset)
-    {
-        var entry = new LevelFileEntry
-        {
-            fileName = fileName,
-            fullPath = fullPath,
-            textAsset = textAsset,
-            levelNumber = 1,
-            version = "1.0.0"
-        };
-        
-        try
-        {
-            // LEVEL_0001_v1.0.0_v4.3 formatını parse et
-            string[] parts = fileName.Split('_');
-            
-            if (parts.Length >= 2)
-            {
-                // Level numarasını çıkar (LEVEL_0001 -> 1)
-                string levelNumberStr = parts[1];
-                if (int.TryParse(levelNumberStr, out int levelNumber))
-                {
-                    entry.levelNumber = levelNumber;
-                }
-            }
-            
-            if (parts.Length >= 3)
-            {
-                // Versiyon bilgisini çıkar (v1.0.0 -> 1.0.0)
-                string versionStr = parts[2];
-                if (versionStr.StartsWith("v"))
-                {
-                    entry.version = versionStr.Substring(1);
-                }
-            }
-        }
-        catch (System.Exception e)
-        {
-            // Debug.LogWarning($"[LevelLoader] Failed to parse level file name '{fileName}': {e.Message}");
-        }
-        
-        return entry;
-    }
-    
-    /// <summary>
-    /// Seçilen level'ı yükler (HoudiniLevelImporter kullanarak)
+    /// Load selected level using service layer
     /// </summary>
     public void LoadSelectedLevel()
     {
-        // Debug.Log($"[LevelLoader] LoadSelectedLevel called - Available levels: {availableLevels.Count}");
-        
-        if (availableLevels.Count == 0)
+        if (levelDataService == null)
         {
-            Debug.LogError("[LevelLoader] No level files found! Re-scanning...");
-            ScanForLevelFiles();
-            if (availableLevels.Count == 0)
-            {
-                Debug.LogError("[LevelLoader] Still no level files after re-scan!");
-                return;
-            }
+            Debug.LogError("[LevelLoader] LevelDataService not available!");
+            return;
         }
         
-        // Index sınırlarını kontrol et
-        selectedLevelIndex = Mathf.Clamp(selectedLevelIndex, 0, availableLevels.Count - 1);
-        
-        var selectedLevel = availableLevels[selectedLevelIndex];
-        
-        // Debug.Log($"[LevelLoader] Loading level: {selectedLevel.fileName}");
-        
-        // Use LevelImporter for organized level loading
-        if (LevelImporter.Instance != null)
+        var selectedLevel = levelDataService.GetSelectedLevel();
+        if (selectedLevel.textAsset == null)
         {
-            // Debug.Log("[LevelLoader] Using LevelImporter for data import");
-            currentLevelData = LevelImporter.Instance.ImportLevel(selectedLevel.textAsset);
-            
-            if (currentLevelData == null)
-            {
-                Debug.LogError("[LevelLoader] LevelImporter returned null data!");
-                return;
-            }
-            
-            // Now handle level creation ourselves
-            LoadFromLevelData(currentLevelData);
+            Debug.LogError("[LevelLoader] No level selected or level asset is null!");
+            return;
         }
-        else
+        
+        var levelData = levelDataService.LoadLevelData(selectedLevel.textAsset);
+        if (levelData != null)
         {
-            // Fallback to direct parsing if LevelImporter not available
-            if (levelParser == null)
-            {
-                Debug.LogError("[LevelLoader] HoudiniLevelParser component not found!");
-                return;
-            }
-            
-            // Debug.LogWarning("[LevelLoader] LevelImporter not found - using fallback direct loading");
-            currentLevelData = levelParser.ParseLevelData(selectedLevel.textAsset);
-            if (currentLevelData != null)
-            {
-                LoadLevelFromHoudiniData(currentLevelData);
-            }
-            else
-            {
-                Debug.LogError($"[LevelLoader] Failed to parse level data: {selectedLevel.fileName}");
-            }
+            LoadFromLevelData(levelData);
         }
     }
     
     /// <summary>
-    /// Level seçimini değiştirir
+    /// Delegate to LevelDataService
     /// </summary>
     public void SelectLevel(int index)
     {
-        if (index >= 0 && index < availableLevels.Count)
-        {
-            selectedLevelIndex = index;
-            // Debug.Log($"[LevelLoader] Selected level: {availableLevels[index].fileName}");
-        }
+        // This method is deprecated - use LevelDataService directly
+        Debug.LogWarning("[LevelLoader] SelectLevel is deprecated. Use LevelDataService.SelectLevelByNumber instead.");
     }
     
     /// <summary>
-    /// Mevcut level listesini döndürür
+    /// Get available levels from service
     /// </summary>
     public List<LevelFileEntry> GetAvailableLevels()
     {
-        return new List<LevelFileEntry>(availableLevels);
+        return levelDataService?.GetAvailableLevels() ?? new List<LevelFileEntry>();
     }
     
     /// <summary>
-    /// Seçilen level bilgisini döndürür
+    /// Get selected level from service
     /// </summary>
     public LevelFileEntry GetSelectedLevel()
     {
-        if (selectedLevelIndex >= 0 && selectedLevelIndex < availableLevels.Count)
-        {
-            return availableLevels[selectedLevelIndex];
-        }
-        return new LevelFileEntry();
+        return levelDataService?.GetSelectedLevel() ?? new LevelFileEntry();
     }
     
     /// <summary>
-    /// Sonraki level'a geçer (progression için)
+    /// Delegate to LevelDataService
     /// </summary>
     public bool SelectNextLevel()
     {
-        if (selectedLevelIndex < availableLevels.Count - 1)
+        if (levelDataService?.SelectNextLevel() == true)
         {
-            SelectLevel(selectedLevelIndex + 1);
             LoadSelectedLevel();
             return true;
         }
-        // Debug.Log("[LevelLoader] Already at the last level");
-        return false; // Son level'dayız
+        return false;
     }
     
     /// <summary>
-    /// Önceki level'a geçer
+    /// Delegate to LevelDataService
     /// </summary>
     public bool SelectPreviousLevel()
     {
-        if (selectedLevelIndex > 0)
+        if (levelDataService?.SelectPreviousLevel() == true)
         {
-            SelectLevel(selectedLevelIndex - 1);
             LoadSelectedLevel();
             return true;
         }
-        // Debug.Log("[LevelLoader] Already at the first level");
-        return false; // İlk level'dayız
+        return false;
     }
     
     /// <summary>
-    /// Belirli bir level numarasına göre level seçer
+    /// Delegate to LevelDataService
     /// </summary>
     public bool SelectLevelByNumber(int levelNumber)
     {
-        int index = availableLevels.FindIndex(level => level.levelNumber == levelNumber);
-        if (index >= 0)
+        if (levelDataService?.SelectLevelByNumber(levelNumber) == true)
         {
-            SelectLevel(index);
             LoadSelectedLevel();
             return true;
         }
-        // Debug.LogWarning($"[LevelLoader] Level {levelNumber} not found!");
         return false;
     }
     
     /// <summary>
-    /// Belirli level numarası ve versiyona göre level seçer
+    /// Delegate to LevelDataService
     /// </summary>
     public bool SelectLevelByNumberAndVersion(int levelNumber, string version)
     {
-        int index = availableLevels.FindIndex(level => 
-            level.levelNumber == levelNumber && level.version == version);
-        if (index >= 0)
+        if (levelDataService?.SelectLevelByNumberAndVersion(levelNumber, version) == true)
         {
-            SelectLevel(index);
             LoadSelectedLevel();
             return true;
         }
-        // Debug.LogWarning($"[LevelLoader] Level {levelNumber} v{version} not found!");
         return false;
     }
     
     /// <summary>
-    /// İlk level'a döner
+    /// Delegate to LevelDataService
     /// </summary>
     public void ResetToFirstLevel()
     {
-        if (availableLevels.Count > 0)
-        {
-            SelectLevel(0);
-            LoadSelectedLevel();
-            // Debug.Log("[LevelLoader] Reset to first level");
-        }
+        levelDataService?.ResetToFirstLevel();
+        LoadSelectedLevel();
     }
     
     /// <summary>
-    /// Son level'a geçer
+    /// Delegate to LevelDataService
     /// </summary>
     public void SelectLastLevel()
     {
-        if (availableLevels.Count > 0)
-        {
-            SelectLevel(availableLevels.Count - 1);
-            LoadSelectedLevel();
-            // Debug.Log("[LevelLoader] Selected last level");
-        }
+        levelDataService?.SelectLastLevel();
+        LoadSelectedLevel();
     }
     
     /// <summary>
-    /// Toplam level sayısını döndürür
+    /// Get total level count from service
     /// </summary>
     public int GetTotalLevelCount()
     {
-        return availableLevels.Count;
+        return levelDataService?.GetTotalLevelCount() ?? 0;
     }
     
     /// <summary>
-    /// Mevcut level indeksini döndürür (0-based)
+    /// Get current level index - deprecated, use LevelDataService
     /// </summary>
+    [System.Obsolete("Use LevelDataService instead")]
     public int GetCurrentLevelIndex()
     {
-        return selectedLevelIndex;
+        Debug.LogWarning("[LevelLoader] GetCurrentLevelIndex is deprecated. Use LevelDataService instead.");
+        return 0;
     }
     
     /// <summary>
-    /// Mevcut level numarasını döndürür (1-based)
+    /// Get current level number from service
     /// </summary>
     public int GetCurrentLevelNumber()
     {
-        var selectedLevel = GetSelectedLevel();
-        return selectedLevel.levelNumber;
+        return levelDataService?.GetCurrentLevelNumber() ?? 1;
     }
     
     /// <summary>
-    /// Level progression için - sonraki level var mı?
+    /// Check if next level exists using service
     /// </summary>
     public bool HasNextLevel()
     {
-        return selectedLevelIndex < availableLevels.Count - 1;
+        return levelDataService?.HasNextLevel() ?? false;
     }
     
     /// <summary>
-    /// Level progression için - önceki level var mı?
+    /// Check if previous level exists using service
     /// </summary>
     public bool HasPreviousLevel()
     {
-        return selectedLevelIndex > 0;
+        return levelDataService?.HasPreviousLevel() ?? false;
     }
 
     /// <summary>
@@ -1132,52 +907,10 @@ public class LevelLoader : MonoBehaviour
         }
         
         bool isClean = (cleanCount == sampleCount);
-        bool isClean = (cleanCount == sampleCount);
-        return isClean;
+        return (cleanCount == sampleCount);
     }
     
-    /// <summary>
-    /// Create level-specific container hierarchy: Level > Category > Objects
-    /// </summary>
-    private void CreateLevelSpecificContainers(HoudiniLevelData levelData)
-    {
-        string levelName = levelData.levelName ?? levelData.levelId ?? "UnknownLevel";
-        
-        // Create main level container
-        GameObject levelContainerObj = new GameObject($"Level_{levelName}");
-        currentLevelContainer = levelContainerObj.transform;
-        currentLevelContainer.SetParent(levelContentParent);
-        
-        // Create category containers under level container
-        GameObject staticContainerObj = new GameObject("Static");
-        currentStaticContainer = staticContainerObj.transform;
-        currentStaticContainer.SetParent(currentLevelContainer);
-        
-        GameObject destructibleContainerObj = new GameObject("Destructible");  
-        currentDestructibleContainer = destructibleContainerObj.transform;
-        currentDestructibleContainer.SetParent(currentLevelContainer);
-        
-        GameObject dynamicContainerObj = new GameObject("Dynamic");
-        currentDynamicContainer = dynamicContainerObj.transform;
-        currentDynamicContainer.SetParent(currentLevelContainer);
-        
-        // Create sub-categories under Static
-        CreateTileContainer(ref wallsContainer, "Walls", currentStaticContainer);
-        CreateTileContainer(ref gatesContainer, "Gates", currentStaticContainer);
-        
-        // Create sub-categories under Destructible
-        CreateTileContainer(ref breakablesContainer, "Breakables", currentDestructibleContainer);
-        
-        // Create sub-categories under Dynamic  
-        CreateTileContainer(ref enemiesContainer, "Enemies", currentDynamicContainer);
-        CreateTileContainer(ref collectiblesContainer, "Collectibles", currentDynamicContainer);
-        CreateTileContainer(ref effectsContainer, "Effects", currentDynamicContainer);
-        CreateTileContainer(ref projectilesContainer, "Projectiles", currentDynamicContainer);
-        
-        // Update legacy references for compatibility
-        gridParent = currentStaticContainer;
-        dynamicParent = currentDynamicContainer;
-    }
+    // Container creation moved to ContainerService
     
     /// <summary>
     /// Verify that scene tile counts match expected counts from level data
