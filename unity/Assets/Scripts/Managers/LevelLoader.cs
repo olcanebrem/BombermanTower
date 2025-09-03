@@ -137,13 +137,11 @@ public class LevelLoader : MonoBehaviour
         }
 
         // Oluşturulan harita string'ini, konsolda öne çıkması için bir uyarı olarak yazdır.
-        // Debug.LogWarning(mapOutput);
     }
     void Awake()
     {
         if (instance != null && instance != this)
         {
-            // Debug.LogWarning("[LevelLoader] Multiple LevelLoader instances detected. Destroying duplicate component only.");
             Destroy(this);
             return;
         }
@@ -155,7 +153,6 @@ public class LevelLoader : MonoBehaviour
             var eventBusGO = new GameObject("GameEventBus");
             eventBusGO.AddComponent<GameEventBus>();
         }
-        // Debug.Log($"[LevelLoader] Singleton instance set to: {this.gameObject.name}");
 
         // Component references - find HoudiniLevelParser (Singleton or scene)
         levelParser = HoudiniLevelParser.Instance;
@@ -521,8 +518,6 @@ public class LevelLoader : MonoBehaviour
         // Create level-specific containers using service
         containerService?.CreateLevelContainers(levelData.levelId, levelData.levelName);
         
-        // Debug.Log($"[LevelLoader] HoudiniData dimensions: {levelData.gridWidth}x{levelData.gridHeight}");
-        // Debug.Log($"[LevelLoader] HoudiniData grid array dimensions: {levelData.grid?.GetLength(0)}x{levelData.grid?.GetLength(1)}");
         
         // Setup layered system with new static tiles
         if (layeredGrid != null && levelData.grid != null)
@@ -598,16 +593,11 @@ public class LevelLoader : MonoBehaviour
     }
     
     
-    // CreateMapVisual metodunuz neredeyse hiç değişmeden çalışmaya devam edecek!
-    // Sadece oyuncu oluşturma mantığını en sona taşıdık.
+    /// <summary>
+    /// Create map visual using legacy method maintained for compatibility
+    /// </summary>
     void CreateMapVisual()
     {
-        // Debug.Log($"[LevelLoader] *** CreateMapVisual CALLED *** - Dimensions: {Width}x{Height}");
-        // Debug.Log($"[LevelLoader] Call Stack:\n{System.Environment.StackTrace}");
-        
-        // Clear previous visual objects
-        // Debug.Log($"[LevelLoader] *** CreateMapVisual CALLED *** - Dimensions: {Width}x{Height}");
-
         // Create visual objects from level data
         if (currentLevelData != null && currentLevelData.grid != null)
         {
@@ -617,9 +607,7 @@ public class LevelLoader : MonoBehaviour
         // Player creation with fresh instantiation
         CreatePlayerAtSpawn();
         
-        // Debug.Log($"[LevelLoader] CreateMapVisual completed successfully");
-        
-        // Debug: Log TurnManager state after level creation
+        // Log TurnManager state after level creation for debugging if needed
         if (TurnManager.Instance != null)
         {
             TurnManager.Instance.LogAllRegisteredObjects();
@@ -631,7 +619,6 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     private void CreateVisualTiles()
     {
-        Debug.Log($"[🎨 CREATE_VISUAL] Starting visual tiles creation for level: {currentLevelData?.levelName} ({Width}x{Height})");
         int createdBreakables = 0, createdEnemies = 0, createdCoins = 0, createdHealth = 0;
         
         for (int y = 0; y < Height; y++)
@@ -680,7 +667,6 @@ public class LevelLoader : MonoBehaviour
                     // Legacy ML-Agent tracking
                     UpdateMLAgentTracking(type, newTile.gameObject);
                     
-                    //Debug.Log($"[LevelLoader] Created {type} at ({x},{y}) in layered system");
                 }
                 else
                 {
@@ -688,9 +674,6 @@ public class LevelLoader : MonoBehaviour
                 }
             }
         }
-        
-        Debug.Log($"[🎨 CREATE_VISUAL] ✅ Completed visual tiles creation for level: {currentLevelData?.levelName}");
-        Debug.Log($"[🎨 CREATE_VISUAL] Created {createdBreakables} breakables, {createdEnemies} enemies, {createdCoins} coins, {createdHealth} health items");
     }
     
     /// <summary>
@@ -1050,7 +1033,6 @@ public class LevelLoader : MonoBehaviour
     [System.Obsolete("Use RemoveTileAt() for centralized tile management")]
     public void RemoveEnemy(GameObject enemy)
     {
-        // Debug.LogWarning("[LevelLoader] RemoveEnemy is deprecated. Use RemoveTileAt() instead.");
         
         if (enemies.Contains(enemy))
         {
@@ -1077,7 +1059,6 @@ public class LevelLoader : MonoBehaviour
         }
         else
         {
-            // Debug.LogWarning($"[LevelLoader] RemoveEnemy - Enemy {enemy.name} not found in enemies list");
         }
     }
     
@@ -1087,11 +1068,9 @@ public class LevelLoader : MonoBehaviour
     [System.Obsolete("Use RemoveTileAt() for centralized tile management")]
     public void RemoveCollectible(GameObject collectible)
     {
-        // Debug.LogWarning("[LevelLoader] RemoveCollectible is deprecated. Use RemoveTileAt() instead.");
         
         if (collectible == null)
         {
-            // Debug.LogWarning("[LevelLoader] RemoveCollectible - collectible is null!");
             return;
         }
         
@@ -1106,7 +1085,6 @@ public class LevelLoader : MonoBehaviour
     [System.Obsolete("Use DestroyTileAt() instead")]
     public void RemoveTileAt(int x, int y)
     {
-        // Debug.LogWarning("[LevelLoader] RemoveTileAt is deprecated. Use DestroyTileAt() instead.");
         DestroyTileAt(x, y);
     }
     
@@ -1131,11 +1109,9 @@ public class LevelLoader : MonoBehaviour
             if (item != null) layeredGrid.RemoveItem(item, x, y);
             if (effect != null) layeredGrid.RemoveEffect(effect, x, y);
             
-            // Debug.Log($"[LevelLoader] Cleared tile at ({x}, {y}) from layered system");
         }
         else
         {
-            // Debug.LogWarning($"[LevelLoader] ClearTile called with invalid coordinates ({x}, {y})");
         }
     }
     
@@ -1362,42 +1338,11 @@ public class LevelLoader : MonoBehaviour
     /// </summary>
     public void CreatePlayerAtSpawn()
     {
-        Debug.Log($"[🎮 PLAYER_SPAWN] === Starting player creation for level: {currentLevelData?.levelName} ===");
-        
-        // Early validation
-        if (playerPrefab == null)
-        {
-            Debug.LogError("[LevelLoader] playerPrefab is null! Please assign Player Prefab in Inspector.");
-            return;
-        }
+        CreatePlayerUsingService();
+    }
 
-        // Debug: Show expected vs actual spawn data
-        Debug.Log($"[🎮 PLAYER_SPAWN] Level data player spawn: ({currentLevelData?.playerSpawn.x}, {currentLevelData?.playerSpawn.y})");
-        Debug.Log($"[🎮 PLAYER_SPAWN] LevelLoader playerStart: ({playerStartX}, {playerStartY})");
-        Debug.Log($"[🎮 PLAYER_SPAWN] Grid dimensions: {Width}x{Height}, TileSize: {tileSize}");
-
-        // Use LayeredGridService coordinate conversion for consistency
-        Vector3 playerPos = layeredGrid.GridToWorld(playerStartX, playerStartY);
-        Debug.Log($"[🎮 PLAYER_SPAWN] LayeredGrid world position: {playerPos}");
-        
-        // Show alternative calculations for comparison
-        Vector3 directPos = new Vector3(playerStartX * tileSize, playerStartY * tileSize, 0);
-        Vector3 originalPos = new Vector3(playerStartX * tileSize, (Height - playerStartY - 1) * tileSize, 0);
-        Debug.Log($"[🎮 PLAYER_SPAWN] Direct calculation: {directPos}");
-        Debug.Log($"[🎮 PLAYER_SPAWN] Y-flip calculation: {originalPos}");
-        
-        // Verify the spawn position has correct tile type
-        if (currentLevelData?.grid != null && 
-            playerStartX < currentLevelData.grid.GetLength(0) && 
-            playerStartY < currentLevelData.grid.GetLength(1))
-        {
-            char spawnChar = currentLevelData.grid[playerStartX, playerStartY];
-            TileType spawnTileType = TileSymbols.DataSymbolToType(spawnChar);
-            Debug.Log($"[🎮 PLAYER_SPAWN] Tile at spawn position ({playerStartX},{playerStartY}): '{spawnChar}' → {spawnTileType}");
-        }
-        
-        // Since ClearAllTiles now destroys everything, we should have clean slate
-        var allExistingPlayers = FindObjectsOfType<PlayerController>();
+    /// <summary>
+    /// Try to move an object in the layered grid system
         if (allExistingPlayers.Length > 0)
         {
             Debug.LogWarning($"[🎮 FRESH_SPAWN] Found {allExistingPlayers.Length} existing players after cleanup - this shouldn't happen!");
@@ -1564,22 +1509,17 @@ public class LevelLoader : MonoBehaviour
     }
     
     /// <summary>
-    /// Otomatik olarak prefab'ları Resource klasöründen keşfeder ve TileType'larına göre eşler
+    /// Auto-discover prefabs from Resources folder and map by TileType
     /// </summary>
     private void AutoDiscoverPrefabs()
     {
-        // Debug.Log("[LevelLoader] === AUTO PREFAB DISCOVERY ===");
-        
-        // Resources/Prefabs klasöründen tüm TileBase prefab'larını yükle
+        // Load TileBase prefabs from Resources/Prefabs
         TileBase[] allTilePrefabs = Resources.LoadAll<TileBase>("Prefabs");
         
         if (allTilePrefabs.Length == 0)
         {
-            // Debug.LogWarning("[LevelLoader] No prefabs found in Resources/Prefabs. Trying root Resources folder...");
             allTilePrefabs = Resources.LoadAll<TileBase>("");
         }
-        
-        // Debug.Log($"[LevelLoader] Found {allTilePrefabs.Length} TileBase prefabs in Resources");
         
         foreach (var prefab in allTilePrefabs)
         {
@@ -1587,7 +1527,6 @@ public class LevelLoader : MonoBehaviour
             {
                 TileType prefabType = prefab.TileType;
                 
-                // Duplicate mapping kontrolü
                 if (prefabMap.ContainsKey(prefabType))
                 {
                     Debug.LogWarning($"[LevelLoader] Duplicate prefab for {prefabType}: keeping {prefabMap[prefabType].name}, ignoring {prefab.name}");
@@ -1595,11 +1534,10 @@ public class LevelLoader : MonoBehaviour
                 }
                 
                 prefabMap.Add(prefabType, prefab);
-                // Debug.Log($"[LevelLoader] Auto-discovered: {prefabType} -> {prefab.name}");
             }
         }
         
-        // Eksik prefab'ları rapor et
+        // Report missing prefabs for essential tile types
         var allTileTypes = System.Enum.GetValues(typeof(TileType)).Cast<TileType>();
         foreach (var tileType in allTileTypes)
         {
@@ -1608,8 +1546,6 @@ public class LevelLoader : MonoBehaviour
                 Debug.LogWarning($"[LevelLoader] Missing prefab for {tileType}");
             }
         }
-        
-        // Debug.Log("[LevelLoader] ================================");
     }
     
     #region SERVICE-BASED METHODS

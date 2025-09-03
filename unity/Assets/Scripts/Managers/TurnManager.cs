@@ -756,7 +756,6 @@ public class TurnManager : MonoBehaviour
         if (PlayerAgentManager.Instance != null && PlayerAgentManager.Instance.IsMLAgentActive())
         {
             Register(PlayerAgentManager.Instance);
-            Debug.Log("[TurnManager] PlayerAgentManager registered via PlayerSpawned event");
         }
     }
     

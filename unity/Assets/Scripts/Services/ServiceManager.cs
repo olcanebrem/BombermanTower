@@ -38,8 +38,6 @@ public class ServiceManager : MonoBehaviour
     /// </summary>
     private void InitializeAllServices()
     {
-        Debug.Log("[ServiceManager] Initializing all game services...");
-        
         // 1. Event Bus (must be first)
         InitializeEventBus();
         
@@ -48,8 +46,6 @@ public class ServiceManager : MonoBehaviour
         InitializeLevelDataService();
         InitializeContainerService();
         InitializePlayerService();
-        
-        Debug.Log("[ServiceManager] All services initialized successfully");
         
         // Subscribe to service events for monitoring
         SubscribeToServiceEvents();
@@ -68,7 +64,6 @@ public class ServiceManager : MonoBehaviour
             EventBus = GameEventBus.Instance;
         }
         
-        Debug.Log("[ServiceManager] ✅ GameEventBus initialized");
     }
     
     private void InitializeGridService()
@@ -84,7 +79,6 @@ public class ServiceManager : MonoBehaviour
             GridService = LayeredGridService.Instance;
         }
         
-        Debug.Log("[ServiceManager] ✅ LayeredGridService initialized");
     }
     
     private void InitializeLevelDataService()
@@ -100,7 +94,6 @@ public class ServiceManager : MonoBehaviour
             LevelDataService = LevelDataService.Instance;
         }
         
-        Debug.Log("[ServiceManager] ✅ LevelDataService initialized");
     }
     
     private void InitializeContainerService()
@@ -116,7 +109,6 @@ public class ServiceManager : MonoBehaviour
             ContainerService = ContainerService.Instance;
         }
         
-        Debug.Log("[ServiceManager] ✅ ContainerService initialized");
     }
     
     private void InitializePlayerService()
@@ -146,7 +138,6 @@ public class ServiceManager : MonoBehaviour
             }
         }
         
-        Debug.Log("[ServiceManager] ✅ PlayerService initialized");
     }
     
     private void SubscribeToServiceEvents()
@@ -159,7 +150,6 @@ public class ServiceManager : MonoBehaviour
             EventBus.Subscribe<ContainerCreated>(OnContainerCreated);
         }
         
-        Debug.Log("[ServiceManager] ✅ Subscribed to service events");
     }
     
     private void OnDestroy()
@@ -175,20 +165,10 @@ public class ServiceManager : MonoBehaviour
     
     #region Event Handlers
     
-    private void OnLevelLoadStarted(LevelLoadStarted eventData)
-    {
-        Debug.Log($"[ServiceManager] 🎯 Level load started: {eventData.LevelName}");
-    }
-    
-    private void OnPlayerSpawned(PlayerSpawned eventData)
-    {
-        Debug.Log($"[ServiceManager] 🎮 Player spawned: {eventData.Player?.name} at {eventData.GridPosition}");
-    }
-    
-    private void OnContainerCreated(ContainerCreated eventData)
-    {
-        Debug.Log($"[ServiceManager] 📁 Container created: {eventData.ContainerType} for {eventData.LevelId}");
-    }
+    // Event handlers for service monitoring (debug info removed for production)
+    private void OnLevelLoadStarted(LevelLoadStarted eventData) { }
+    private void OnPlayerSpawned(PlayerSpawned eventData) { }
+    private void OnContainerCreated(ContainerCreated eventData) { }
     
     #endregion
     
