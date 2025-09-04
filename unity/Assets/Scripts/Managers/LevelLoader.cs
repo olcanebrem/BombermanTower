@@ -294,6 +294,14 @@ public class LevelLoader : MonoBehaviour
         return containerService?.GetProjectilesContainer() ?? levelContentParent;
     }
     
+    /// <summary>
+    /// Get effects container for external classes (like explosion effects)
+    /// </summary>
+    public Transform GetEffectsContainer()
+    {
+        return containerService?.GetEffectsContainer() ?? levelContentParent;
+    }
+    
     // Level file scanning moved to LevelDataService
     
     // Level file scanning moved to LevelDataService
@@ -983,7 +991,7 @@ public class LevelLoader : MonoBehaviour
         
         // Create bomb
         Vector3 pos = layeredGrid.GridToWorld(x, y);
-        Transform bombParent = dynamicParent ?? levelContentParent;
+        Transform bombParent = GetContainerForTileType(TileType.Bomb);
         TileBase newBomb = Instantiate(bombTilePrefab, pos, Quaternion.identity, bombParent);
 
         // Setup bomb

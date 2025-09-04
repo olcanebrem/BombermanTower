@@ -103,7 +103,8 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
         // Move to next position
         X = nextX;
         Y = nextY;
-        transform.position = new Vector3(X * ll.tileSize, (ll.Height - Y - 1) * ll.tileSize, 0);
+        transform.position = LayeredGridService.Instance?.GridToWorld(X, Y) ?? 
+                             new Vector3(X * ll.tileSize, Y * ll.tileSize, 0);
         
         // Create explosion at new position (we already validated this is ok)
         CreateExplosionTileAt(X, Y);
@@ -156,8 +157,9 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
             return;
         }
         
-        Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
-        Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
+        Vector3 pos = LayeredGridService.Instance?.GridToWorld(x, y) ?? 
+                      new Vector3(x * ll.tileSize, y * ll.tileSize, 0);
+        Transform effectsParent = ll.GetEffectsContainer();
         
         GameObject explosionGO = Instantiate(explosionTilePrefab, pos, Quaternion.identity, effectsParent);
         ExplosionTile explosion = explosionGO.GetComponent<ExplosionTile>();

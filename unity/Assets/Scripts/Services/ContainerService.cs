@@ -157,6 +157,7 @@ public class ContainerService : MonoBehaviour, IContainerService
             TileType.Enemy or TileType.EnemyShooter => GetCachedContainer("Enemies") ?? currentDynamicContainer ?? levelContentParent,
             TileType.Coin or TileType.Health => GetCachedContainer("Collectibles") ?? currentDynamicContainer ?? levelContentParent,
             TileType.Player or TileType.PlayerSpawn => currentDynamicContainer ?? levelContentParent,
+            TileType.Bomb => GetCachedContainer("Projectiles") ?? currentDynamicContainer ?? levelContentParent,
             TileType.Projectile => GetCachedContainer("Projectiles") ?? currentDynamicContainer ?? levelContentParent,
             TileType.Explosion => GetCachedContainer("Effects") ?? currentDynamicContainer ?? levelContentParent,
             _ => currentLevelContainer ?? levelContentParent

@@ -114,8 +114,9 @@ public class BombTile : TileBase, ITurnBased, IInitializable, IDamageable
             return;
         }
         
-        Vector3 pos = new Vector3(startX * ll.tileSize, (ll.Height - startY - 1) * ll.tileSize, 0);
-        Transform effectsParent = ll.dynamicParent ?? ll.levelContentParent;
+        Vector3 pos = LayeredGridService.Instance?.GridToWorld(startX, startY) ?? 
+                      new Vector3(startX * ll.tileSize, startY * ll.tileSize, 0);
+        Transform effectsParent = ll.GetEffectsContainer();
         
         GameObject movingExplosionGO = Instantiate(movingExplosionPrefab, pos, Quaternion.identity, effectsParent);
         MovingExplosion movingExplosion = movingExplosionGO.GetComponent<MovingExplosion>();
