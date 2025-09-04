@@ -83,7 +83,8 @@ public class ServiceManager : MonoBehaviour
     
     private void InitializeLevelDataService()
     {
-        if (LevelDataService.Instance == null)
+        var existingService = FindObjectOfType<LevelDataService>();
+        if (existingService == null)
         {
             var levelDataServiceGO = new GameObject("LevelDataService");
             levelDataServiceGO.transform.SetParent(transform);
@@ -91,14 +92,15 @@ public class ServiceManager : MonoBehaviour
         }
         else
         {
-            LevelDataService = LevelDataService.Instance;
+            LevelDataService = existingService;
         }
         
     }
     
     private void InitializeContainerService()
     {
-        if (ContainerService.Instance == null)
+        var existingContainerService = FindObjectOfType<ContainerService>();
+        if (existingContainerService == null)
         {
             var containerServiceGO = new GameObject("ContainerService");
             containerServiceGO.transform.SetParent(transform);
@@ -106,14 +108,15 @@ public class ServiceManager : MonoBehaviour
         }
         else
         {
-            ContainerService = ContainerService.Instance;
+            ContainerService = existingContainerService;
         }
         
     }
     
     private void InitializePlayerService()
     {
-        if (PlayerService.Instance == null)
+        var existingPlayerService = FindObjectOfType<PlayerService>();
+        if (existingPlayerService == null)
         {
             var playerServiceGO = new GameObject("PlayerService");
             playerServiceGO.transform.SetParent(transform);
@@ -129,7 +132,7 @@ public class ServiceManager : MonoBehaviour
         }
         else
         {
-            PlayerService = PlayerService.Instance;
+            PlayerService = existingPlayerService;
             
             // Ensure player prefab is set
             if (playerPrefab != null && PlayerService.PlayerPrefab == null)

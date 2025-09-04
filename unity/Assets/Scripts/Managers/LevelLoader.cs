@@ -154,25 +154,8 @@ public class LevelLoader : MonoBehaviour
             eventBusGO.AddComponent<GameEventBus>();
         }
 
-        // Component references - find HoudiniLevelParser (Singleton or scene)
-        levelParser = HoudiniLevelParser.Instance;
-        if (levelParser == null)
-        {
-            levelParser = FindObjectOfType<HoudiniLevelParser>();
-            if (levelParser == null)
-            {
-                levelParser = gameObject.AddComponent<HoudiniLevelParser>();
-                // Debug.Log("[LevelLoader] HoudiniLevelParser component automatically added to LevelLoader");
-            }
-            else
-            {
-                // Debug.Log("[LevelLoader] HoudiniLevelParser found in scene");
-            }
-        }
-        else
-        {
-            // Debug.Log("[LevelLoader] HoudiniLevelParser found via Singleton");
-        }
+        // HoudiniLevelParser is now managed by LevelDataService
+        // No direct reference needed in LevelLoader
         
         // Initialize services
         InitializeServices();
@@ -227,6 +210,22 @@ public class LevelLoader : MonoBehaviour
     void Start()
     {
         // Level data service handles file scanning
+        levelDataService?.ScanForLevelFiles();
+    }
+    
+    /// <summary>
+    /// Delegate to LevelDataService for level file scanning
+    /// </summary>
+    public void ScanForLevelFiles()
+    {
+        levelDataService?.ScanForLevelFiles();
+    }
+    
+    /// <summary>
+    /// Editor method to refresh level files - delegates to LevelDataService
+    /// </summary>
+    public void RefreshLevelFilesInEditor()
+    {
         levelDataService?.ScanForLevelFiles();
     }
     
@@ -1343,108 +1342,6 @@ public class LevelLoader : MonoBehaviour
 
     /// <summary>
     /// Try to move an object in the layered grid system
-        if (allExistingPlayers.Length > 0)
-        {
-            Debug.LogWarning($"[🎮 FRESH_SPAWN] Found {allExistingPlayers.Length} existing players after cleanup - this shouldn't happen!");
-            // Clean any remaining players
-            foreach (var player in allExistingPlayers)
-            {
-                Debug.LogWarning($"[🎮 FRESH_SPAWN] Destroying leftover player: '{player.name}'");
-                Destroy(player.gameObject);
-            }
-        }
-        
-        // FRESH CREATION: Always create new player since ClearAllTiles destroyed everything
-        Debug.Log("[🎮 FRESH_CREATE] Creating completely new player instance");
-        Transform playerParent = GetContainerForTileType(TileType.Player);
-        Debug.Log($"[🎮 FRESH_CREATE] Player parent container: {playerParent?.name}");
-        playerObject = Instantiate(playerPrefab, playerPos, Quaternion.identity, playerParent);
-        Debug.Log($"[🎮 FRESH_CREATE] New Player instance created: {playerObject.name} at {playerPos}");
-        
-        // Setup player components
-        var playerController = playerObject.GetComponent<PlayerController>();
-        var playerTileBase = playerObject.GetComponent<TileBase>();
-        
-        // Publish player spawned event
-        if (playerController != null)
-        {
-            Vector2Int gridPos = new Vector2Int(playerStartX, playerStartY);
-            GameEventBus.Instance?.Publish(new PlayerSpawned(playerController, gridPos, playerPos));
-        }
-        
-        if (playerTileBase != null && spriteDatabase != null)
-        {
-            playerTileBase.SetVisual(spriteDatabase.GetSprite(TileType.Player));
-        }
-        
-        if (playerController != null)
-        {
-            Debug.Log($"[🎮 PLAYER_INIT] Initializing PlayerController with grid coords: ({playerStartX}, {playerStartY})");
-            playerController.Init(playerStartX, playerStartY);
-            
-            // Verify initialization worked
-            Debug.Log($"[🎮 PLAYER_INIT] PlayerController after init - X: {playerController.X}, Y: {playerController.Y}");
-            
-            // Register with GameManager
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.RegisterPlayer(playerController);
-                Debug.Log($"[🎮 PLAYER_INIT] Registered with GameManager");
-            }
-            
-            // PlayerAgentManager registration now handled via event bus (PlayerSpawned event)
-                
-                // Notify TurnManager to refresh ML-Agent registration after new player creation
-                if (TurnManager.Instance != null)
-                {
-                    // Simple approach: Just register PlayerAgentManager directly if it's not already registered
-                    var turnManager = TurnManager.Instance;
-                    var playerAgentManager = PlayerAgentManager.Instance;
-                    
-                    // Check if PlayerAgentManager is in TurnManager's registered objects
-                    bool isAlreadyRegistered = false;
-                    try 
-                    {
-                        // Force TurnManager to register PlayerAgentManager if ML is active
-                        if (playerAgentManager.IsMLAgentActive())
-                        {
-                            turnManager.Register(playerAgentManager);
-                            Debug.Log($"[🎮 PLAYER_INIT] Ensured PlayerAgentManager registration with TurnManager");
-                        }
-                        else
-                        {
-                            Debug.Log($"[🎮 PLAYER_INIT] PlayerAgentManager ML not active, skipping TurnManager registration");
-                        }
-                    }
-                    catch (System.Exception e)
-                    {
-                        Debug.LogWarning($"[🎮 PLAYER_INIT] Error ensuring TurnManager registration: {e.Message}");
-                    }
-                }
-            }
-            
-            // Place in layered system
-            if (layeredGrid != null)
-            {
-                bool placementSuccess = layeredGrid.PlaceActor(playerObject, playerStartX, playerStartY);
-                Debug.Log($"[🎮 PLAYER_INIT] LayeredGrid placement result: {placementSuccess}");
-            }
-            
-            Debug.Log($"[🎮 SPAWN_COMPLETE] Player initialized at grid({playerStartX}, {playerStartY}) with health {playerController.CurrentHealth}/{playerController.MaxHealth}");
-            Debug.Log($"[🎮 SPAWN_COMPLETE] Player world position: {playerObject.transform.position}");
-        }
-        
-        // Final verification - ensure only one PlayerController exists in scene
-        var finalPlayerCount = FindObjectsOfType<PlayerController>().Length;
-        if (finalPlayerCount != 1)
-        {
-            Debug.LogWarning($"[🎮 SPAWN_WARNING] Expected 1 PlayerController but found {finalPlayerCount}!");
-        }
-    }
-    
-    /// <summary>
-    /// Atomic movement operation using layered system
-    /// Returns true if movement successful, false if destination occupied
     /// </summary>
     public bool TryMoveObject(GameObject obj, int fromX, int fromY, int toX, int toY)
     {

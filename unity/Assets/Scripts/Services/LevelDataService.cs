@@ -323,7 +323,7 @@ public class LevelDataService : MonoBehaviour, ILevelDataService
     
     public Dictionary<TileType, int> GetExpectedTileCounts(HoudiniLevelData levelData)
     {
-        if (levelData?.GetExpectedTileCounts != null)
+        if (levelData != null)
         {
             return levelData.GetExpectedTileCounts();
         }

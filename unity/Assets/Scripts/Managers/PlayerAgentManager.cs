@@ -133,8 +133,8 @@ public class PlayerAgentManager : Agent, ITurnBased
             currentPlayerAgent.enabled = false;
         }
         
-        // Re-initialize helper classes with new player
-        InitializeHelperClasses();
+        // Helper classes functionality is now integrated into this singleton
+        // No separate initialization needed
         
         // Reset episode state
         ResetEpisode();
