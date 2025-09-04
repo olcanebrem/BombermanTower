@@ -54,9 +54,17 @@ public class MovingExplosion : TileBase, ITurnBased, IInitializable, IMovable
     
     public IGameAction GetAction()
     {
-        if (HasActedThisTurn || remainingSteps <= 0) return null;
+        if (HasActedThisTurn) return null;
         
         HasActedThisTurn = true;
+        
+        // Special case: if this is a center explosion (remainingSteps == 0), just die after first turn
+        if (remainingSteps <= 0)
+        {
+            // Debug.Log($"[MovingExplosion] Center explosion at ({X},{Y}) dying after first turn");
+            Die();
+            return null;
+        }
         
         // Calculate next position
         int nextX = X + direction.x;

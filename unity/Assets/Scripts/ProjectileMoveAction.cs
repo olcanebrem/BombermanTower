@@ -20,19 +20,14 @@ public class ProjectileMoveAction : IGameAction
             return;
         }
         
-        // Bu mantık, eski Projectile.ExecuteTurn'den kopyalandı.
-        if (projectile.isFirstTurn)
-        {
-            projectile.isFirstTurn = false;
-            return;
-        }
-
+        // Move projectile immediately - no waiting for first turn
         if (AtomicMovementHelper.TryMove(projectile, projectile.direction, out Vector3 targetPos))
         {
             projectile.StartMoveAnimation(targetPos);
         }
         else
         {
+            // If can't move, projectile hits something and dies
             projectile.Die();
         }
     }

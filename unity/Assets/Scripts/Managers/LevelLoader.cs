@@ -1373,6 +1373,7 @@ public class LevelLoader : MonoBehaviour
                 case TileType.Player:
                 case TileType.Enemy:
                 case TileType.EnemyShooter:
+                case TileType.Projectile:
                     bool moveSuccess = layeredGrid.MoveActor(obj, fromX, fromY, toX, toY);
                     if (moveSuccess)
                     {

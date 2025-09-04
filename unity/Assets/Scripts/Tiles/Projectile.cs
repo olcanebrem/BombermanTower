@@ -15,7 +15,6 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
     private bool isAnimating = false;
     // --- Sınıfa Özgü ---
     public Vector2Int direction;
-    public bool isFirstTurn = true;
     private Transform visualTransform;
     private TileType ownerType;
     private Vector3 targetPos;
@@ -59,7 +58,8 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
     public static Projectile Spawn(GameObject prefabToSpawn, int x, int y, Vector2Int direction, TileType owner)
     {
         var ll = LevelLoader.instance;
-        Vector3 pos = new Vector3(x * ll.tileSize, (ll.Height - y - 1) * ll.tileSize, 0);
+        Vector3 pos = LayeredGridService.Instance?.GridToWorld(x, y) ?? 
+                      new Vector3(x * ll.tileSize, y * ll.tileSize, 0);
         
         // 1. Fiziksel nesneyi oluştur - doğru container'a yerleştir.
         Transform projectileParent = ll.GetProjectilesContainer();
@@ -104,8 +104,8 @@ public class Projectile : TileBase, IMovable, ITurnBased, IInitializable
         float angle = 0f;
         if (direction == Vector2Int.right) angle = 0f;
         else if (direction == Vector2Int.left) angle = 180f;
-        else if (direction == Vector2Int.down) angle = 90f;
-        else if (direction == Vector2Int.up) angle = -90f;
+        else if (direction == Vector2Int.down) angle = -90f;
+        else if (direction == Vector2Int.up) angle = 90f;
         
         visualTransform.rotation = Quaternion.Euler(0, 0, angle);
     }
